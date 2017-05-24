@@ -10,7 +10,7 @@ lazy val lib = project
   .in(file("lib"))
   .settings(common)
   .settings(
-    name := """sbt-swagger-codegen-lib""",
+    name := """sbt-play-boilerplate-lib""",
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.1",
       "io.swagger" % "swagger-parser" % "1.0.27"
@@ -21,7 +21,7 @@ lazy val plugin = project
   .in(file("plugin"))
   .settings(common)
   .settings(
-    name := """sbt-swagger-codegen""",
+    name := """sbt-play-boilerplate""",
     sbtPlugin := true
   )
   .dependsOn(lib)
