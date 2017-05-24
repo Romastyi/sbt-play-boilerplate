@@ -289,7 +289,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage + ".controller")
 
     controllers.foreach { ss =>
-      IO write (destDir / ss.name, ss.code)
+      IO write (destDir / (ss.name + ".scala"), ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
@@ -339,7 +339,7 @@ object SwaggerCodegenPlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage + ".client")
 
     clients.foreach { ss =>
-      IO write (destDir / ss.name, ss.code)
+      IO write (destDir / (ss.name + ".scala"), ss.code)
     }
 
     (destDir ** -DirectoryFilter).get

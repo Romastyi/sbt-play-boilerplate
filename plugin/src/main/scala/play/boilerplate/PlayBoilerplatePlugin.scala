@@ -46,7 +46,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val destDir = packageDir(targetDir, codegenPackage + ".service")
 
     services.foreach { ss =>
-      IO write (destDir / (ss.name + ".scala"), ss.pre + "\n\n" + ss.code)
+      IO write (destDir / (ss.name + ".scala"), ss.code)
     }
 
     (destDir ** -DirectoryFilter).get
