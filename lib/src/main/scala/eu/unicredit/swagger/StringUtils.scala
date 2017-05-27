@@ -33,4 +33,9 @@ object StringUtils {
 
   def doUrl(basePath: String, path: String): String =
     cleanUrl(cleanDuplicateSlash(basePath + sanitizePath(path)))
+
+  def toCamelCase(s: String): String = {
+    s.headOption.map(_.toUpper).getOrElse("") + s.tail
+  }
+
 }

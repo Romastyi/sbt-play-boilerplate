@@ -38,34 +38,41 @@ trait SwaggerConversion {
   private lazy val LocalDateClass =
     definitions.getClass("java.time.LocalDate")
 
+  private lazy val UUIDClass =
+    definitions.getClass("java.util.UUID")
+
   def noOptPropType(p: Property): Type = {
     p match {
-      case s: StringProperty =>
+      case s: StringProperty if Option(s.getEnum).nonEmpty =>
+        throw new Exception(s"Enums are not supported yet")
+      case _: StringProperty =>
         StringClass
-      case b: BooleanProperty =>
+      case _: BooleanProperty =>
         BooleanClass
-      case d: DoubleProperty =>
+      case _: DoubleProperty =>
         DoubleClass
-      case f: FloatProperty =>
+      case _: FloatProperty =>
         FloatClass
-      case i: IntegerProperty =>
+      case _: IntegerProperty =>
         IntClass
-      case l: LongProperty =>
+      case _: LongProperty =>
         LongClass
-      case i: BaseIntegerProperty =>
+      case _: BaseIntegerProperty =>
         IntClass
       case m: MapProperty =>
         RootClass.newClass("Map") TYPE_OF (StringClass, noOptPropType(m.getAdditionalProperties))
       case a: ArrayProperty =>
         ListClass TYPE_OF noOptPropType(a.getItems)
-      case d: DecimalProperty =>
+      case _: DecimalProperty =>
         BigDecimalClass
       case r: RefProperty =>
         RootClass.newClass(r.getSimpleRef)
-      case dt: DateProperty =>
+      case _: DateProperty =>
         LocalDateClass
-      case dt: DateTimeProperty =>
+      case _: DateTimeProperty =>
         OffsetDateTimeClass
+      case _: UUIDProperty =>
+        UUIDClass
 
       case ba: ByteArrayProperty =>
         throw new Exception(s"ByteArrayProperty $p is not supported yet")
@@ -80,8 +87,6 @@ trait SwaggerConversion {
         throw new Exception(s"ObjectProperty $p is not supported yet")
       case p: PasswordProperty =>
         throw new Exception(s"PasswordProperty $p is not supported yet")
-      case u: UUIDProperty =>
-        throw new Exception(s"UUIDProperty $p is not supported yet")
 
       case null =>
         throw new Exception("Trying to resolve null property")

@@ -1,5 +1,6 @@
 package play.boilerplate.generators
 
+import eu.unicredit.swagger.StringUtils
 import eu.unicredit.swagger.generators.SharedServerClientCode
 import io.swagger.models.parameters.{BodyParameter, Parameter}
 import io.swagger.models.{Operation, Path, Swagger}
@@ -89,13 +90,13 @@ trait SharedGeneratorCode { this: SharedServerClientCode =>
     val code: Int = if (isDefault) 200 else response.toInt
 
     def className(operationId: String): String = {
-      stringWithFirstUpper(operationId) + stringWithFirstUpper(status.getOrElse(response))
+      StringUtils.toCamelCase(operationId) + StringUtils.toCamelCase(status.getOrElse(response))
     }
 
   }
 
   def getOperationResponseTraitName(operationId: String): String = {
-    stringWithFirstUpper(operationId) + "Response"
+    StringUtils.toCamelCase(operationId) + "Response"
   }
 
   def getOperationResponses(operation: Operation): Seq[OperationResponse] = {
@@ -108,8 +109,5 @@ trait SharedGeneratorCode { this: SharedServerClientCode =>
   def parseSwagger(fileName: String): Option[Swagger] = {
     Option(new SwaggerParser().read(fileName))
   }
-
-  // FIXME Exceptions !
-  def stringWithFirstUpper(s: String): String = s.head.toUpper + s.tail
 
 }
