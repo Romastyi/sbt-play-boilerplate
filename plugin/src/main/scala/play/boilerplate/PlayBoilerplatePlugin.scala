@@ -65,6 +65,8 @@ object PlayBoilerplatePlugin extends AutoPlugin {
   override val projectSettings = Seq(
     managedSources in Compile ++= serviceDyn.value,
     swaggerInjectionProvider := new InjectionProvider.DefaultInConstructor(),
+    swaggerJsonCodeGenClass := new PlayJsonGenerator(),
+    swaggerModelCodeGenClass := new PlayModelGenerator(),
     swaggerRoutesGenerator := new DynamicRoutesGenerator(),
     swaggerSecurityProvider := SecurityProvider.default,
     swaggerServiceCodeTargetDir := (sourceManaged in Compile).value / "swagger" / "service",

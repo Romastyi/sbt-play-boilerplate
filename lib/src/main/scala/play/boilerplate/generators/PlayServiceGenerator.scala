@@ -5,6 +5,7 @@ import io.swagger.models.{Operation, Swagger}
 import security.SecurityProvider
 import treehugger.forest._
 import definitions._
+import play.boilerplate.ParserUtils
 import treehuggerDSL._
 
 import scala.collection.JavaConversions._
@@ -32,7 +33,7 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
 
   def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxString] = {
 
-    parseSwagger(fileName).map { swagger =>
+    ParserUtils.parseSwagger(fileName).map { swagger =>
 
       val serviceName = serviceNameFromFileName(fileName)
 
@@ -54,7 +55,7 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
 
         val companionTree = generateCompanionObject(serviceName, swagger, completePaths)
 
-        SyntaxString(serviceName, treeToString(serviceImports), treeToString(serviceTree) + "\n\n" + treeToString(companionTree)) :: Nil
+        SyntaxString(serviceName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
 
       } else {
         Nil

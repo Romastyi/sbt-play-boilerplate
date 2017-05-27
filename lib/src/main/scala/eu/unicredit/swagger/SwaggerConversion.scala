@@ -14,22 +14,59 @@
  */
 package eu.unicredit.swagger
 
-import treehugger.forest._
-import definitions._
-import io.swagger.models.Model
-import treehuggerDSL._
+import io.swagger.models.{Model, ModelImpl}
 import io.swagger.models.properties._
 import io.swagger.models.parameters._
+import treehugger.forest._
+import definitions._
+import treehuggerDSL._
 
 import scala.collection.JavaConverters._
 
 trait SwaggerConversion {
 
+  object TypeModel {
+    def unapply(arg: Model): Option[(ModelImpl, String)] = {
+      arg match {
+        case model: ModelImpl if Option(model.getType).isDefined =>
+          Some((model, model.getType))
+        case _ =>
+          None
+      }
+    }
+  }
+
+  object EnumerationModel {
+    def unapply(arg: Model): Option[(ModelImpl, Iterable[String])] = {
+      arg match {
+        case TypeModel(modelImpl, StringProperty.TYPE) if Option(modelImpl.getEnum).isDefined =>
+          Some((modelImpl, modelImpl.getEnum.asScala))
+        case _ =>
+          None
+      }
+    }
+  }
+
   def propType(p: Property): Type = {
-    if (!p.getRequired)
-      OptionClass TYPE_OF noOptPropType(p)
+    propType(p, noOptPropType(p))
+  }
+
+  def propType(p: Property, tpe: Type): Type = {
+    if (Option(p.getRequired).getOrElse(false))
+      tpe
     else
-      noOptPropType(p)
+      OptionClass TYPE_OF tpe
+  }
+
+  object EnumProperty {
+    def unapply(arg: Property): Option[(StringProperty, Iterable[String])] = {
+      arg match {
+        case prop: StringProperty if Option(prop.getEnum).isDefined =>
+          Some((prop, prop.getEnum.asScala))
+        case _ =>
+          None
+      }
+    }
   }
 
   private lazy val OffsetDateTimeClass =
@@ -41,9 +78,33 @@ trait SwaggerConversion {
   private lazy val UUIDClass =
     definitions.getClass("java.util.UUID")
 
+  private lazy val EnumerationClass = definitions.getClass("Enumeration")
+
+  def composeEnumName(modelName: String, fieldName: String): String = {
+    StringUtils.toCamelCase(modelName) + StringUtils.toCamelCase(fieldName)
+  }
+
+  def enumerationValueType(enum: Symbol): Type = {
+    TYPE_REF(enum DOT "Value")
+  }
+
+  def enumerationValueType(modelName: String, fieldName: String): Type = {
+    enumerationValueType(definitions.getClass(composeEnumName(modelName, fieldName)))
+  }
+
+  def generateEnumeration(name: String, items: Iterable[String]): Tree = {
+
+    OBJECTDEF(RootClass.newClass(name)) withParents EnumerationClass := BLOCK {
+      items.map { item =>
+        VAL(StringUtils.toCamelCase(item)) := REF("Value") APPLY LIT(item)
+      }
+    }
+
+  }
+
   def noOptPropType(p: Property): Type = {
     p match {
-      case s: StringProperty if Option(s.getEnum).nonEmpty =>
+      case EnumProperty(_, _) =>
         throw new Exception(s"Enums are not supported yet")
       case _: StringProperty =>
         StringClass
@@ -92,7 +153,7 @@ trait SwaggerConversion {
         throw new Exception("Trying to resolve null property")
       case x =>
         // should not happen as all existing types have been checked before
-        throw new Exception(s"unexpected property type $x")
+        throw new Exception(s"Unexpected property type $x")
     }
   }
 
@@ -118,7 +179,7 @@ trait SwaggerConversion {
   }
 
   def getProperties(model: Model): Iterable[(String, Property)] = {
-    val props = model.getProperties
-    if (props == null) Iterable.empty else props.asScala
+    Option(model.getProperties).map(_.asScala).getOrElse(Nil)
   }
+
 }

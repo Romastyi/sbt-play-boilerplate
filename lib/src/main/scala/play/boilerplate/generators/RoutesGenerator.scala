@@ -4,6 +4,7 @@ import eu.unicredit.swagger.StringUtils
 import eu.unicredit.swagger.generators.SharedServerClientCode
 import io.swagger.models.Swagger
 import io.swagger.models.parameters.Parameter
+import play.boilerplate.ParserUtils
 import treehugger.forest._
 
 import scala.collection.JavaConversions._
@@ -14,7 +15,7 @@ trait RoutesGenerator
 
   def generateRoutes(fileName: String, controllerFullName: String): Option[String] = {
 
-    parseSwagger(fileName).flatMap { swagger =>
+    ParserUtils.parseSwagger(fileName).flatMap { swagger =>
 
       val basePath = Option(swagger.getBasePath).getOrElse("/")
 

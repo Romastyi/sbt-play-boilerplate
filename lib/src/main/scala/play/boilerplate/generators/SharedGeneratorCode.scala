@@ -4,7 +4,6 @@ import eu.unicredit.swagger.StringUtils
 import eu.unicredit.swagger.generators.SharedServerClientCode
 import io.swagger.models.parameters.{BodyParameter, Parameter}
 import io.swagger.models.{Operation, Path, Swagger}
-import io.swagger.parser.SwaggerParser
 import treehugger.forest._
 import treehuggerDSL._
 
@@ -104,10 +103,6 @@ trait SharedGeneratorCode { this: SharedServerClientCode =>
     for ((code, response) <- responses) yield {
       OperationResponse(code, Option(response.getSchema).map(noOptPropType), codeStatus.get(code))
     }
-  }
-
-  def parseSwagger(fileName: String): Option[Swagger] = {
-    Option(new SwaggerParser().read(fileName))
   }
 
 }

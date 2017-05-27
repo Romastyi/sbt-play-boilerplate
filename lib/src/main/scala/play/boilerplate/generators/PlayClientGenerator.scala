@@ -8,6 +8,7 @@ import security.SecurityProvider
 import treehugger.forest._
 import definitions._
 import io.swagger.models.parameters.{HeaderParameter, QueryParameter}
+import play.boilerplate.ParserUtils
 import treehuggerDSL._
 
 import scala.collection.JavaConversions._
@@ -275,7 +276,7 @@ class PlayClientGenerator(codeProvidedPackage: String,
 
   override def generate(fileName: String, packageName: String): Iterable[SyntaxString] = {
 
-    parseSwagger(fileName).map { swagger =>
+    ParserUtils.parseSwagger(fileName).map { swagger =>
 
       val completePaths = swagger.getPaths.keySet().toSeq
 
