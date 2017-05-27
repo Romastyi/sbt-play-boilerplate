@@ -28,7 +28,7 @@ trait SwaggerConversion {
   object TypeModel {
     def unapply(arg: Model): Option[(ModelImpl, String)] = {
       arg match {
-        case model: ModelImpl if Option(model.getType).isDefined =>
+        case model: ModelImpl if Option(model.getType).isDefined && model.getType != ObjectProperty.TYPE =>
           Some((model, model.getType))
         case _ =>
           None
