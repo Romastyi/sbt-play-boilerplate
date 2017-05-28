@@ -15,19 +15,16 @@
 package eu.unicredit.swagger.generators
 
 import eu.unicredit.swagger.SwaggerConversion
-import eu.unicredit.swagger.StringUtils._
-
-import treehugger.forest._
-import treehuggerDSL._
-
 import io.swagger.models._
 import io.swagger.models.parameters._
+import treehugger.forest._
+import treehuggerDSL._
 
 trait SharedServerClientCode extends SwaggerConversion {
   import java.io.File.separator
   import java.io.File.separatorChar
 
-  def objectNameFromFileName(fn: String, obj: String) = {
+  def objectNameFromFileName(fn: String, obj: String): String = {
     val sep = if (separatorChar == 92.toChar) "\\\\" else separator
     fn.split(sep)
       .toList
@@ -37,15 +34,7 @@ trait SharedServerClientCode extends SwaggerConversion {
       .capitalize + obj
   }
 
-  def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-    val p = getMethodParamas(params).map {
-      case (n, v) => s"$n: ${treeToString(v.tpt)}"
-    }
-    // since it is a route definition, this is not Scala code, so we generate it manually
-    s"$className.$methodName" + p.mkString("(", ", ", ")")
-  }
-
-  def getMethodParamas(params: Seq[Parameter]): Map[String, ValDef] =
+  def getMethodParams(params: Seq[Parameter]): Map[String, ValDef] =
     params
       .filter {
         case _: PathParameter => true
@@ -53,26 +42,25 @@ trait SharedServerClientCode extends SwaggerConversion {
         case _: HeaderParameter => true
         case _: BodyParameter => false
         case x =>
-          println(
-            s"unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
+          println(s"Unmanaged parameter type for parameter ${x.getName}, please contact the developer to implement it XD")
           false
       }
       .sortBy { //the order must be verified...
         case _: HeaderParameter => 1
-        case _: PathParameter => 2
-        case _: QueryParameter => 3
+        case _: PathParameter   => 2
+        case _: QueryParameter  => 3
         // other subtypes have been removed already
       }
-      .map(p => {
-        (p.getName, PARAM(p.getName, paramType(p)): ValDef)
-      })
+      .map (
+        p => (p.getName, PARAM(p.getName, paramType(p).tpe).tree)
+      )
       .toMap
 
   def getOkRespType(op: Operation): Option[(String, Option[Type])] =
     respTypeMap.flatMap {
       case (k, v) =>
         Option(op.getResponses get k) map { response =>
-          v -> Option(response.getSchema).map(noOptPropType)
+          v -> Option(response.getSchema).map(noOptPropType(_).tpe)
         }
     }.headOption
 

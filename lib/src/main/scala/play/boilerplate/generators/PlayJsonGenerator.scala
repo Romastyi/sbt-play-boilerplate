@@ -8,8 +8,6 @@ import definitions._
 import treehuggerDSL._
 import play.boilerplate.ParserUtils
 
-import scala.collection.JavaConverters._
-
 class PlayJsonGenerator extends JsonGenerator with SwaggerConversion {
 
   def generateJsonInit(packageName: String): String = {
@@ -25,11 +23,11 @@ class PlayJsonGenerator extends JsonGenerator with SwaggerConversion {
 
     ParserUtils.parseSwagger(fileName).map { swagger =>
 
-      val models = Option(swagger.getDefinitions).map(_.asScala).getOrElse(Nil)
+      val models = getDefinitions(swagger)
 
       val trees = for {
         (name, model) <- models
-      } yield generateJsonModelRW(name, model)
+      } yield generateJsonModelRW(name, model, models)
 
       trees.flatten
 
@@ -37,71 +35,22 @@ class PlayJsonGenerator extends JsonGenerator with SwaggerConversion {
 
   }
 
-  def generateJsonModelRW(name: String, model: Model): Iterable[ValDef] = {
+  def generateJsonModelRW(name: String, model: Model, others: Map[String, Model]): Iterable[ValDef] = {
 
     model match {
-      case EnumerationModel(_, _) =>
+      case EnumModel(_, _) =>
         generateEnumReads(name) :: generateEnumWrites(name) :: Nil
       case TypeModel(_, _) =>
         Nil
-      case modelImpl: ModelImpl =>
-        generateModelReads(name, modelImpl) ++ generateModelWrites(name, modelImpl)
+      case ObjectModel(modelImpl) =>
+        generateModelReads(name, modelImpl, others) ++ generateModelWrites(name, modelImpl)
       case _ =>
         throw new Exception(s"Unsupported model type $model")
     }
 
   }
 
-  def generateEnumReads(enumName: String): ValDef = {
-
-    val enumType = definitions.getClass(enumName)
-    val enumValueType = enumerationValueType(enumType)
-    val readsType = definitions.getClass("Reads") TYPE_OF enumValueType
-
-    VAL(s"${enumName}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-      ANONDEF(readsType) := BLOCK (
-        CASE(REF("JsString") UNAPPLY ID("name")) ==> {
-          TRY {
-            REF("JsSuccess") APPLY (enumType DOT "withName" APPLY REF("name"))
-          } CATCH {
-            CASE(WILDCARD withType TYPE_REF("NoSuchElementException")) ==> {
-              REF("JsError") APPLY INFIX_CHAIN("+",
-                LIT("Enumeration expected of type: '"),
-                enumType DOT "getClass",
-                LIT("', but it does not appear to contain the value: '"),
-                REF("name"),
-                LIT("'.")
-              )
-            }
-          } ENDTRY
-        },
-        CASE(WILDCARD) ==> {
-          REF("JsError") APPLY INFIX_CHAIN("+",
-            LIT("Enumeration expected of type: '"),
-            enumType DOT "getClass",
-            LIT("'.")
-          )
-        }
-      )
-    }
-
-  }
-
-  def generateEnumWrites(enumName: String): ValDef = {
-
-    val enumType = definitions.getClass(enumName)
-    val enumValueType = enumerationValueType(enumType)
-    val writesType = definitions.getClass("Writes") TYPE_OF enumValueType
-
-    VAL(s"${enumName}Writes", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-      ANONDEF(writesType) :=
-        LAMBDA(PARAM("value").tree) ==>
-          REF("JsString") APPLY (REF("value") DOT "toString")
-    }
-
-  }
-
-  def generateModelReads(modelName: String, model: ModelImpl): Iterable[ValDef] = {
+  def generateModelReads(modelName: String, model: ModelImpl, others: Map[String, Model]): Iterable[ValDef] = {
 
     val properties = getProperties(model)
     val caseObject = properties.isEmpty
@@ -121,7 +70,7 @@ class PlayJsonGenerator extends JsonGenerator with SwaggerConversion {
                 PAREN(REF("json") INFIX ("\\", LIT(pname))) DOT mtd APPLYTYPE {
                   prop match {
                     case EnumProperty(_, _) => enumerationValueType(modelName, pname)
-                    case _ => noOptPropType(prop.rename(pname))
+                    case _ => noOptPropType(prop.rename(pname), others).tpe
                   }
                 }
               }
@@ -180,8 +129,6 @@ class PlayJsonGenerator extends JsonGenerator with SwaggerConversion {
       val tree = PACKAGEOBJECTDEF("json") := BLOCK(vds)
 
       val code = treeToString(tree)
-
-      //println(code)
 
       Seq(SyntaxString("json", pre, code))
 

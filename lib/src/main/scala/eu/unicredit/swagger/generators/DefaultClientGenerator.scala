@@ -135,7 +135,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
 
     val fullBodyParams = getParamsToBody(params)
 
-    val methodParams = getMethodParamas(params)
+    val methodParams = getMethodParams(params)
 
     //probably to be fixed with a custom ordering
     val urlParams: Seq[Tree] =
@@ -218,7 +218,7 @@ class DefaultClientGenerator extends ClientGenerator with SharedServerClientCode
   def getPlainParamsFromBody(params: Seq[Parameter]): Map[String, ValDef] =
     params.collect {
       case bp: BodyParameter =>
-        val tree: ValDef = PARAM(bp.getName, noOptParamType(bp))
+        val tree: ValDef = PARAM(bp.getName, noOptParamType(bp).tpe).tree
         bp.getName -> tree
     }.toMap
 }

@@ -3,7 +3,7 @@ package play.boilerplate.generators
 import eu.unicredit.swagger.generators.{DefaultAsyncServerGenerator, SyntaxString}
 import injection.InjectionProvider
 import io.swagger.models.parameters.{BodyParameter, Parameter}
-import io.swagger.models.{Operation, Swagger}
+import io.swagger.models.{Model, Operation, Swagger}
 import security.SecurityProvider
 import treehugger.forest._
 import definitions._
@@ -12,9 +12,9 @@ import treehuggerDSL._
 
 import scala.collection.JavaConversions._
 
-class PlayServerGenerator(routesGenerator: RoutesGenerator,
-                          securityProvider: SecurityProvider,
-                          injectionProvider: InjectionProvider)
+class PlayServerGenerator(routesGenerator: RoutesGenerator = new DynamicRoutesGenerator(),
+                          securityProvider: SecurityProvider = SecurityProvider.default,
+                          injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor())
   extends DefaultAsyncServerGenerator
     with SharedGeneratorCode {
 
@@ -45,33 +45,37 @@ class PlayServerGenerator(routesGenerator: RoutesGenerator,
     routesGenerator.generateRoutes(fileName, controllerFullName)
   }
 
-  def composeMethods(swagger: Swagger, p: String): Seq[Tree] = {
+  case class Method(tree: Tree, implicits: Seq[Tree])
 
-    Option(swagger.getPath(p))
-      .map { path =>
+  def composeMethods(swagger: Swagger, p: String): Seq[Method] = {
 
-        val operations = getAllOperations(path)
+    Option(swagger.getPath(p)).map { path =>
 
-        for {
-          (method, op) <- operations.toSeq
-          consumes = operationConsumes(swagger, op)
-          produces = operationProduces(swagger, op)
-        } yield generateMethod(method, op, consumes, produces)
+      val models = getDefinitions(swagger)
+      val operations = getAllOperations(path)
 
-      }
-      .getOrElse(Nil)
+      for {
+        (method, op) <- operations.toSeq
+        consumes = operationConsumes(swagger, op)
+        produces = operationProduces(swagger, op)
+      } yield generateMethod(method, op, consumes, produces, models)
+
+    }.getOrElse(Nil)
 
   }
 
   def generateMethod(method: String,
                      operation: Operation,
                      consumes: Iterable[String],
-                     produces: Iterable[String]): Tree = {
+                     produces: Iterable[String],
+                     models: Map[String, Model]): Method = {
 
     val methodName = operation.getOperationId
 
-    val bodyValues = generateValuesFromBody(operation.getParameters, produces.flatMap(mimeType => getMimeTypeSupport.lift(mimeType)))
-    val methodParams = getMethodParamas(operation.getParameters)
+    val parameters = Option(operation.getParameters).map(_.toList).getOrElse(Nil)
+    val supportedProduces = produces.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
+    val bodyValues = generateValuesFromBody(methodName, parameters, supportedProduces, models)
+    val methodParams = generateMethodParams(methodName, parameters, models)
 
     val actionSecurity = SecurityProvider.parseAction(operation, securityProvider)
 
@@ -85,7 +89,7 @@ class PlayServerGenerator(routesGenerator: RoutesGenerator,
       (bodyValues.keys ++ methodParams.keys ++ actionSecurity.securityValues.keys).map(REF(_))
     }
 
-    val ANSWER = methodCall INFIX "collect" APPLY generateAnswer(operation, consumes)
+    val ANSWER = methodCall INFIX "collect" APPLY generateAnswer(operation, consumes, models)
 
     val ERROR =
       REF("service") DOT "onError" APPLY (LIT(methodName), REF("cause")) INFIX "map" APPLY BLOCK {
@@ -105,26 +109,33 @@ class PlayServerGenerator(routesGenerator: RoutesGenerator,
       }
 
     val methodTree =
-      DEFINFER(methodName) withParams methodParams.values withType actionType := BLOCK {
+      DEFINFER(methodName) withParams methodParams.values.map(_.valDef) withType actionType := BLOCK {
         actionSecurity.actionMethod(parser) APPLY {
           LAMBDA(PARAM("request").tree) ==> BODY_WITH_EXCEPTION_HANDLE
         }
       }
 
-    methodTree.withDoc(
+    val tree = methodTree.withDoc(
       Option(operation.getDescription).getOrElse("")
     )
 
+    val implicits = methodParams.values.flatMap(_.implicits).toSeq
+
+    Method(tree, implicits)
+
   }
 
-  final def generateValuesFromBody(params: Seq[Parameter], produces: Iterable[MimeTypeSupport]): Map[String, ValDef] = {
+  final def generateValuesFromBody(methodName: String,
+                                   params: Seq[Parameter],
+                                   produces: Iterable[MimeTypeSupport],
+                                   models: Map[String, Model]): Map[String, ValDef] = {
 
     if (produces.isEmpty) {
       Map.empty
     } else {
       params.collect {
         case bp: BodyParameter =>
-          val tpe = noOptParamType(bp)
+          val tpe = fullNoOptParamType(methodName, bp, models).tpe
           val resolvers = produces.map { support =>
             support.requestBody INFIX "map" APPLY BLOCK {
               support.deserialize(tpe)
@@ -140,10 +151,10 @@ class PlayServerGenerator(routesGenerator: RoutesGenerator,
 
   }
 
-  final def generateAnswer(operation: Operation, consumes: Iterable[String]): Tree = {
+  final def generateAnswer(operation: Operation, consumes: Iterable[String], models: Map[String, Model]): Tree = {
 
     val operationId = operation.getOperationId
-    val responses = getOperationResponses(operation)
+    val responses = getOperationResponses(operation, models)
     val withoutDefault = !responses.exists(_.isDefault)
     val responseConsumes = consumes.filterNot(_ == MIME_TYPE_JSON)
 
@@ -263,13 +274,12 @@ class PlayServerGenerator(routesGenerator: RoutesGenerator,
 
   }
 
+  def getServiceName(fileName: String): String = {
+    new PlayServiceGenerator(securityProvider).serviceNameFromFileName(fileName)
+  }
+
   def dependencies(fileName: String, packageName: String, codeProvidedPackage: String): Seq[InjectionProvider.Dependency] = {
-
-    val serviceGenerator = new PlayServiceGenerator(securityProvider)
-    val serviceName = serviceGenerator.serviceNameFromFileName(fileName)
-
-    Seq(InjectionProvider.Dependency("service", TYPE_REF(serviceName)))
-
+    Seq(InjectionProvider.Dependency("service", TYPE_REF(getServiceName(fileName))))
   }
 
   override def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxString] = {
@@ -293,13 +303,23 @@ class PlayServerGenerator(routesGenerator: RoutesGenerator,
           .withParents(TYPE_REF("Controller") +: securityProvider.controllerParents)
           .withSelf("self", securityProvider.controllerSelfTypes: _ *) :=
           BLOCK {
-            methods
+            methods.map(_.tree)
           }
 
         // --- DI
         val controllerTree = injectionProvider.classDefModifier(classDef, dependencies(fileName, packageName, codeProvidedPackage))
 
-        SyntaxString(controllerName, treeToString(controllerImports), controllerTree) :: Nil
+        val companionItems = methods.flatMap(_.implicits)
+
+        val companionObj = if (companionItems.nonEmpty) {
+          OBJECTDEF(controllerName) := BLOCK {
+            companionItems
+          }
+        } else {
+          EmptyTree
+        }
+
+        SyntaxString(controllerName, treeToString(controllerImports), controllerTree + "\n" + treeToString(companionObj)) :: Nil
 
       } else {
         Nil

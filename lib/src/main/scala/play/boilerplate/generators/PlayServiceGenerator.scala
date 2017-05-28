@@ -1,7 +1,7 @@
 package play.boilerplate.generators
 
 import eu.unicredit.swagger.generators.{SharedServerClientCode, SyntaxString}
-import io.swagger.models.{Operation, Swagger}
+import io.swagger.models.{Model, Operation, Swagger}
 import security.SecurityProvider
 import treehugger.forest._
 import definitions._
@@ -10,7 +10,7 @@ import treehuggerDSL._
 
 import scala.collection.JavaConversions._
 
-final class PlayServiceGenerator(securityProvider: SecurityProvider)
+final class PlayServiceGenerator(securityProvider: SecurityProvider = SecurityProvider.default)
   extends SharedGeneratorCode
     with SharedServerClientCode {
 
@@ -31,6 +31,8 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
       securityProvider.serviceImports
   }
 
+  case class Method(tree: Tree, additionalDef: Seq[Tree])
+
   def generate(fileName: String, packageName: String, codeProvidedPackage: String): Iterable[SyntaxString] = {
 
     ParserUtils.parseSwagger(fileName).map { swagger =>
@@ -49,11 +51,13 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
 
         val serviceTree = TRAITDEF(serviceName) := BLOCK {
           IMPORT(serviceName, "_") +:
-            methods :+
+            methods.map(_.tree) :+
             generateOrErrorMethod
         }
 
-        val companionTree = generateCompanionObject(serviceName, swagger, completePaths)
+        val companionTree = OBJECTDEF(serviceName) := BLOCK {
+          generateResponseClasses(swagger, completePaths) ++ methods.flatMap(_.additionalDef)
+        }
 
         SyntaxString(serviceName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
 
@@ -65,47 +69,51 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
 
   }
 
-  def composeMethods(swagger: Swagger, p: String): Seq[Tree] = {
+  def composeMethods(swagger: Swagger, p: String): Seq[Method] = {
 
-    Option(swagger.getPath(p))
-      .map { path =>
+    Option(swagger.getPath(p)).map { path =>
 
-        val operations = getAllOperations(path)
+      val models = getDefinitions(swagger)
+      val operations = getAllOperations(path)
 
-        for {
-          op <- operations.values.toSeq
-        } yield generateMethod(op)
+      for {
+        op <- operations.values.toSeq
+      } yield generateMethod(op, models)
 
-      }
-      .getOrElse(Nil)
+    }.getOrElse(Nil)
 
   }
 
-  def generateMethod(operation: Operation): Tree = {
+  def generateMethod(operation: Operation, models: Map[String, Model]): Method = {
 
     val methodName = operation.getOperationId
 
-    val bodyParams = generateParamsFromBody(operation.getParameters)
-    val methodParams = getMethodParamas(operation.getParameters)
+    val parameters = Option(operation.getParameters).map(_.toList).getOrElse(Nil)
+    val bodyParams = generateParamsFromBody(methodName, parameters, models)
+    val methodParams = generateMethodParams(methodName, parameters, models)
     val securityParams = SecurityProvider.parseAction(operation, securityProvider).securityParams
 
-/*
-    val response = getOkRespType(operation) getOrElse {
-      throw new Exception(s"Cannot determine Ok result type for $methodName")
-    }
-*/
+    /*
+        val response = getOkRespType(operation) getOrElse {
+          throw new Exception(s"Cannot determine Ok result type for $methodName")
+        }
+    */
 
     val methodType = TYPE_REF(getOperationResponseTraitName(methodName))
 
     val methodTree = DEF(methodName, FUTURE(methodType))
-      .withParams(bodyParams.values ++ methodParams.values ++ securityParams.values)
+      .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values)
       .empty
 
-    methodTree.withDoc(
+    val tree = methodTree.withDoc(
       s"""${Option(operation.getDescription).getOrElse("")}
          |
          """.stripMargin
     )
+
+    val additionalDef = bodyParams.values.flatMap(_.additionalDef) ++ methodParams.values.flatMap(_.additionalDef)
+
+    Method(tree, additionalDef)
 
   }
 
@@ -126,11 +134,12 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
 
   }
 
-  def generateCompanionObject(objectName: String, swagger: Swagger, paths: Seq[String]): Tree = {
+  def generateResponseClasses(swagger: Swagger, paths: Seq[String]): Seq[Tree] = {
 
+    val models = getDefinitions(swagger)
     val operations = paths.flatMap(p => Option(swagger.getPath(p))).flatMap(getAllOperations)
     val operationResults = operations.flatMap {
-      case (_, operation) => generateOperationResults(operation)
+      case (_, operation) => generateOperationResults(operation, models)
     }
 
     val traits = operationResults.filterNot(_.withDefault).map(_.traitName)
@@ -149,15 +158,13 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
       None
     }
 
-    OBJECTDEF(objectName) := BLOCK {
-      operationResults.flatMap(_.tree) ++ UnexpectedResultDef
-    }
+    operationResults.flatMap(_.tree) ++ UnexpectedResultDef
 
   }
 
   case class Responses(traitName: String, tree: Seq[Tree], withDefault: Boolean)
 
-  def generateOperationResults(operation: Operation): Option[Responses] = {
+  def generateOperationResults(operation: Operation, models: Map[String, Model]): Option[Responses] = {
 
     Option(operation.getOperationId).map { operationId =>
 
@@ -165,7 +172,7 @@ final class PlayServiceGenerator(securityProvider: SecurityProvider)
 
       val sealedTrait = TRAITDEF(traitName).withFlags(Flags.SEALED).empty
 
-      val operations = getOperationResponses(operation)
+      val operations = getOperationResponses(operation, models)
 
       val responses = for (response <- operations) yield {
         val className = response.className(operationId)

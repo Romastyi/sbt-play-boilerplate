@@ -61,7 +61,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
           op._2.getOperationId
 
         def genMethodCall(className: String, methodName: String, params: Seq[Parameter]): String = {
-          val p = getMethodParamas(params).map {
+          val p = getMethodParams(params).map {
             case (n, v) => s"$n: ${treeToString(v.tpt)}"
           }
           // since it is a route definition, this is not Scala code, so we generate it manually
@@ -147,7 +147,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
   def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
-    val methodParams = getMethodParamas(params)
+    val methodParams = getMethodParams(params)
 
     val ACTION =
       REF("Action")
@@ -201,7 +201,7 @@ class DefaultServerGenerator extends ServerGenerator with SharedServerClientCode
       .flatMap {
         case bp: BodyParameter =>
           val tree: ValDef = VAL(bp.getName) :=
-              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp) APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
+              REF("Json") DOT "fromJson" APPLYTYPE noOptParamType(bp).tpe APPLY (REF("request") DOT "body" DOT "asJson" DOT "get") DOT "get"
 
           Some(bp.getName -> tree)
         case _ =>
@@ -220,7 +220,7 @@ class DefaultAsyncServerGenerator extends DefaultServerGenerator {
   override def genControllerMethod(methodName: String, params: Seq[Parameter], resType: (String, Option[Type])): Tree = {
     val bodyParams = getParamsFromBody(params)
 
-    val methodParams = getMethodParamas(params)
+    val methodParams = getMethodParams(params)
 
     val ACTION =
       REF("Action.async")

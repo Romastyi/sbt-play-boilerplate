@@ -3,7 +3,7 @@ package play.boilerplate.generators
 import eu.unicredit.swagger.StringUtils
 import eu.unicredit.swagger.generators.{DefaultClientGenerator, SyntaxString}
 import injection.InjectionProvider
-import io.swagger.models.{Operation, Swagger}
+import io.swagger.models.{Model, Operation, Swagger}
 import security.SecurityProvider
 import treehugger.forest._
 import definitions._
@@ -25,6 +25,7 @@ class PlayClientGenerator(codeProvidedPackage: String,
       .map { path =>
 
         val basePath = Option(swagger.getBasePath).getOrElse("/")
+        val models = getDefinitions(swagger)
         val operations = getAllOperations(path)
 
         for {
@@ -32,7 +33,7 @@ class PlayClientGenerator(codeProvidedPackage: String,
           url = StringUtils.doUrl(basePath, p)
           consumes = operationConsumes(swagger, op)
           produces = operationProduces(swagger, op)
-        } yield generateMethod(method.toLowerCase(), url, op, consumes, produces)
+        } yield generateMethod(method.toLowerCase(), url, op, consumes, produces, models)
 
       }
       .getOrElse(Nil)
@@ -43,26 +44,27 @@ class PlayClientGenerator(codeProvidedPackage: String,
                      url: String,
                      operation: Operation,
                      consumes: Iterable[String],
-                     produces: Iterable[String]): Tree = {
+                     produces: Iterable[String],
+                     models: Map[String, Model]): Tree = {
 
     val methodName = operation.getOperationId
 
-    val params = operation.getParameters.toIndexedSeq
-    val bodyParams = generateParamsFromBody(params)
-    val methodParams = getMethodParamas(params)
+    val parameters = Option(operation.getParameters).map(_.toList).getOrElse(Nil)
+    val bodyParams = generateParamsFromBody(methodName, parameters, models)
+    val methodParams = generateMethodParams(methodName, parameters, models)
     val securityParams = SecurityProvider.parseAction(operation, securityProvider).securityParams
-    val fullBodyParams = getParamsToBody(params)
+    val fullBodyParams = getParamsToBody(parameters)
 
     //probably to be fixed with a custom ordering
     val urlParams: Seq[Tree] =
-      params collect {
+      parameters collect {
         case query: QueryParameter =>
           val name = query.getName
           LIT(name) INFIX ("->", if (query.getRequired) SOME(REF(name)) else REF(name))
       }
 
     val headerParams: Seq[Tree] =
-      params collect {
+      parameters collect {
         case param: HeaderParameter =>
           val name = param.getName
           LIT(name) INFIX ("->", if (param.getRequired) SOME(REF(name)) else REF(name))
@@ -102,10 +104,10 @@ class PlayClientGenerator(codeProvidedPackage: String,
 
     val methodTree = DEF(methodName, FUTURE(methodType))
       .withFlags(Flags.OVERRIDE)
-      .withParams(bodyParams.values ++ methodParams.values ++ securityParams.values) :=
+      .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values) :=
       BLOCK {
         wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY {
-          LAMBDA(PARAM("resp").tree) ==> BLOCK(generateResponses(operation))
+          LAMBDA(PARAM("resp").tree) ==> BLOCK(generateResponses(operation, models))
         } DOT "recoverWith" APPLY BLOCK {
           CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
         }
@@ -119,10 +121,10 @@ class PlayClientGenerator(codeProvidedPackage: String,
 
   }
 
-  def generateResponses(operation: Operation): Tree = {
+  def generateResponses(operation: Operation, models: Map[String, Model]): Tree = {
 
     val operationId = operation.getOperationId
-    val responses = getOperationResponses(operation)
+    val responses = getOperationResponses(operation, models)
     val withoutDefault = !responses.exists(_.isDefault)
 
     val cases = for (response <- responses.sortBy(_.isDefault)) yield {
