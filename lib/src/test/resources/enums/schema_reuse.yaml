@@ -1,0 +1,35 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: Enum support test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+definitions:
+  LogLevels:
+    type: string
+    enum: &LOGLEVELS
+      - trace
+      - debug
+      - info
+      - warning
+      - fatal
+  errorModel:
+    required:
+      - level
+    properties:
+      level:
+        type: string
+        enum: *LOGLEVELS
+      levelOpt:
+        type: string
+        enum: *LOGLEVELS
+      levelRef:
+        $ref: "#/definitions/LogLevels"
+      levelArrayRef:
+        type: "array"
+        items:
+          $ref: "#/definitions/LogLevels"
+

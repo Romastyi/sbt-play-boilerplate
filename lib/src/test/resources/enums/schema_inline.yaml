@@ -1,0 +1,22 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: Enum support test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+definitions:
+  errorModel:
+    required:
+      - level
+    properties:
+      level:
+        type: string
+        enum:
+          - trace
+          - debug
+          - info
+          - warning
+          - fatal
