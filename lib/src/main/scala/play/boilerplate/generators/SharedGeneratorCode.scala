@@ -79,6 +79,8 @@ trait SharedGeneratorCode { this: SharedServerClientCode =>
 
   def generateParamsImplicits(p: Parameter, implicits: Seq[PropDefs]): Seq[Tree] = {
     p match {
+      case _: PathParameter =>
+        implicits.map(_.pathBindable)
       case _: QueryParameter =>
         implicits.map(_.queryBindable)
       case _ =>

@@ -191,16 +191,20 @@ trait SwaggerConversion {
 
   }
 
-  def generateEnumQueryBindable(modelName: String, fieldName: String): Tree = {
-    generateEnumQueryBindable(composeEnumName(modelName, fieldName))
+  def generateEnumQueryBindable(enumName: String): Tree = {
+    generateEnumBindable(enumName, "QueryStringBindable", "Query")
   }
 
-  def generateEnumQueryBindable(enumName: String): Tree = {
+  def generateEnumPathBindable(enumName: String): Tree = {
+    generateEnumBindable(enumName, "PathBindable", "Path")
+  }
+
+  def generateEnumBindable(enumName: String, baseClassName: String, classSuffix: String): Tree = {
 
     val enumType = definitions.getClass(enumName)
     val enumValue = enumerationValueType(enumType)
 
-    val queryBindable = (TYPE_REF("QueryStringBindable") DOT "Parsing") APPLYTYPE enumValue APPLY(
+    val bindable = (TYPE_REF(baseClassName) DOT "Parsing") APPLYTYPE enumValue APPLY(
       enumType DOT "withName",
       WILDCARD DOT "toString",
       LAMBDA(PARAM("key", StringClass).tree, PARAM("e", ExceptionClass).tree) ==>
@@ -208,7 +212,7 @@ trait SwaggerConversion {
         APPLY(REF("key"), REF("e") DOT "getMessage")
     )
 
-    OBJECTDEF(s"${enumName}Query").withParents(queryBindable).withFlags(Flags.IMPLICIT).tree
+    OBJECTDEF(enumName + classSuffix).withParents(bindable).withFlags(Flags.IMPLICIT).tree
 
   }
 
@@ -221,7 +225,8 @@ trait SwaggerConversion {
       definition = generateEnumeration(name, items),
       jsonReads  = generateEnumReads(name),
       jsonWrites = generateEnumWrites(name),
-      queryBindable = generateEnumQueryBindable(name)
+      queryBindable = generateEnumQueryBindable(name),
+      pathBindable  = generateEnumPathBindable(name)
     ) :: Nil
   }
 
@@ -241,7 +246,7 @@ trait SwaggerConversion {
     }
   }
 
-  case class PropDefs(definition: Tree, jsonReads: Tree, jsonWrites: Tree, queryBindable: Tree)
+  case class PropDefs(definition: Tree, jsonReads: Tree, jsonWrites: Tree, queryBindable: Tree, pathBindable: Tree)
   case class PropType(tpe: Type, additionalDef: Seq[PropDefs] = Nil)
 
   def noOptPropType(p: Property, models: Map[String, Model] = Map.empty): PropType = {
