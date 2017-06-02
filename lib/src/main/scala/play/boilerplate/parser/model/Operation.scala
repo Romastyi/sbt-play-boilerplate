@@ -8,6 +8,6 @@ case class Operation(httpMethod: HttpMethod.Value,
                      produces: Iterable[String],
                      responses: Map[ResponseCode, Response],
                      description: Option[String],
-                     security: Iterable[Map[String, Iterable[String]]],
+                     security: Iterable[SecurityRequirement],
                      deprecated: Boolean
                     )

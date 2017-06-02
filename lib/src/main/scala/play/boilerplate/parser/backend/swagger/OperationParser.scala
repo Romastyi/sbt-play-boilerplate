@@ -1,7 +1,7 @@
 package play.boilerplate.parser.backend.swagger
 
 import io.swagger.models.{Operation => SwaggerOperation, Path => SwaggerPath}
-import play.boilerplate.parser.model.{HttpMethod, Operation, Schema}
+import play.boilerplate.parser.model._
 
 import scala.collection.JavaConverters._
 
@@ -34,10 +34,19 @@ trait OperationParser { this: ParameterParser with ResponseParser =>
         case (code, response) => parseResponse(schema, code, response)
       }).getOrElse(schema.responses),
       description = Option(operation.getDescription),
-      security   = Nil,
+      security    = parseSecurityRequirement(operation),
       deprecated = Option(operation.isDeprecated).exists(_ == true)
     )
 
+  }
+
+  private def parseSecurityRequirement(operation: SwaggerOperation): Iterable[SecurityRequirement] = {
+    Option(operation.getSecurity).map { security =>
+      for {
+        auth <- security.asScala
+        (name, scopes) <- Option(auth).map(_.asScala.toMap).getOrElse(Map.empty)
+      } yield SecurityRequirement(name, scopes.asScala)
+    }.getOrElse(Nil)
   }
 
 }

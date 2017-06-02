@@ -72,7 +72,7 @@ object SwaggerBackend
       consumes = Option(swagger.getConsumes).map(_.asScala).getOrElse(Nil),
       produces = Option(swagger.getProduces).map(_.asScala).getOrElse(Nil),
       paths = Nil,
-      //security: List[SecurityRequirement],
+      security = parseSecurityRequirement(swagger),
       securitySchemas = securitySchemas,
       definitions = definitions,
       parameters  = parameters,
@@ -108,6 +108,15 @@ object SwaggerBackend
       case s => StaticPart(s)
     }
 
+  }
+
+  private def parseSecurityRequirement(swagger: Swagger): Iterable[SecurityRequirement] = {
+    Option(swagger.getSecurity).map { security =>
+      for {
+        auth <- security.asScala
+        (name, scopes) <- Option(auth.getRequirements).map(_.asScala.toMap).getOrElse(Map.empty)
+      } yield SecurityRequirement(name, scopes.asScala)
+    }.getOrElse(Nil)
   }
 
 }

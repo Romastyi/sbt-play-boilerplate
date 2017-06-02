@@ -15,3 +15,5 @@ final case class OAuth2SecuritySchema(override val schemaName: String,
                                       flow: String,
                                       scopes: Map[String, String]
                                      ) extends SecuritySchema
+
+final case class SecurityRequirement(schemaName: String, scopes: Iterable[String])
