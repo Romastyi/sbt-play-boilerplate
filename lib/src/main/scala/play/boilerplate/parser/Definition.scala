@@ -34,7 +34,6 @@ sealed trait DefinitionImpl extends Definition {
   //def readOnly: Boolean
   def allowEmptyValue: Boolean
   //def access: Option[String] <-- Property
-  //def vendorExtensions: Map[String, AnyRef]
 
 }
 

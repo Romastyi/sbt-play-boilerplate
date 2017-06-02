@@ -1,14 +1,14 @@
 package play.boilerplate.parser
 
-trait Parameter {  this: Definition =>
+sealed trait Parameter {  this: Definition => }
+trait BodyParameter { this: RefDefinition => }
+trait HeaderParameter { this: Definition => }
+trait PathParameter { this: Definition => }
+trait QueryParameter { this: Definition => }
 
-}
-trait Property { this: Definition =>
+trait Property { this: Definition => }
 
-}
-trait Model { this: Definition =>
-
-}
+trait Model { this: Definition => }
 
 trait WithDefault[T] { this: Definition =>
   def default: Option[T]
