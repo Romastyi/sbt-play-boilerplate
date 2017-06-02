@@ -1,4 +1,4 @@
-package play.boilerplate.parser
+package play.boilerplate.parser.model
 
 object HttpMethod extends Enumeration {
   val Get = Value("GET")

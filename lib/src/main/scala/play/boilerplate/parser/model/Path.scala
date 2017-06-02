@@ -1,4 +1,4 @@
-package play.boilerplate.parser
+package play.boilerplate.parser.model
 
 case class Path(pathUrl: String, pathParts: Iterable[PathPart], operations: Map[HttpMethod.Value, Operation])
 

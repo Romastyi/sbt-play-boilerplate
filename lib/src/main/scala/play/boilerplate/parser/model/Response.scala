@@ -1,4 +1,4 @@
-package play.boilerplate.parser
+package play.boilerplate.parser.model
 
 sealed trait ResponseCode
 case object DefaultResponse

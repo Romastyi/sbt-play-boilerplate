@@ -1,4 +1,4 @@
-package play.boilerplate.parser
+package play.boilerplate.parser.model
 
 sealed trait Definition {
   def baseDef: Definition = this

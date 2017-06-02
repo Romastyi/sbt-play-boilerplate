@@ -1,4 +1,4 @@
-package play.boilerplate.parser
+package play.boilerplate.parser.model
 
 case class Operation(httpMethod: HttpMethod.Value,
                      operationId: String,
