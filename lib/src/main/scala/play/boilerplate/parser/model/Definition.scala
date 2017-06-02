@@ -1,28 +1,39 @@
 package play.boilerplate.parser.model
 
 sealed trait Definition {
+  def name: String
   def baseDef: Definition = this
 }
 
-final case class OptionDefinition(base: Definition) extends Definition {
+trait DefinitionFactory[D <: Definition] {
+  def get(definition: Definition): D
+}
+
+final case class OptionDefinition(override val name: String,
+                                  base: Definition) extends Definition {
   override val baseDef: Definition = base.baseDef
 }
-final case class ArrayDefinition(base: Definition,
+final case class ArrayDefinition(override val name: String,
+                                 items: Definition,
                                  uniqueItems: Boolean,
                                  override val minLength: Option[Int],
                                  override val maxLength: Option[Int]
                                 ) extends Definition with WithMinMaxLength {
-  override val baseDef: Definition = base.baseDef
+  override val baseDef: Definition = items.baseDef
 }
-final case class RefDefinition(base: Definition) extends Definition {
-  override val baseDef: Definition = base.baseDef
+case class RefDefinition(override val name: String,
+                         ref: Definition) extends Definition {
+  override val baseDef: Definition = ref.baseDef
 }
 
-// MapProperty
+case class MapDefinition(override val name: String,
+                         additionalProperties: Definition
+                        ) extends Definition {
+  override val baseDef: Definition = additionalProperties.baseDef
+}
 
 sealed trait DefinitionImpl extends Definition {
 
-  def name: String
   //def xml: Xml
   //def required: Boolean
   //def position: Int <-- Property
@@ -52,8 +63,9 @@ final class EnumDefinition(items: Iterable[String],
                            override val title: Option[String],
                            override val description: Option[String],
                            override val readOnly: Boolean,
-                           override val allowEmptyValue: Boolean
-                          ) extends DefinitionImpl with WithFormat with WithReadOnly
+                           override val allowEmptyValue: Boolean,
+                           override val default: Option[String]
+                          ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[String]
 
 final class StringDefinition(override val name: String,
                              override val format: Option[String],
@@ -143,7 +155,12 @@ final class UUIDDefinition(override val name: String,
                            override val readOnly: Boolean,
                            override val allowEmptyValue: Boolean,
                            override val default: Option[String],
-                           override val minLength: Option[Int],
-                           override val maxLength: Option[Int],
                            override val pattern: Option[String]
-                          ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[String] with WithMinMaxLength with WithPattern
+                          ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[String] with WithPattern
+
+final class FileDefinition(override val name: String,
+                           override val title: Option[String],
+                           override val description: Option[String],
+                           override val readOnly: Boolean,
+                           override val allowEmptyValue: Boolean
+                          ) extends DefinitionImpl with WithReadOnly

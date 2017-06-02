@@ -7,8 +7,28 @@ case class Schema(host: String,
                   produces: Iterable[String],
                   //security: List[SecurityRequirement],
                   paths: Iterable[Path],
-                  //securityDefinitions: Map[String, SecuritySchemeDefinition],
+                  securitySchemas: Map[String, SecuritySchema],
                   definitions: Map[String, Definition with Model],
                   parameters: Map[String, Definition with Parameter],
-                  responses: Map[String, Response]
+                  responses: Map[ResponseCode, Response]
                  )
+
+object Schema {
+
+  def empty: Schema = {
+    Schema(
+      host = "localhost",
+      basePath = "/",
+      schemes  = Nil,
+      consumes = Nil,
+      produces = Nil,
+      //security: List[SecurityRequirement],
+      paths = Nil,
+      securitySchemas = Map.empty,
+      definitions = Map.empty,
+      parameters  = Map.empty,
+      responses   = Map.empty
+    )
+  }
+
+}

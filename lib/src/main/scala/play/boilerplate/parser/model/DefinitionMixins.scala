@@ -1,10 +1,12 @@
 package play.boilerplate.parser.model
 
 sealed trait Parameter {  this: Definition => }
-trait BodyParameter { this: RefDefinition => }
-trait HeaderParameter { this: Definition => }
-trait PathParameter { this: Definition => }
-trait QueryParameter { this: Definition => }
+trait RefParameter extends Parameter { this: Definition => }
+trait BodyParameter extends Parameter { this: Definition => }
+trait HeaderParameter extends Parameter { this: Definition => }
+trait PathParameter extends Parameter { this: Definition => }
+trait QueryParameter extends Parameter { this: Definition => }
+trait FormParameter extends Parameter { this: Definition => }
 
 trait Property { this: Definition => }
 
