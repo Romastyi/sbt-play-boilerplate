@@ -66,6 +66,8 @@ object SwaggerBackend
     val initial = Schema(
       host     = Option(swagger.getHost).getOrElse("localhost"),
       basePath = Option(swagger.getBasePath).getOrElse("/"),
+      version  = Option(swagger.getInfo).flatMap(i => Option(i.getVersion)),
+      description = Option(swagger.getInfo).flatMap(i => Option(i.getDescription)),
       schemes  = Option(swagger.getSchemes).map(_.asScala).getOrElse(Nil).map(_.toValue),
       consumes = Option(swagger.getConsumes).map(_.asScala).getOrElse(Nil),
       produces = Option(swagger.getProduces).map(_.asScala).getOrElse(Nil),

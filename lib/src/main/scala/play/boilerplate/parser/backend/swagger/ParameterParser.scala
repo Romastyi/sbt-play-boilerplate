@@ -44,6 +44,18 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     }
   }
 
+  object OptionParameter {
+    def unapply(arg: SwaggerParameter): Option[AbstractSerializableParameter[_]] = {
+      arg match {
+        case TypedParameter(param) if Option(param.getRequired).exists(_ == false) =>
+          param.setRequired(true)
+          Some(param)
+        case _ =>
+          None
+      }
+    }
+  }
+
   object EnumParameter {
     def unapply(arg: SwaggerParameter): Option[(AbstractSerializableParameter[_], Iterable[String])] = {
       arg match {
@@ -106,6 +118,8 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
                                   parameter: AbstractSerializableParameter[_],
                                   factory: DefinitionFactory[Definition with Parameter]): Definition with Parameter = {
     parameter match {
+      case OptionParameter(param) =>
+        factory.get(parseTypedParameter(schema, param, factory))
       case ArrayParameter(param, prop) =>
         factory.get(ArrayDefinition(
           name = Option(param.getName).getOrElse(""),

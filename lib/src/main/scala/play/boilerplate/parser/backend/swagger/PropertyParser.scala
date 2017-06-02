@@ -7,6 +7,18 @@ import scala.collection.JavaConverters._
 
 trait PropertyParser { this: ReferenceParser =>
 
+  object OptionProperty {
+    def unapply(arg: SwaggerProperty): Option[SwaggerProperty] = {
+      Option(arg.getRequired) match {
+        case Some(false) =>
+          arg.setRequired(true)
+          Some(arg)
+        case _ =>
+          None
+      }
+    }
+  }
+
   object EnumProperty {
     def unapply(arg: SwaggerProperty): Option[(StringProperty, Iterable[String])] = {
       arg match {
@@ -35,6 +47,11 @@ trait PropertyParser { this: ReferenceParser =>
     Option(property).getOrElse {
       throw new NullPointerException("Trying to resolve null property.")
     } match {
+      case OptionProperty(prop) =>
+        OptionDefinition(
+          name = Option(prop.getName).getOrElse(""),
+          base = getPropertyDef(schema, prop)
+        )
       case EnumProperty(prop, items) =>
         new EnumDefinition(
           items = items,
