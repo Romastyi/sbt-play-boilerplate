@@ -1,7 +1,7 @@
 package play.boilerplate.parser.backend.swagger
 
-import io.swagger.models.auth.{ApiKeyAuthDefinition, BasicAuthDefinition, OAuth2Definition, SecuritySchemeDefinition}
-import play.boilerplate.parser.model.{ApiKeySecuritySchema, BasicSecuritySchema, OAuth2SecuritySchema, SecuritySchema}
+import io.swagger.models.auth._
+import play.boilerplate.parser.model._
 
 import scala.collection.JavaConverters._
 

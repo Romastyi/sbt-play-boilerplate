@@ -71,7 +71,7 @@ object SwaggerBackend
       schemes  = Option(swagger.getSchemes).map(_.asScala).getOrElse(Nil).map(_.toValue),
       consumes = Option(swagger.getConsumes).map(_.asScala).getOrElse(Nil),
       produces = Option(swagger.getProduces).map(_.asScala).getOrElse(Nil),
-      paths = Nil,
+      paths    = Nil,
       security = parseSecurityRequirement(swagger),
       securitySchemas = securitySchemas,
       definitions = definitions,
