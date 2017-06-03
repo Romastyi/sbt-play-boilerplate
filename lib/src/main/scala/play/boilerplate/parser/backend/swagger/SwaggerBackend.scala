@@ -18,27 +18,41 @@ object SwaggerBackend
     with PropertyParser
     with ReferenceParser {
 
-  override def parseSchema(fileName: String): Either[ParserException, Schema] = {
+  override def parseSchema(fileName: String): Either[Throwable, Schema] = {
 
     (for {
       swagger <- Try(new SwaggerParser().read(fileName))
       schema = Option(swagger).map(parseSwagger).getOrElse {
-        throw new RuntimeException(s"Parsing schema file is failed ($fileName).")
+        throw ParserException(s"Parsing schema file is failed ($fileName).")
       }
     } yield schema) match {
       case Success(model) => Right(model)
-      case Failure(cause) => Left(ParserException(cause.getMessage, cause))
+      case Failure(cause) => Left(cause)
     }
 
   }
 
   private def parseSwagger(swagger: Swagger): Schema = {
 
+    val schema = initSchema(swagger)
+
+    val resolved = resolveLazyReferences(schema, schema)
+
+    resolved.copy(
+      paths = parsePaths(swagger, resolved)(ParserContext(false))
+    )
+
+  }
+
+  private def initSchema(swagger: Swagger): Schema = {
+
+    implicit val ctx = ParserContext.initial
+
     val definitions = Option(swagger.getDefinitions)
       .map(_.asScala.toMap)
       .getOrElse(Map.empty)
       .map { case (name, model) =>
-        name -> parseModel(Schema.empty, model)
+        name -> parseModel(Schema.empty, name, model)
       }
 
     val parameters = Option(swagger.getParameters)
@@ -63,7 +77,7 @@ object SwaggerBackend
         name -> parseSecuritySchema(name, schema)
       }
 
-    val initial = Schema(
+    Schema(
       host     = Option(swagger.getHost).getOrElse("localhost"),
       basePath = Option(swagger.getBasePath).getOrElse("/"),
       version  = Option(swagger.getInfo).flatMap(i => Option(i.getVersion)),
@@ -79,13 +93,10 @@ object SwaggerBackend
       responses   = responses
     )
 
-    initial.copy(
-      paths = parsePaths(swagger, initial)
-    )
-
   }
 
-  private def parsePaths(swagger: Swagger, schema: Schema): Iterable[Path] = {
+  private def parsePaths(swagger: Swagger, schema: Schema)
+                        (implicit ctx: ParserContext): Iterable[Path] = {
 
     for {
       (url, path) <- Option(swagger.getPaths.asScala.toMap).getOrElse(Map.empty)
@@ -93,7 +104,8 @@ object SwaggerBackend
       Path(
         pathUrl = url,
         pathParts = parsePathUrl(url),
-        parameters = Option(path.getParameters).map(_.asScala).getOrElse(Nil).map(parseParameter(schema, _)),
+        parameters = Option(path.getParameters).map(_.asScala).getOrElse(Nil)
+          .map(parseParameter(schema, _)),
         operations = parsePathOperations(schema, url, path)
       )
     }

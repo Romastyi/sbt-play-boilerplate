@@ -8,4 +8,13 @@ case class Response(code: ResponseCode,
                     schema: Option[Definition],
                     headers: Map[String, Definition]
                     /*examples: Map[String, AnyRef]*/
-                   )
+                   ) extends WithResolve[Response] {
+  override def resolve(resolver: DefinitionResolver): Response = {
+    copy(
+      schema = schema.map(_.resolve(resolver)),
+      headers = for ((name, header) <- headers) yield {
+        name -> header.resolve(resolver)
+      }
+    )
+  }
+}

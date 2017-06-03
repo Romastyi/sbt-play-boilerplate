@@ -1,7 +1,8 @@
 package play.boilerplate.parser.backend.swagger
 
-import io.swagger.models.properties.{ObjectProperty, Property => SwaggerProperty, StringProperty}
+import io.swagger.models.properties.{ObjectProperty, StringProperty, Property => SwaggerProperty}
 import io.swagger.models.{ArrayModel, ModelImpl, RefModel, Model => SwaggerModel}
+import play.boilerplate.parser.backend.ParserException
 import play.boilerplate.parser.model._
 
 import scala.collection.JavaConverters._
@@ -12,7 +13,11 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
     def unapply(arg: SwaggerModel): Option[(ArrayModel, SwaggerProperty)] = {
       arg match {
         case model: ArrayModel =>
-          Some((model, model.getItems))
+          val items = Option(model.getItems).getOrElse {
+            throw ParserException(s"Array items property is not specified for definition.")
+          }
+          items.setRequired(true)
+          Some((model, items))
         case _ =>
           None
       }
@@ -42,10 +47,14 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
   }
 
   object ObjectModel {
-    def unapply(arg: SwaggerModel): Option[ModelImpl] = {
+    def unapply(arg: SwaggerModel): Option[(ModelImpl, Map[String, SwaggerProperty])] = {
       arg match {
         case model: ModelImpl if Option(model.getType).isEmpty || model.getType == ObjectProperty.TYPE =>
-          Some(model)
+          val properties = Option(model.getProperties).map(_.asScala.toMap).getOrElse(Map.empty)
+          for (name <- Option(model.getRequired).map(_.asScala).getOrElse(Nil)) {
+            properties.get(name).foreach(_.setRequired(true))
+          }
+          Some((model, properties))
         case _ =>
           None
       }
@@ -58,23 +67,24 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
     }
   }
 
-  protected def parseModel(schema: Schema, model: SwaggerModel): Definition with Model = {
+  protected def parseModel(schema: Schema, modelName: String, model: SwaggerModel)
+                          (implicit ctx: ParserContext): Definition with Model = {
 
     Option(model).getOrElse {
-      throw new NullPointerException("Trying to resolve null model.")
+      throw ParserException("Trying to resolve null model.")
     } match {
       case ArrayModel(m, items) =>
         ModelFactory.get(ArrayDefinition(
-          name = "",
-          items = getPropertyDef(schema, items),
+          name = modelName,
+          items = getPropertyDef(schema, modelName + "Items", items),
           uniqueItems = false,
           minLength = Option(m.getMaxItems).map(Integer2int),
           maxLength = Option(m.getMaxItems).map(Integer2int)
         ))
       case EnumModel(m, items) =>
-        ModelFactory.get(new EnumDefinition(
+        ModelFactory.get(EnumDefinition(
           items = items,
-          name = Option(m.getName).getOrElse(""),
+          name = Option(m.getName).getOrElse(modelName),
           format = Option(m.getFormat),
           title = Option(m.getTitle),
           description = Option(m.getDescription),
@@ -82,10 +92,12 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           allowEmptyValue = Option(m.getAllowEmptyValue).exists(_ == true),
           default = None
         ))
-      case ObjectModel(m) =>
-        ModelFactory.get(new ObjectDefinition(
-          properties = Map.empty,
-          name = Option(m.getName).getOrElse(""),
+      case ObjectModel(m, properties) =>
+        ModelFactory.get(ObjectDefinition(
+          properties = for ((name, prop) <- properties) yield {
+            name -> getPropertyDef(schema, name, prop)
+          },
+          name = Option(m.getName).getOrElse(modelName),
           format = Option(m.getFormat),
           title = Option(m.getTitle),
           description = Option(m.getDescription),
@@ -95,7 +107,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
       case ref: RefModel =>
         ModelFactory.get(findReferenceDef(schema, ref.get$ref()))
       case m =>
-        throw new RuntimeException(s"Unsupported parameter type (${m.getClass.getName}).")
+        throw ParserException(s"Unsupported parameter type (${m.getClass.getName}).")
     }
 
   }

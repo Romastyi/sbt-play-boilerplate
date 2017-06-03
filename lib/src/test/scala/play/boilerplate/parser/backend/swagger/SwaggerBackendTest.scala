@@ -6,7 +6,8 @@ class SwaggerBackendTest extends FlatSpec with Matchers {
 
   "Full support" should "Parse petStore_v1.yaml" in {
 
-    SwaggerBackend.parseSchema("petStore_v1.yaml") match {
+    val result = SwaggerBackend.parseSchema("petStore_v1.yaml")
+    result match {
       case Left(cause) => throw cause
       case Right(schema) => println(schema)
     }
@@ -17,7 +18,8 @@ class SwaggerBackendTest extends FlatSpec with Matchers {
 
   it should "Parse petStore_v2.yaml" in {
 
-    SwaggerBackend.parseSchema("petStore_v2.yaml") match {
+    val result = SwaggerBackend.parseSchema("petStore_v2.yaml")
+    result match {
       case Left(cause) => throw cause
       case Right(schema) => println(schema)
     }

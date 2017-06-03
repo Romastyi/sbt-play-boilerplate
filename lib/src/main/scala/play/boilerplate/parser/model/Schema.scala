@@ -13,7 +13,21 @@ case class Schema(host: String,
                   definitions: Map[String, Definition with Model],
                   parameters: Map[String, Definition with Parameter],
                   responses: Map[ResponseCode, Response]
-                 )
+                 ) extends WithResolve[Schema] {
+  override def resolve(resolver: DefinitionResolver): Schema = {
+    copy(
+      definitions = for ((name, model) <- definitions) yield {
+        name -> model.resolveWith(resolver)
+      },
+      parameters = for ((name, param) <- parameters) yield {
+        name -> param.resolveWith(resolver)
+      },
+      responses = for ((code, resp) <- responses) yield {
+        code -> resp.resolve(resolver)
+      }
+    )
+  }
+}
 
 object Schema {
 
@@ -26,7 +40,7 @@ object Schema {
       schemes  = Nil,
       consumes = Nil,
       produces = Nil,
-      paths = Nil,
+      paths    = Nil,
       security = Nil,
       securitySchemas = Map.empty,
       definitions = Map.empty,

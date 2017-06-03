@@ -2,21 +2,23 @@ package play.boilerplate.parser.backend.swagger
 
 import io.swagger.models.parameters.{AbstractSerializableParameter, Parameter => SwaggerParameter}
 import io.swagger.models.properties.{ArrayProperty, PropertyBuilder, Property => SwaggerProperty}
+import play.boilerplate.parser.backend.ParserException
 import play.boilerplate.parser.model._
 
 import scala.collection.JavaConverters._
 
 trait ParameterParser { this: ModelParser with PropertyParser with ReferenceParser =>
 
-  protected def parseParameter(schema: Schema, parameter: SwaggerParameter): Definition with Parameter = {
+  protected def parseParameter(schema: Schema, parameter: SwaggerParameter)
+                              (implicit ctx: ParserContext): Definition with Parameter = {
 
     import io.swagger.models.{parameters => swagger}
 
     Option(parameter).getOrElse {
-      throw new NullPointerException("Trying to resolve null parameter.")
+      throw ParserException("Trying to resolve null parameter.")
     } match {
       case param: swagger.BodyParameter =>
-        BodyParameterFactory.get(parseModel(schema, param.getSchema))
+        BodyParameterFactory.get(parseModel(schema, getParamName(parameter), param.getSchema))
       case param: swagger.HeaderParameter =>
         parseTypedParameter(schema, param, HeaderParameterFactory)
       case param: swagger.PathParameter =>
@@ -28,9 +30,15 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       case param: swagger.RefParameter =>
         RefsParameterFactory.get(findReferenceDef(schema, param.get$ref()))
       case param =>
-        throw new RuntimeException(s"Unsupported parameter type (${param.getClass.getName}).")
+        throw ParserException(s"Unsupported parameter type (${param.getClass.getName}).")
     }
 
+  }
+
+  private def getParamName(parameter: SwaggerParameter): String = {
+    Option(parameter.getName).getOrElse {
+      throw ParserException("Parameter name is not specified.")
+    }
   }
 
   object TypedParameter {
@@ -47,7 +55,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
   object OptionParameter {
     def unapply(arg: SwaggerParameter): Option[AbstractSerializableParameter[_]] = {
       arg match {
-        case TypedParameter(param) if Option(param.getRequired).exists(_ == false) =>
+        case TypedParameter(param) if Option(param.getRequired).forall(_ == false) =>
           param.setRequired(true)
           Some(param)
         case _ =>
@@ -71,7 +79,11 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     def unapply(arg: SwaggerParameter): Option[(AbstractSerializableParameter[_], SwaggerProperty)] = {
       arg match {
         case TypedParameter(param) if param.getType == ArrayProperty.TYPE =>
-          Some((param, param.getItems))
+          val items = Option(param.getItems).getOrElse {
+            throw ParserException(s"Array items property is not specified for parameter.")
+          }
+          items.setRequired(true)
+          Some((param, items))
         case _ =>
           None
       }
@@ -116,25 +128,27 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
 
   private def parseTypedParameter(schema: Schema,
                                   parameter: AbstractSerializableParameter[_],
-                                  factory: DefinitionFactory[Definition with Parameter]): Definition with Parameter = {
+                                  factory: DefinitionFactory[Definition with Parameter])
+                                 (implicit ctx: ParserContext): Definition with Parameter = {
     parameter match {
       case OptionParameter(param) =>
         factory.get(OptionDefinition(
-          name = Option(param.getName).getOrElse(""),
+          name = Option(param.getName).getOrElse(getParamName(parameter)),
           base = parseTypedParameter(schema, param, factory)
         ))
       case ArrayParameter(param, prop) =>
+        val name = Option(param.getName).getOrElse(getParamName(parameter))
         factory.get(ArrayDefinition(
-          name = Option(param.getName).getOrElse(""),
-          items = getPropertyDef(schema, prop),
+          name = name,
+          items = getPropertyDef(schema, name + "Items", prop),
           uniqueItems = Option(param.isUniqueItems).exists(_ == true),
           minLength = Option(param.getMinLength).map(Integer2int),
           maxLength = Option(param.getMaxLength).map(Integer2int)
         ))
       case EnumParameter(param, items) =>
-        factory.get(new EnumDefinition(
+        factory.get(EnumDefinition(
           items = items,
-          name = Option(param.getName).getOrElse(""),
+          name = Option(param.getName).getOrElse(getParamName(parameter)),
           format = Option(param.getFormat),
           title = None,
           description = Option(param.getDescription),
@@ -143,7 +157,8 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
           default = None
         ))
       case param =>
-        getPropertyFactoryDef(schema, param2Prop(param), factory)
+        val name = Option(param.getName).getOrElse(getParamName(parameter))
+        getPropertyFactoryDef(schema, name, param2Prop(param), factory)
     }
   }
 
@@ -153,8 +168,6 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
 
     val args = Map(
       ENUM -> parameter.getEnum,
-      DESCRIPTION -> parameter.getDescription,
-      DEFAULT -> parameter.getDefault,
       PATTERN -> parameter.getPattern,
       MIN_ITEMS -> parameter.getMinItems,
       MAX_ITEMS -> parameter.getMaxItems,
@@ -162,17 +175,17 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       MAX_LENGTH -> parameter.getMaxLength,
       MINIMUM -> parameter.getMinimum,
       MAXIMUM -> parameter.getMaximum,
-      EXAMPLE -> parameter.getExample,
-      TYPE -> parameter.getType,
-      FORMAT -> parameter.getFormat,
-      REQUIRED -> boolean2Boolean(Option(parameter.getRequired).getOrElse(false)),
-      VENDOR_EXTENSIONS -> parameter.getVendorExtensions,
-      ALLOW_EMPTY_VALUE -> parameter.getAllowEmptyValue,
-      MULTIPLE_OF -> parameter.getMultipleOf
+      MULTIPLE_OF -> parameter.getMultipleOf,
+      VENDOR_EXTENSIONS -> parameter.getVendorExtensions
     ).asJava
 
     val property = PropertyBuilder.build(parameter.getType, parameter.getFormat, args)
+    property.setName(parameter.getName)
     property.setRequired(parameter.getRequired)
+    property.setDescription(parameter.getDescription)
+    Option(parameter.getDefault).foreach(d => property.setDefault(d.toString))
+    property.setExample(parameter.getExample)
+    property.setAllowEmptyValue(parameter.getAllowEmptyValue)
 
     property
 

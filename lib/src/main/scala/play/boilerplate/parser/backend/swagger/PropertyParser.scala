@@ -1,6 +1,7 @@
 package play.boilerplate.parser.backend.swagger
 
 import io.swagger.models.properties.{Property => SwaggerProperty, _}
+import play.boilerplate.parser.backend.ParserException
 import play.boilerplate.parser.model._
 
 import scala.collection.JavaConverters._
@@ -36,25 +37,28 @@ trait PropertyParser { this: ReferenceParser =>
   }
 
   protected def getPropertyFactoryDef[D <: Definition](schema: Schema,
+                                                       propertyName: String,
                                                        property: SwaggerProperty,
-                                                       factory: DefinitionFactory[D]): D = {
-    factory.get(getPropertyDef(schema, property))
+                                                       factory: DefinitionFactory[D])
+                                                      (implicit ctx: ParserContext): D = {
+    factory.get(getPropertyDef(schema, propertyName, property))
   }
 
-  protected def getPropertyDef(schema: Schema, property: SwaggerProperty): Definition = {
+  protected def getPropertyDef(schema: Schema, propertyName: String, property: SwaggerProperty)
+                              (implicit ctx: ParserContext): Definition = {
 
     Option(property).getOrElse {
-      throw new NullPointerException("Trying to resolve null property.")
+      throw ParserException("Trying to resolve null property.")
     } match {
       case OptionProperty(prop) =>
         OptionDefinition(
-          name = Option(prop.getName).getOrElse(""),
-          base = getPropertyDef(schema, prop)
+          name = Option(prop.getName).getOrElse(propertyName),
+          base = getPropertyDef(schema, propertyName, prop)
         )
       case EnumProperty(prop, items) =>
-        new EnumDefinition(
+        EnumDefinition(
           items = items,
-          name = Option(prop.getName).getOrElse(""),
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -63,8 +67,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = Option(prop.getDefault)
         )
       case prop: StringProperty =>
-        new StringDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        StringDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -76,8 +80,8 @@ trait PropertyParser { this: ReferenceParser =>
           pattern = Option(prop.getPattern)
         )
       case prop: BooleanProperty =>
-        new BooleanDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        BooleanDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -86,8 +90,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = Option(prop.getDefault).map(Boolean2boolean)
         )
       case prop: DoubleProperty =>
-        new DoubleDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        DoubleDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -96,8 +100,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = Option(prop.getDefault).map(Double2double)
         )
       case prop: FloatProperty =>
-        new FloatDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        FloatDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -106,8 +110,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = Option(prop.getDefault).map(Float2float)
         )
       case prop: IntegerProperty =>
-        new IntegerDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        IntegerDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -116,8 +120,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = Option(prop.getDefault).map(Integer2int)
         )
       case prop: LongProperty =>
-        new LongDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        LongDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -126,8 +130,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = Option(prop.getDefault).map(Long2long)
         )
       case prop: BaseIntegerProperty =>
-        new IntegerDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        IntegerDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -136,8 +140,8 @@ trait PropertyParser { this: ReferenceParser =>
           default = None
         )
       case prop: DecimalProperty =>
-        new DecimalDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        DecimalDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -145,8 +149,8 @@ trait PropertyParser { this: ReferenceParser =>
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true)
         )
       case prop: DateProperty =>
-        new DateDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        DateDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -154,8 +158,8 @@ trait PropertyParser { this: ReferenceParser =>
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true)
         )
       case prop: DateTimeProperty =>
-        new DateTimeDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        DateTimeDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -163,8 +167,8 @@ trait PropertyParser { this: ReferenceParser =>
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true)
         )
       case prop: UUIDProperty =>
-        new UUIDDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        UUIDDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
@@ -174,22 +178,28 @@ trait PropertyParser { this: ReferenceParser =>
           pattern = Option(prop.getPattern)
         )
       case prop: FileProperty =>
-        new FileDefinition(
-          name = Option(prop.getName).getOrElse(""),
+        FileDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true)
         )
       case prop: MapProperty =>
+        val name = Option(prop.getName).getOrElse(propertyName)
         MapDefinition(
-          name = Option(prop.getName).getOrElse(""),
-          additionalProperties = getPropertyDef(schema, prop.getAdditionalProperties)
+          name = name,
+          additionalProperties = getPropertyDef(schema, name + "Items", prop.getAdditionalProperties)
         )
       case prop: ArrayProperty =>
+        val name = Option(prop.getName).getOrElse(propertyName)
+        val items = Option(prop.getItems).getOrElse {
+          throw ParserException(s"Array items property is not specified for property.")
+        }
+        items.setRequired(true)
         ArrayDefinition(
-          name = Option(prop.getName).getOrElse(""),
-          items = getPropertyDef(schema, prop.getItems),
+          name = name,
+          items = getPropertyDef(schema, name + "Items", items),
           uniqueItems = Option(prop.getUniqueItems).exists(_ == true),
           minLength = Option(prop.getMinItems).map(Integer2int),
           maxLength = Option(prop.getMaxItems).map(Integer2int)
@@ -197,7 +207,7 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: RefProperty =>
         findReferenceDef(schema, prop.get$ref())
       case prop =>
-        throw new RuntimeException(s"Unsupported property type (${prop.getClass.getName}).")
+        throw ParserException(s"Unsupported property type (${prop.getClass.getName}).")
     }
 
   }

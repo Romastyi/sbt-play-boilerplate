@@ -1,16 +1,50 @@
 package play.boilerplate.parser.model
 
-sealed trait Parameter {  this: Definition => }
-trait RefParameter extends Parameter { this: Definition => }
-trait BodyParameter extends Parameter { this: Definition => }
-trait HeaderParameter extends Parameter { this: Definition => }
-trait PathParameter extends Parameter { this: Definition => }
-trait QueryParameter extends Parameter { this: Definition => }
-trait FormParameter extends Parameter { this: Definition => }
+sealed trait Parameter { self: RefDefinition =>
+  def resolveWith(resolver: DefinitionResolver): Definition with Parameter
+}
+trait RefParameter extends Parameter { self: RefDefinition =>
+  override def resolveWith(resolver: DefinitionResolver): Definition with Parameter = {
+    new RefDefinition(name, ref.resolve(resolver)) with RefParameter
+  }
+}
+trait BodyParameter extends Parameter { self: RefDefinition =>
+  override def resolveWith(resolver: DefinitionResolver): Definition with Parameter = {
+    new RefDefinition(name, ref.resolve(resolver)) with BodyParameter
+  }
+}
+trait HeaderParameter extends Parameter { self: RefDefinition =>
+  override def resolveWith(resolver: DefinitionResolver): Definition with Parameter = {
+    new RefDefinition(name, ref.resolve(resolver)) with HeaderParameter
+  }
+}
+trait PathParameter extends Parameter { self: RefDefinition =>
+  override def resolveWith(resolver: DefinitionResolver): Definition with Parameter = {
+    new RefDefinition(name, ref.resolve(resolver)) with PathParameter
+  }
+}
+trait QueryParameter extends Parameter { self: RefDefinition =>
+  override def resolveWith(resolver: DefinitionResolver): Definition with Parameter = {
+    new RefDefinition(name, ref.resolve(resolver)) with QueryParameter
+  }
+}
+trait FormParameter extends Parameter { self: RefDefinition =>
+  override def resolveWith(resolver: DefinitionResolver): Definition with Parameter = {
+    new RefDefinition(name, ref.resolve(resolver)) with FormParameter
+  }
+}
 
-trait Property { this: Definition => }
+trait Property { self: RefDefinition =>
+  def resolveWith(resolver: DefinitionResolver): Definition with Property = {
+    new RefDefinition(name, ref.resolve(resolver)) with Property
+  }
+}
 
-trait Model { this: Definition => }
+trait Model { self: RefDefinition =>
+  def resolveWith(resolver: DefinitionResolver): Definition with Model = {
+    new RefDefinition(name, ref.resolve(resolver)) with Model
+  }
+}
 
 trait WithDefault[T] { this: Definition =>
   def default: Option[T]
