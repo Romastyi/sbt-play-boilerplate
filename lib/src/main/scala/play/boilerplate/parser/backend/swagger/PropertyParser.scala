@@ -9,12 +9,11 @@ trait PropertyParser { this: ReferenceParser =>
 
   object OptionProperty {
     def unapply(arg: SwaggerProperty): Option[SwaggerProperty] = {
-      Option(arg.getRequired) match {
-        case Some(false) =>
-          arg.setRequired(true)
-          Some(arg)
-        case _ =>
-          None
+      if (Option(arg.getRequired).getOrElse(false)) {
+        None
+      } else {
+        arg.setRequired(true)
+        Some(arg)
       }
     }
   }

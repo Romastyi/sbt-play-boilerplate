@@ -119,7 +119,10 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
                                   factory: DefinitionFactory[Definition with Parameter]): Definition with Parameter = {
     parameter match {
       case OptionParameter(param) =>
-        factory.get(parseTypedParameter(schema, param, factory))
+        factory.get(OptionDefinition(
+          name = Option(param.getName).getOrElse(""),
+          base = parseTypedParameter(schema, param, factory)
+        ))
       case ArrayParameter(param, prop) =>
         factory.get(ArrayDefinition(
           name = Option(param.getName).getOrElse(""),
@@ -168,7 +171,10 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       MULTIPLE_OF -> parameter.getMultipleOf
     ).asJava
 
-    PropertyBuilder.build(parameter.getType, parameter.getFormat, args)
+    val property = PropertyBuilder.build(parameter.getType, parameter.getFormat, args)
+    property.setRequired(parameter.getRequired)
+
+    property
 
   }
 

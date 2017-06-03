@@ -93,6 +93,7 @@ object SwaggerBackend
       Path(
         pathUrl = url,
         pathParts = parsePathUrl(url),
+        parameters = Option(path.getParameters).map(_.asScala).getOrElse(Nil).map(parseParameter(schema, _)),
         operations = parsePathOperations(schema, url, path)
       )
     }
