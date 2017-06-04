@@ -1,12 +1,9 @@
 package play.boilerplate.generators
 
 import eu.unicredit.swagger.generators.SyntaxString
-import play.boilerplate.generators.security.SecurityProvider
 import play.boilerplate.parser.model._
 
-class PlayServiceGeneratorParser(schema: Schema,
-                                 securityProvider: SecurityProvider = SecurityProvider.default
-                                ) {
+class PlayServiceGeneratorParser(schema: Schema) {
 
   import treehugger.forest._
   import definitions._
@@ -18,7 +15,7 @@ class PlayServiceGeneratorParser(schema: Schema,
       IMPORT("scala.concurrent", "Future")
     ) ++
       Seq(ctx.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_")) ++
-      securityProvider.serviceImports
+      ctx.securityProvider.serviceImports
   }
 
   case class Method(tree: Tree, additionalDef: Seq[Tree])
@@ -58,7 +55,7 @@ class PlayServiceGeneratorParser(schema: Schema,
 
     val bodyParams = GeneratorUtils.getBodyParameters(path, operation)
     val methodParams = GeneratorUtils.getMethodParameters(path, operation)
-    val securityParams = securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
+    val securityParams = ctx.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
 
     val methodType = TYPE_REF(GeneratorUtils.getOperationResponseTraitName(operation.operationId))
 

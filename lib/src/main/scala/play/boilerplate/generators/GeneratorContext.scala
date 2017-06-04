@@ -2,6 +2,8 @@ package play.boilerplate.generators
 
 import java.io.File.{separator, separatorChar}
 
+import play.boilerplate.generators.security.SecurityProvider
+
 trait GeneratorContext {
 
   def fileName: String
@@ -29,6 +31,7 @@ trait GeneratorContext {
   def setInController(value: Boolean): GeneratorContext
 
   def enumGenerator: EnumerationGenerator
+  def securityProvider: SecurityProvider
 
 }
 
@@ -39,7 +42,8 @@ case class DefaultGeneratorContext(override val fileName: String,
                                    override val inModel: Boolean = false,
                                    override val inService: Boolean = false,
                                    override val inController: Boolean = false,
-                                   override val enumGenerator: EnumerationGenerator = VanillaEnumerations
+                                   override val enumGenerator: EnumerationGenerator = VanillaEnumerations,
+                                   override val securityProvider: SecurityProvider = SecurityProvider.default
                                   ) extends GeneratorContext {
 
   def objectNameFromFileName(obj: String): String = {

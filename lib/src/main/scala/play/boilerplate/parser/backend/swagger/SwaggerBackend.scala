@@ -99,7 +99,7 @@ object SwaggerBackend
                         (implicit ctx: ParserContext): Iterable[Path] = {
 
     for {
-      (url, path) <- Option(swagger.getPaths.asScala.toMap).getOrElse(Map.empty)
+      (url, path) <- Option(swagger.getPaths).map(_.asScala.toMap).getOrElse(Map.empty)
     } yield {
       Path(
         pathUrl = url,
