@@ -1,6 +1,5 @@
 package play.boilerplate.generators
 
-import eu.unicredit.swagger.StringUtils
 import eu.unicredit.swagger.generators.SharedServerClientCode
 import io.swagger.models.parameters._
 import io.swagger.models.{Model, Operation, Path, Swagger}
@@ -138,13 +137,13 @@ trait SharedGeneratorCode { this: SharedServerClientCode =>
     val code: Int = if (isDefault) 200 else response.toInt
 
     def className(operationId: String): String = {
-      StringUtils.toCamelCase(operationId) + StringUtils.toCamelCase(status.getOrElse(response))
+      operationId.capitalize + status.getOrElse(response).capitalize
     }
 
   }
 
   def getOperationResponseTraitName(operationId: String): String = {
-    StringUtils.toCamelCase(operationId) + "Response"
+    operationId.capitalize + "Response"
   }
 
   def getOperationResponses(operation: Operation, models: Map[String, Model]): Seq[OperationResponse] = {

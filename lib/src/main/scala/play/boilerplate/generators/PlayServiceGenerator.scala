@@ -5,8 +5,8 @@ import io.swagger.models.{Model, Operation, Swagger}
 import security.SecurityProvider
 import treehugger.forest._
 import definitions._
-import play.boilerplate.ParserUtils
 import treehuggerDSL._
+import play.boilerplate.ParserUtils
 
 import scala.collection.JavaConversions._
 

@@ -1,6 +1,7 @@
 package play.boilerplate.generators.security
 
 import SecurityProvider._
+import play.boilerplate.parser.model.SecurityRequirement
 import treehugger.forest._
 import treehuggerDSL._
 
@@ -31,10 +32,10 @@ abstract class Play2AuthSecurityProvider(user: String,
 
   override def getActionSecurity(security: Seq[SecurityRequirement]): ActionSecurity = {
 
-    security.find(_.name == securitySchema) match {
+    security.find(_.schemaName == securitySchema) match {
       case Some(SecurityRequirement(_, scopes)) =>
 
-        val authority = parseAuthority(scopes.map(SecurityScope.apply)).map(
+        val authority = parseAuthority(scopes.toIndexedSeq.map(SecurityScope.apply)).map(
           authority => REF("AuthorityKey") INFIX "->" APPLY authority
         )
 

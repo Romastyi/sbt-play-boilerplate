@@ -1,6 +1,7 @@
 package play.boilerplate.generators.security
 
-import io.swagger.models.Operation
+import io.swagger.models.{Operation => SwaggerOperation}
+import play.boilerplate.parser.model.SecurityRequirement
 import treehugger.forest._
 import treehuggerDSL._
 
@@ -24,8 +25,6 @@ trait SecurityProvider {
 
 object SecurityProvider {
 
-  case class SecurityRequirement(name: String, scopes: Seq[String])
-
   trait ActionSecurity {
     def actionMethod(parser: Tree): Tree
     def securityValues: Map[String, ValDef]
@@ -46,7 +45,7 @@ object SecurityProvider {
     override def getActionSecurity(security: Seq[SecurityRequirement]): ActionSecurity = WithoutSecurity
   }
 
-  def getOperationSecurity(operation: Operation): Option[Seq[SecurityRequirement]] = {
+  def getOperationSecurity(operation: SwaggerOperation): Option[Seq[SecurityRequirement]] = {
     Option(operation.getSecurity).map { security =>
       for {
         auth <- security
@@ -55,7 +54,7 @@ object SecurityProvider {
     }
   }
 
-  def parseAction(operation: Operation, provider: SecurityProvider): ActionSecurity = {
+  def parseAction(operation: SwaggerOperation, provider: SecurityProvider): ActionSecurity = {
     getOperationSecurity(operation).map(provider.getActionSecurity).getOrElse(WithoutSecurity)
   }
 

@@ -17,6 +17,7 @@ final case class OptionDefinition(override val name: String,
     copy(base = base.resolve(resolver))
   }
 }
+
 final case class ArrayDefinition(override val name: String,
                                  items: Definition,
                                  uniqueItems: Boolean,
@@ -28,6 +29,7 @@ final case class ArrayDefinition(override val name: String,
     copy(items = items.resolve(resolver))
   }
 }
+
 case class RefDefinition(override val name: String,
                          ref: Definition) extends Definition {
   override val baseDef: Definition = ref.baseDef

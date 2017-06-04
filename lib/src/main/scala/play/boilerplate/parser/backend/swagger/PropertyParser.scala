@@ -171,7 +171,7 @@ trait PropertyParser { this: ReferenceParser =>
         val name = Option(prop.getName).getOrElse(propertyName)
         MapDefinition(
           name = name,
-          additionalProperties = getPropertyDef(schema, name + "Items", prop.getAdditionalProperties)
+          additionalProperties = getPropertyDef(schema, name, prop.getAdditionalProperties)
         )
       case prop: ArrayProperty =>
         val name = Option(prop.getName).getOrElse(propertyName)
@@ -181,7 +181,7 @@ trait PropertyParser { this: ReferenceParser =>
         items.setRequired(true)
         ArrayDefinition(
           name = name,
-          items = getPropertyDef(schema, name + "Items", items),
+          items = getPropertyDef(schema, name, items),
           uniqueItems = Option(prop.getUniqueItems).exists(_ == true),
           minLength = Option(prop.getMinItems).map(Integer2int),
           maxLength = Option(prop.getMaxItems).map(Integer2int)

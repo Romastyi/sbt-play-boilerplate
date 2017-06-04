@@ -104,7 +104,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         val name = Option(param.getName).getOrElse(getParamName(parameter))
         factory.build(ArrayDefinition(
           name = name,
-          items = getPropertyDef(schema, name + "Items", prop),
+          items = getPropertyDef(schema, name, prop),
           uniqueItems = Option(param.isUniqueItems).exists(_ == true),
           minLength = Option(param.getMinLength).map(Integer2int),
           maxLength = Option(param.getMaxLength).map(Integer2int)

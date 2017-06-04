@@ -70,7 +70,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
       case ArrayModel(m, items) =>
         ModelFactory.build(ArrayDefinition(
           name = modelName,
-          items = getPropertyDef(schema, modelName + "Items", items),
+          items = getPropertyDef(schema, modelName, items),
           uniqueItems = false,
           minLength = Option(m.getMaxItems).map(Integer2int),
           maxLength = Option(m.getMaxItems).map(Integer2int)
