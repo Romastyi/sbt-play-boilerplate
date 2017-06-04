@@ -13,7 +13,6 @@ trait PropertyParser { this: ReferenceParser =>
       if (Option(arg.getRequired).getOrElse(false)) {
         None
       } else {
-        arg.setRequired(true)
         Some(arg)
       }
     }
@@ -33,21 +32,25 @@ trait PropertyParser { this: ReferenceParser =>
   protected def getPropertyFactoryDef[D <: Definition](schema: Schema,
                                                        propertyName: String,
                                                        property: SwaggerProperty,
-                                                       factory: DefinitionFactory[D])
+                                                       factory: DefinitionFactory[D],
+                                                       canBeOption: Boolean)
                                                       (implicit ctx: ParserContext): D = {
-    factory.build(getPropertyDef(schema, propertyName, property))
+    factory.build(getPropertyDef(schema, propertyName, property, canBeOption))
   }
 
-  protected def getPropertyDef(schema: Schema, propertyName: String, property: SwaggerProperty)
+  protected def getPropertyDef(schema: Schema,
+                               propertyName: String,
+                               property: SwaggerProperty,
+                               canBeOption: Boolean = true)
                               (implicit ctx: ParserContext): Definition = {
 
     Option(property).getOrElse {
       throw ParserException("Trying to resolve null property.")
     } match {
-      case OptionProperty(prop) =>
+      case OptionProperty(prop) if canBeOption =>
         OptionDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          base = getPropertyDef(schema, propertyName, prop)
+          base = getPropertyDef(schema, propertyName, prop, canBeOption = false)
         )
       case EnumProperty(prop, items) =>
         EnumDefinition(

@@ -56,7 +56,6 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     def unapply(arg: SwaggerParameter): Option[AbstractSerializableParameter[_]] = {
       arg match {
         case TypedParameter(param) if Option(param.getRequired).forall(_ == false) =>
-          param.setRequired(true)
           Some(param)
         case _ =>
           None
@@ -92,13 +91,14 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
 
   private def parseTypedParameter(schema: Schema,
                                   parameter: AbstractSerializableParameter[_],
-                                  factory: DefinitionFactory[Parameter])
+                                  factory: DefinitionFactory[Parameter],
+                                  canBeOption: Boolean = true)
                                  (implicit ctx: ParserContext): Parameter = {
     parameter match {
-      case OptionParameter(param) =>
+      case OptionParameter(param) if canBeOption =>
         factory.build(OptionDefinition(
           name = Option(param.getName).getOrElse(getParamName(parameter)),
-          base = parseTypedParameter(schema, param, factory)
+          base = parseTypedParameter(schema, param, factory, canBeOption = false)
         ))
       case ArrayParameter(param, prop) =>
         val name = Option(param.getName).getOrElse(getParamName(parameter))
@@ -121,7 +121,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         ))
       case param =>
         val name = Option(param.getName).getOrElse(getParamName(parameter))
-        getPropertyFactoryDef(schema, name, param2Prop(param), factory)
+        getPropertyFactoryDef(schema, name, param2Prop(param), factory, canBeOption)
     }
   }
 
