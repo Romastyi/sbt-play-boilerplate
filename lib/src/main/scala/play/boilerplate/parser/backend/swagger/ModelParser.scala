@@ -85,7 +85,6 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
         ModelFactory.get(EnumDefinition(
           items = items,
           name = Option(m.getName).getOrElse(modelName),
-          format = Option(m.getFormat),
           title = Option(m.getTitle),
           description = Option(m.getDescription),
           readOnly = false,
@@ -98,7 +97,6 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
             name -> getPropertyDef(schema, name, prop)
           },
           name = Option(m.getName).getOrElse(modelName),
-          format = Option(m.getFormat),
           title = Option(m.getTitle),
           description = Option(m.getDescription),
           readOnly = false,

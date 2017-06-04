@@ -59,7 +59,6 @@ trait PropertyParser { this: ReferenceParser =>
         EnumDefinition(
           items = items,
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -69,7 +68,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: StringProperty =>
         StringDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -82,7 +80,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: BooleanProperty =>
         BooleanDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -92,7 +89,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: DoubleProperty =>
         DoubleDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -102,7 +98,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: FloatProperty =>
         FloatDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -112,7 +107,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: IntegerProperty =>
         IntegerDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -122,7 +116,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: LongProperty =>
         LongDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -132,7 +125,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: BaseIntegerProperty =>
         IntegerDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -142,7 +134,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: DecimalProperty =>
         DecimalDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -151,7 +142,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: DateProperty =>
         DateDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -160,7 +150,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: DateTimeProperty =>
         DateTimeDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
@@ -169,7 +158,6 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: UUIDProperty =>
         UUIDDefinition(
           name = Option(prop.getName).getOrElse(propertyName),
-          format = Option(prop.getFormat),
           title = Option(prop.getTitle),
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),

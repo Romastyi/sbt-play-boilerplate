@@ -149,7 +149,6 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         factory.get(EnumDefinition(
           items = items,
           name = Option(param.getName).getOrElse(getParamName(parameter)),
-          format = Option(param.getFormat),
           title = None,
           description = Option(param.getDescription),
           readOnly = Option(param.isReadOnly).exists(_ == true),

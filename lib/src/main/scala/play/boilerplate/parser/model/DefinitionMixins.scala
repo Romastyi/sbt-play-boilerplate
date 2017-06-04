@@ -50,10 +50,6 @@ trait WithDefault[T] { this: Definition =>
   def default: Option[T]
 }
 
-trait WithFormat { this: Definition =>
-  def format: Option[String]
-}
-
 trait WithMinMax[T] { this: Definition =>
   def min: Option[T]
   def max: Option[T]

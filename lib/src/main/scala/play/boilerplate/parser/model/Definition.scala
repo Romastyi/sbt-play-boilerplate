@@ -70,12 +70,11 @@ sealed trait DefinitionImpl extends Definition {
 
 final case class ObjectDefinition(properties: Map[String, Definition],
                                   override val name: String,
-                                  override val format: Option[String],
                                   override val title: Option[String],
                                   override val description: Option[String],
                                   override val readOnly: Boolean,
                                   override val allowEmptyValue: Boolean
-                                 ) extends DefinitionImpl with WithFormat with WithReadOnly {
+                                 ) extends DefinitionImpl with WithReadOnly {
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(
       properties = for ((name, prop) <- properties) yield name -> prop.resolve(resolver)
@@ -85,16 +84,14 @@ final case class ObjectDefinition(properties: Map[String, Definition],
 
 final case class EnumDefinition(items: Iterable[String],
                                 override val name: String,
-                                override val format: Option[String],
                                 override val title: Option[String],
                                 override val description: Option[String],
                                 override val readOnly: Boolean,
                                 override val allowEmptyValue: Boolean,
                                 override val default: Option[String]
-                               ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[String]
+                               ) extends DefinitionImpl with WithReadOnly with WithDefault[String]
 
 final case class StringDefinition(override val name: String,
-                                  override val format: Option[String],
                                   override val title: Option[String],
                                   override val description: Option[String],
                                   override val readOnly: Boolean,
@@ -103,86 +100,77 @@ final case class StringDefinition(override val name: String,
                                   override val minLength: Option[Int],
                                   override val maxLength: Option[Int],
                                   override val pattern: Option[String]
-                                 ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[String] with WithMinMaxLength with WithPattern
+                                 ) extends DefinitionImpl with WithReadOnly with WithDefault[String] with WithMinMaxLength with WithPattern
 
 final case class BooleanDefinition(override val name: String,
-                                   override val format: Option[String],
                                    override val title: Option[String],
                                    override val description: Option[String],
                                    override val readOnly: Boolean,
                                    override val allowEmptyValue: Boolean,
                                    override val default: Option[Boolean]
-                                  ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[Boolean]
+                                  ) extends DefinitionImpl with WithReadOnly with WithDefault[Boolean]
 
 final case class DoubleDefinition(override val name: String,
-                                  override val format: Option[String],
                                   override val title: Option[String],
                                   override val description: Option[String],
                                   override val readOnly: Boolean,
                                   override val allowEmptyValue: Boolean,
                                   override val default: Option[Double]
-                                 ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[Double]
+                                 ) extends DefinitionImpl with WithReadOnly with WithDefault[Double]
 
 final case class FloatDefinition(override val name: String,
-                                 override val format: Option[String],
                                  override val title: Option[String],
                                  override val description: Option[String],
                                  override val readOnly: Boolean,
                                  override val allowEmptyValue: Boolean,
                                  override val default: Option[Float]
-                                ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[Float]
+                                ) extends DefinitionImpl with WithReadOnly with WithDefault[Float]
 
 final case class IntegerDefinition(override val name: String,
-                                   override val format: Option[String],
                                    override val title: Option[String],
                                    override val description: Option[String],
                                    override val readOnly: Boolean,
                                    override val allowEmptyValue: Boolean,
                                    override val default: Option[Int]
-                                  ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[Int]
+                                  ) extends DefinitionImpl with WithReadOnly with WithDefault[Int]
 
 final case class LongDefinition(override val name: String,
-                                override val format: Option[String],
                                 override val title: Option[String],
                                 override val description: Option[String],
                                 override val readOnly: Boolean,
                                 override val allowEmptyValue: Boolean,
                                 override val default: Option[Long]
-                               ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[Long]
+                               ) extends DefinitionImpl with WithReadOnly with WithDefault[Long]
 
 final case class DecimalDefinition(override val name: String,
-                                   override val format: Option[String],
                                    override val title: Option[String],
                                    override val description: Option[String],
                                    override val readOnly: Boolean,
                                    override val allowEmptyValue: Boolean
-                                  ) extends DefinitionImpl with WithFormat with WithReadOnly
+                                  ) extends DefinitionImpl with WithReadOnly
 
 final case class DateDefinition(override val name: String,
-                                override val format: Option[String],
                                 override val title: Option[String],
                                 override val description: Option[String],
                                 override val readOnly: Boolean,
                                 override val allowEmptyValue: Boolean
-                               ) extends DefinitionImpl with WithFormat with WithReadOnly
+                               ) extends DefinitionImpl with WithReadOnly
 
 final case class DateTimeDefinition(override val name: String,
-                                    override val format: Option[String],
                                     override val title: Option[String],
                                     override val description: Option[String],
                                     override val readOnly: Boolean,
                                     override val allowEmptyValue: Boolean
-                                   ) extends DefinitionImpl with WithFormat with WithReadOnly
+                                   ) extends DefinitionImpl with WithReadOnly
 
 final case class UUIDDefinition(override val name: String,
-                                override val format: Option[String],
                                 override val title: Option[String],
                                 override val description: Option[String],
                                 override val readOnly: Boolean,
                                 override val allowEmptyValue: Boolean,
                                 override val default: Option[String],
                                 override val pattern: Option[String]
-                               ) extends DefinitionImpl with WithFormat with WithReadOnly with WithDefault[String] with WithPattern
+                               ) extends DefinitionImpl with WithReadOnly with WithDefault[String] with WithPattern
 
 final case class FileDefinition(override val name: String,
                                 override val title: Option[String],
