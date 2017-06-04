@@ -7,7 +7,7 @@ sealed trait Definition extends WithResolve[Definition] {
 }
 
 trait DefinitionFactory[D <: Definition] {
-  def get(definition: Definition): D
+  def build(definition: Definition): D
 }
 
 final case class OptionDefinition(override val name: String,

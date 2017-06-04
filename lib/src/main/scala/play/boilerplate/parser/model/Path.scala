@@ -2,7 +2,7 @@ package play.boilerplate.parser.model
 
 case class Path(pathUrl: String,
                 pathParts: Iterable[PathPart],
-                parameters: Iterable[Definition with Parameter],
+                parameters: Iterable[Parameter],
                 operations: Map[HttpMethod.Value, Operation])
 
 sealed trait PathPart

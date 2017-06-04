@@ -2,7 +2,7 @@ package play.boilerplate.parser.model
 
 case class Operation(httpMethod: HttpMethod.Value,
                      operationId: String,
-                     parameters: Iterable[Definition with Parameter],
+                     parameters: Iterable[Parameter],
                      schemes: Iterable[String],
                      consumes: Iterable[String],
                      produces: Iterable[String],

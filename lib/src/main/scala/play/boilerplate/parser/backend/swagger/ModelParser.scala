@@ -61,20 +61,14 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
     }
   }
 
-  object ModelFactory extends DefinitionFactory[Definition with Model] {
-    override def get(definition: Definition): Definition with Model = {
-      new RefDefinition(definition.name, definition) with Model
-    }
-  }
-
   protected def parseModel(schema: Schema, modelName: String, model: SwaggerModel)
-                          (implicit ctx: ParserContext): Definition with Model = {
+                          (implicit ctx: ParserContext): Model = {
 
     Option(model).getOrElse {
       throw ParserException("Trying to resolve null model.")
     } match {
       case ArrayModel(m, items) =>
-        ModelFactory.get(ArrayDefinition(
+        ModelFactory.build(ArrayDefinition(
           name = modelName,
           items = getPropertyDef(schema, modelName + "Items", items),
           uniqueItems = false,
@@ -82,7 +76,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           maxLength = Option(m.getMaxItems).map(Integer2int)
         ))
       case EnumModel(m, items) =>
-        ModelFactory.get(EnumDefinition(
+        ModelFactory.build(EnumDefinition(
           items = items,
           name = Option(m.getName).getOrElse(modelName),
           title = Option(m.getTitle),
@@ -92,7 +86,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           default = None
         ))
       case ObjectModel(m, properties) =>
-        ModelFactory.get(ObjectDefinition(
+        ModelFactory.build(ObjectDefinition(
           properties = for ((name, prop) <- properties) yield {
             name -> getPropertyDef(schema, name, prop)
           },
@@ -103,7 +97,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           allowEmptyValue = Option(m.getAllowEmptyValue).exists(_ == true)
         ))
       case ref: RefModel =>
-        ModelFactory.get(findReferenceDef(schema, ref.get$ref()))
+        ModelFactory.build(findReferenceDef(schema, ref.get$ref()))
       case m =>
         throw ParserException(s"Unsupported parameter type (${m.getClass.getName}).")
     }

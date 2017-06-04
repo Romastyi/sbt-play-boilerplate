@@ -30,18 +30,12 @@ trait PropertyParser { this: ReferenceParser =>
     }
   }
 
-  object PropertyFactory extends DefinitionFactory[Definition with Property] {
-    override def get(definition: Definition): Definition with Property = {
-      new RefDefinition(definition.name, definition) with Property
-    }
-  }
-
   protected def getPropertyFactoryDef[D <: Definition](schema: Schema,
                                                        propertyName: String,
                                                        property: SwaggerProperty,
                                                        factory: DefinitionFactory[D])
                                                       (implicit ctx: ParserContext): D = {
-    factory.get(getPropertyDef(schema, propertyName, property))
+    factory.build(getPropertyDef(schema, propertyName, property))
   }
 
   protected def getPropertyDef(schema: Schema, propertyName: String, property: SwaggerProperty)

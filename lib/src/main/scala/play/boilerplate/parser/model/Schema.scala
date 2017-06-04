@@ -10,17 +10,17 @@ case class Schema(host: String,
                   paths: Iterable[Path],
                   security: Iterable[SecurityRequirement],
                   securitySchemas: Map[String, SecuritySchema],
-                  definitions: Map[String, Definition with Model],
-                  parameters: Map[String, Definition with Parameter],
+                  definitions: Map[String, Model],
+                  parameters: Map[String, Parameter],
                   responses: Map[ResponseCode, Response]
                  ) extends WithResolve[Schema] {
   override def resolve(resolver: DefinitionResolver): Schema = {
     copy(
       definitions = for ((name, model) <- definitions) yield {
-        name -> model.resolveWith(resolver)
+        name -> model.resolve(resolver)
       },
       parameters = for ((name, param) <- parameters) yield {
-        name -> param.resolveWith(resolver)
+        name -> param.resolve(resolver)
       },
       responses = for ((code, resp) <- responses) yield {
         code -> resp.resolve(resolver)

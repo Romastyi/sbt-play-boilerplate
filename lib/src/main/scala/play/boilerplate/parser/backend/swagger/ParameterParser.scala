@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 trait ParameterParser { this: ModelParser with PropertyParser with ReferenceParser =>
 
   protected def parseParameter(schema: Schema, parameter: SwaggerParameter)
-                              (implicit ctx: ParserContext): Definition with Parameter = {
+                              (implicit ctx: ParserContext): Parameter = {
 
     import io.swagger.models.{parameters => swagger}
 
@@ -18,7 +18,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       throw ParserException("Trying to resolve null parameter.")
     } match {
       case param: swagger.BodyParameter =>
-        BodyParameterFactory.get(parseModel(schema, getParamName(parameter), param.getSchema))
+        BodyParameterFactory.build(parseModel(schema, getParamName(parameter), param.getSchema))
       case param: swagger.HeaderParameter =>
         parseTypedParameter(schema, param, HeaderParameterFactory)
       case param: swagger.PathParameter =>
@@ -28,7 +28,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       case param: swagger.FormParameter =>
         parseTypedParameter(schema, param, FormParameterFactory)
       case param: swagger.RefParameter =>
-        RefsParameterFactory.get(findReferenceDef(schema, param.get$ref()))
+        RefParameterFactory.build(findReferenceDef(schema, param.get$ref()))
       case param =>
         throw ParserException(s"Unsupported parameter type (${param.getClass.getName}).")
     }
@@ -90,55 +90,19 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     }
   }
 
-  object RefsParameterFactory extends DefinitionFactory[Definition with Parameter] {
-    override def get(definition: Definition): Definition with Parameter = {
-      new RefDefinition(definition.name, definition) with RefParameter
-    }
-  }
-
-  object BodyParameterFactory extends DefinitionFactory[Definition with Parameter] {
-    override def get(definition: Definition): Definition with Parameter = {
-      new RefDefinition(definition.name, definition) with BodyParameter
-    }
-  }
-
-  object HeaderParameterFactory extends DefinitionFactory[Definition with Parameter] {
-    override def get(definition: Definition): Definition with Parameter = {
-      new RefDefinition(definition.name, definition) with HeaderParameter
-    }
-  }
-
-  object PathParameterFactory extends DefinitionFactory[Definition with Parameter] {
-    override def get(definition: Definition): Definition with Parameter = {
-      new RefDefinition(definition.name, definition) with PathParameter
-    }
-  }
-
-  object QueryParameterFactory extends DefinitionFactory[Definition with Parameter] {
-    override def get(definition: Definition): Definition with Parameter = {
-      new RefDefinition(definition.name, definition) with QueryParameter
-    }
-  }
-
-  object FormParameterFactory extends DefinitionFactory[Definition with Parameter] {
-    override def get(definition: Definition): Definition with Parameter = {
-      new RefDefinition(definition.name, definition) with FormParameter
-    }
-  }
-
   private def parseTypedParameter(schema: Schema,
                                   parameter: AbstractSerializableParameter[_],
-                                  factory: DefinitionFactory[Definition with Parameter])
-                                 (implicit ctx: ParserContext): Definition with Parameter = {
+                                  factory: DefinitionFactory[Parameter])
+                                 (implicit ctx: ParserContext): Parameter = {
     parameter match {
       case OptionParameter(param) =>
-        factory.get(OptionDefinition(
+        factory.build(OptionDefinition(
           name = Option(param.getName).getOrElse(getParamName(parameter)),
           base = parseTypedParameter(schema, param, factory)
         ))
       case ArrayParameter(param, prop) =>
         val name = Option(param.getName).getOrElse(getParamName(parameter))
-        factory.get(ArrayDefinition(
+        factory.build(ArrayDefinition(
           name = name,
           items = getPropertyDef(schema, name + "Items", prop),
           uniqueItems = Option(param.isUniqueItems).exists(_ == true),
@@ -146,7 +110,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
           maxLength = Option(param.getMaxLength).map(Integer2int)
         ))
       case EnumParameter(param, items) =>
-        factory.get(EnumDefinition(
+        factory.build(EnumDefinition(
           items = items,
           name = Option(param.getName).getOrElse(getParamName(parameter)),
           title = None,
