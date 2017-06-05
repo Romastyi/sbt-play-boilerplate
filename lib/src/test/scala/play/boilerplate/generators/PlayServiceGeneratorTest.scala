@@ -7,12 +7,12 @@ class PlayServiceGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
 
   "Full support" should "Parse petStore_v1.yaml" in {
 
-    //val generator = new PlayServiceGenerator()
-    //printSyntaxString(generator.generate("petStore_v1.yaml", "test", ""))
+    val generator = new PlayServiceGenerator()
+    printSyntaxString(generator.generate("petStore_v1.yaml", "test", ""))
 
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")
-    val gen = new PlayServiceGeneratorParser(schema).generate(ctx)
+    val gen = new PlayServiceGeneratorParser().generate(schema)(ctx)
     printSyntaxString(gen)
 
     true should be (true)
@@ -26,7 +26,7 @@ class PlayServiceGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
 
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v2.yaml", "test", "")
-    val gen = new PlayServiceGeneratorParser(schema).generate(ctx)
+    val gen = new PlayServiceGeneratorParser().generate(schema)(ctx)
     printSyntaxString(gen)
 
     true should be (true)

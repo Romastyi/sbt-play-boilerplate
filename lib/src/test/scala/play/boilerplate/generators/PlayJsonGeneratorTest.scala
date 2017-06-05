@@ -12,7 +12,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").right.get
     val ctx = DefaultGeneratorContext("enums/schema_inline.yaml", "test", "")
-    val gen = new PlayJsonGeneratorParser(schema).generate(ctx)
+    val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printSyntaxString(gen)
 
     true should be (true)
@@ -26,7 +26,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
     val schema = SwaggerBackend.parseSchema("enums/schema_reuse.yaml").right.get
     val ctx = DefaultGeneratorContext("enums/schema_reuse.yaml", "test", "")
-    val gen = new PlayJsonGeneratorParser(schema).generate(ctx)
+    val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printSyntaxString(gen)
 
     true should be (true)
@@ -35,12 +35,12 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
   "Full support" should "Parse petStore_v1.yaml" in {
 
-    //val generator = new PlayJsonGenerator()
-    //printSyntaxString(generator.generate("petStore_v1.yaml", "test"))
+    val generator = new PlayJsonGenerator()
+    printSyntaxString(generator.generate("petStore_v1.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")
-    val gen = new PlayJsonGeneratorParser(schema).generate(ctx)
+    val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printSyntaxString(gen)
 
     true should be (true)
@@ -54,7 +54,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v2.yaml", "test", "")
-    val gen = new PlayJsonGeneratorParser(schema).generate(ctx)
+    val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printSyntaxString(gen)
 
     true should be (true)

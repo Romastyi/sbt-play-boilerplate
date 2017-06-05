@@ -4,7 +4,7 @@ import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.parser.model._
 
-class PlayClientGeneratorParser(schema: Schema) {
+class PlayClientGeneratorParser {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -32,12 +32,12 @@ class PlayClientGeneratorParser(schema: Schema) {
     Seq(InjectionProvider.Dependency("WS", TYPE_REF("WSClient")))
   }
 
-  def generate(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
 
     val methods = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
+    } yield generateMethod(schema, path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
 
     val clientSources = if (methods.nonEmpty) {
 
@@ -69,7 +69,7 @@ class PlayClientGeneratorParser(schema: Schema) {
 
   }
 
-  def generateMethod(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Tree = {
+  def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): Tree = {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)

@@ -4,7 +4,7 @@ import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.parser.model._
 
-class PlayServerGeneratorParser(schema: Schema) {
+class PlayServerGeneratorParser {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -30,7 +30,7 @@ class PlayServerGeneratorParser(schema: Schema) {
     Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.serviceClassName)))
   }
 
-  def generate(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
 
     val methods = for {
       path <- schema.paths

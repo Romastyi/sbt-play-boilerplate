@@ -3,12 +3,12 @@ package play.boilerplate.generators
 import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.parser.model._
 
-class PlayModelGeneratorParser(schema: Schema) {
+class PlayModelGeneratorParser {
 
   import treehugger.forest._
   import treehuggerDSL._
 
-  def generate(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
 
     val init = EmptyTree inPackage ctx.modelPackageName
 

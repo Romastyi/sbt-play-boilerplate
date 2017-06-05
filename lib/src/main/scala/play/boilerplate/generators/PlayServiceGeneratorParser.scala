@@ -3,7 +3,7 @@ package play.boilerplate.generators
 import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.parser.model._
 
-class PlayServiceGeneratorParser(schema: Schema) {
+class PlayServiceGeneratorParser {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -19,7 +19,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
       ctx.securityProvider.serviceImports
   }
 
-  def generate(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
 
     val serviceImports = BLOCK {
       generateImports
@@ -39,7 +39,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
       }
 
       val companionTree = OBJECTDEF(ctx.serviceClassName) := BLOCK {
-        generateResponseClasses(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
+        generateResponseClasses(schema)(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
       }
 
       SyntaxString(ctx.serviceClassName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
@@ -94,7 +94,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
 
   }
 
-  def generateResponseClasses(implicit ctx: GeneratorContext): Seq[Tree] = {
+  def generateResponseClasses(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
 
     val models = schema.definitions
     val operationResults = for {

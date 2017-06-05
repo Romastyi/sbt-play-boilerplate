@@ -3,12 +3,12 @@ package play.boilerplate.generators
 import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.parser.model._
 
-class PlayJsonGeneratorParser(schema: Schema) {
+class PlayJsonGeneratorParser {
 
   import treehugger.forest._
   import treehuggerDSL._
 
-  def generate(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
 
     val methods = schema.definitions.values.flatMap { model =>
       val support = GeneratorUtils.getTypeSupport(model.ref)(ctx.setInModel(true))
