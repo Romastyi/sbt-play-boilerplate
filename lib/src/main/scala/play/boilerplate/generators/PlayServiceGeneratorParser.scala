@@ -132,7 +132,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
 
     val withDefault = operation.responses.keySet(DefaultResponse)
 
-    val responses = for ((code, response) <- operation.responses) yield {
+    val responses = for ((code, response) <- operation.responses.toSeq) yield {
       val className = GeneratorUtils.getResponseClassName(operation.operationId, code)
       val bodyType = response.schema.map(
         body => GeneratorUtils.getTypeSupport(body)(ctx.addCurrentPath(operation.operationId, "body"))
@@ -150,7 +150,10 @@ class PlayServiceGeneratorParser(schema: Schema) {
       } else {
         CASECLASSDEF(className).withParams(params).withParents(traitName).withFlags(Flags.FINAL).empty
       }
-      bodyType.map(_.defs.map(_.definition)).getOrElse(Nil) :+ classDef
+      val defs = bodyType.map {
+        support => support.defs.map(_.definition) ++ support.defs.map(_.jsonObject)
+      }.getOrElse(Nil)
+      defs :+ classDef
     }
 
     Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq, withDefault)

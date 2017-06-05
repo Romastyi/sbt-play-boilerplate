@@ -102,9 +102,11 @@ object VanillaEnumerations extends EnumerationGenerator {
 
   def generateEnumDefs(enumClass: Symbol, items: Iterable[String]): Seq[TypeSupportDefs] = {
     TypeSupportDefs(
+      symbol     = enumClass,
       definition = generateEnumeration(enumClass, items),
       jsonReads  = generateEnumReads(enumClass),
       jsonWrites = generateEnumWrites(enumClass),
+      jsonObject = EmptyTree,
       queryBindable = generateEnumQueryBindable(enumClass),
       pathBindable  = generateEnumPathBindable(enumClass)
     ) :: Nil
