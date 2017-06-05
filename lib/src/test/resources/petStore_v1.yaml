@@ -136,6 +136,7 @@ paths:
         default:
           description: unexpected error
           schema:
+#            $ref: '#/definitions/errorModel'
             type: object
             required:
             - message

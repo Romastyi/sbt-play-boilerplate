@@ -34,7 +34,7 @@ trait DefinitionsSupport
           fullQualified = RootClass.newClass("Map") TYPE_OF (StringClass, support.fullQualified)
         )
       case ref: RefDefinition =>
-        getTypeSupportRef(ref, context)
+        getTypeSupportRef(ref)
       case impl: DefinitionImpl =>
         getTypeSupportImpl(impl, context)
       case _ =>
@@ -74,13 +74,22 @@ trait DefinitionsSupport
     }
   }
 
-  private def getTypeSupportRef(reference: RefDefinition, context: DefinitionContext)
-                               (implicit ctx: GeneratorContext): TypeSupport = {
+  private def getTypeSupportRef(reference: RefDefinition)(implicit ctx: GeneratorContext): TypeSupport = {
     reference match {
       case m: Model =>
-        getTypeSupport(m.ref, if (ctx.inModel || ctx.inService) DefinitionContext.withoutDefinition else DefinitionContext.inline)
+        val context = if (ctx.inModel || ctx.inService || ctx.inController) {
+          DefinitionContext.withoutDefinition
+        } else {
+          DefinitionContext.inline
+        }
+        getTypeSupport(m.ref, context)
       case p: Parameter =>
-        getTypeSupport(p.ref, if (ctx.inModel) DefinitionContext.withoutDefinition else DefinitionContext.inline)
+        val context = if (ctx.inModel || ctx.inController) {
+          DefinitionContext.withoutDefinition
+        } else {
+          DefinitionContext.inline
+        }
+        getTypeSupport(p.ref, context)
       case RefDefinition(_, ref) =>
         getTypeSupport(ref, DefinitionContext.inline)
     }

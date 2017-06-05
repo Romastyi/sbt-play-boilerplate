@@ -6,10 +6,33 @@ import play.boilerplate.parser.model._
 object GeneratorUtils extends support.DefinitionsSupport {
 
   import treehugger.forest._
+  import definitions._
   import treehuggerDSL._
 
   final def IDENTITY(tpe: Type): Tree = REF("identity")
   final def FUTURE(tpe: Type)  : Type = TYPE_REF("Future") TYPE_OF tpe
+
+  final val MIME_TYPE_JSON = "application/json"
+
+  final val ACTION_ANYCONTENT: Type = TYPE_REF("Action") TYPE_OF "AnyContent"
+  final val ACTION_EMPTY     : Type = TYPE_REF("Action") TYPE_OF UnitClass
+
+  final val PARSER_ANYCONTENT: Tree = REF("parse") DOT "anyContent"
+  final val PARSER_EMPTY     : Tree = REF("parse") DOT "empty"
+
+  final val REQUEST_AS_JSON: Tree = REF("request") DOT "body" DOT "asJson"
+  final val REQUEST_EMPTY  : Tree = SOME(UNIT)
+
+  final def JSON_TO_TYPE(tpe: Type): Tree = WILDCARD DOT "as" APPLYTYPE tpe
+  final def TYPE_TO_JSON(tpe: Type): Tree = REF("Json") DOT "toJson" APPLYTYPE tpe
+
+  case class MimeTypeSupport(requestBody: Tree,
+                             deserialize: Type => Tree,
+                             serialize: Type => Tree)
+
+  def getMimeTypeSupport: PartialFunction[String, MimeTypeSupport] = {
+    case MIME_TYPE_JSON => MimeTypeSupport(REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON)
+  }
 
   case class MethodParam(valDef: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree])
 
@@ -18,7 +41,7 @@ object GeneratorUtils extends support.DefinitionsSupport {
     (path.parameters ++ operation.parameters).collect {
       case param: BodyParameter =>
         val support = getTypeSupport(param.ref)
-        param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.defs.map(_.definition), Nil)
+        param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.definitions, Nil)
     }.toMap
   }
 
@@ -42,7 +65,7 @@ object GeneratorUtils extends support.DefinitionsSupport {
       }
       .map { param =>
         val support = getTypeSupport(param.ref)
-        param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.defs.map(_.definition), getParamImplicits(param, support))
+        param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.definitions, getParamImplicits(param, support))
       }
       .toMap
   }
@@ -58,7 +81,7 @@ object GeneratorUtils extends support.DefinitionsSupport {
     }
   }
 
-  private val statusByCode: Int => String = code => Map(
+  private val statusByCode = Map(
     // Success
     200 -> "Ok",
     201 -> "Created",
@@ -82,12 +105,14 @@ object GeneratorUtils extends support.DefinitionsSupport {
     415 -> "UnsupportedMediaType",
     // Server error
     500 -> "InternalServerError"
-  ).getOrElse(code, code.toString)
+  )
 
   /*
    * final case class UnexpectedResult(body: String = "", code: Int = 200) extends ...
    */
   val UnexpectedResult = TypeName("UnexpectedResult")
+
+  def getStatusByCode(code: Int): Option[String] = statusByCode.get(code)
 
   def getOperationResponseTraitName(operationId: String): String = {
     operationId.capitalize + "Response"
@@ -96,8 +121,26 @@ object GeneratorUtils extends support.DefinitionsSupport {
   def getResponseClassName(operationId: String, responseCode: ResponseCode): String = {
     operationId.capitalize + (responseCode match {
       case DefaultResponse => "Default"
-      case StatusResponse(status) => statusByCode(status)
+      case StatusResponse(status) => getStatusByCode(status).getOrElse(status.toString)
     }).capitalize
   }
+
+  def generateAcceptMatcher: Tree = {
+    val tpe = (OptionClass APPLYTYPE StringClass.toType).tpe
+    BLOCK(
+      IMPORT("play.api.mvc", "_"),
+      CASECLASSDEF("AcceptMatcher") withParams PARAM("mimeType", StringClass.toType).tree := BLOCK {
+        DEF("unapply", tpe) withParams PARAM("arg", TYPE_REF("RequestHeader")).tree := BLOCK {
+          IF((REF("arg") DOT "acceptedTypes" DOT "nonEmpty") AND (REF("arg") DOT "accepts" APPLY REF("mimeType"))) THEN BLOCK {
+            SOME(REF("mimeType"))
+          } ELSE BLOCK {
+            NONE
+          }
+        }
+      }
+    )
+  }
+
+  def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
 
 }

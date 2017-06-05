@@ -1,16 +1,18 @@
 package play.boilerplate.generators.support
 
+import play.boilerplate.generators.GeneratorUtils._
 import treehugger.forest._
 import treehuggerDSL._
 
 case class TypeSupport(tpe: Type, fullQualified: Type, defs: Seq[TypeSupportDefs]) {
 
-  def jsonReads : Seq[Tree] = defs.map(_.jsonReads) .filterNot(_ == EmptyTree)
-  def jsonWrites: Seq[Tree] = defs.map(_.jsonWrites).filterNot(_ == EmptyTree)
-  def jsonObject: Seq[Tree] = defs.map(_.jsonObject).filterNot(_ == EmptyTree)
+  def definitions: Seq[Tree] = filterNonEmptyTree(defs.map(_.definition))
 
-  def queryBindable: Seq[Tree] = defs.map(_.queryBindable).filterNot(_ == EmptyTree)
-  def pathBindable : Seq[Tree] = defs.map(_.pathBindable ).filterNot(_ == EmptyTree)
+  def jsonReads : Seq[Tree] = filterNonEmptyTree(defs.map(_.jsonReads ))
+  def jsonWrites: Seq[Tree] = filterNonEmptyTree(defs.map(_.jsonWrites))
+
+  def queryBindable: Seq[Tree] = filterNonEmptyTree(defs.map(_.queryBindable))
+  def pathBindable : Seq[Tree] = filterNonEmptyTree(defs.map(_.pathBindable ))
 
 }
 
@@ -18,7 +20,6 @@ case class TypeSupportDefs(symbol: Symbol,
                            definition: Tree,
                            jsonReads: Tree,
                            jsonWrites: Tree,
-                           jsonObject: Tree,
                            queryBindable: Tree,
                            pathBindable: Tree)
 

@@ -23,7 +23,7 @@ class PlayModelGeneratorParser(schema: Schema) {
   }
 
   private def generateClass(model: Model)(implicit ctx: GeneratorContext): Seq[Tree] = {
-    GeneratorUtils.getTypeSupport(model.ref).defs.map(_.definition)
+    GeneratorUtils.getTypeSupport(model.ref).definitions
   }
 
 }

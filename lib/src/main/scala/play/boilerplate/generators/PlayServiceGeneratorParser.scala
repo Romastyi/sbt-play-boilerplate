@@ -5,6 +5,7 @@ import play.boilerplate.parser.model._
 
 class PlayServiceGeneratorParser(schema: Schema) {
 
+  import GeneratorUtils._
   import treehugger.forest._
   import definitions._
   import treehuggerDSL._
@@ -18,8 +19,6 @@ class PlayServiceGeneratorParser(schema: Schema) {
       ctx.securityProvider.serviceImports
   }
 
-  case class Method(tree: Tree, additionalDef: Seq[Tree])
-
   def generate(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
 
     val serviceImports = BLOCK {
@@ -28,7 +27,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
 
     val methods = for {
       path <- schema.paths
-      (_, op) <- path.operations
+      op <- path.operations.values
     } yield generateMethod(path, op)(ctx.addCurrentPath(op.operationId).setInService(true))
 
     if (methods.nonEmpty) {
@@ -51,15 +50,17 @@ class PlayServiceGeneratorParser(schema: Schema) {
 
   }
 
+  case class Method(tree: Tree, additionalDef: Seq[Tree])
+
   def generateMethod(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
-    val bodyParams = GeneratorUtils.getBodyParameters(path, operation)
-    val methodParams = GeneratorUtils.getMethodParameters(path, operation)
+    val bodyParams = getBodyParameters(path, operation)
+    val methodParams = getMethodParameters(path, operation)
     val securityParams = ctx.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
 
-    val methodType = TYPE_REF(GeneratorUtils.getOperationResponseTraitName(operation.operationId))
+    val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
-    val methodTree = DEF(operation.operationId, GeneratorUtils.FUTURE(methodType))
+    val methodTree = DEF(operation.operationId, FUTURE(methodType))
       .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values)
       .empty
 
@@ -72,7 +73,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
     val additionalDef = bodyParams.values.flatMap(_.additionalDef) ++
       methodParams.values.flatMap(_.additionalDef)
 
-    Method(tree, additionalDef.filterNot(_ == EmptyTree))
+    Method(tree, filterNonEmptyTree(additionalDef))
 
   }
 
@@ -81,7 +82,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
     val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
     val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
 
-    val methodTree = DEF("onError", GeneratorUtils.FUTURE(StringClass))
+    val methodTree = DEF("onError", FUTURE(StringClass))
       .withParams(operationId, cause)
       .empty
 
@@ -104,7 +105,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
     val traits = operationResults.filterNot(_.withDefault).map(_.traitName)
 
     val UnexpectedResultDef = if (traits.nonEmpty) {
-      Some(CASECLASSDEF(GeneratorUtils.UnexpectedResult)
+      Some(CASECLASSDEF(UnexpectedResult)
         .withParams(
           PARAM("body", StringClass) := LIT(""),
           PARAM("status", IntClass) := LIT(200)
@@ -126,16 +127,16 @@ class PlayServiceGeneratorParser(schema: Schema) {
   def generateOperationResults(operation: Operation, models: Map[String, Model])
                               (implicit ctx: GeneratorContext): Responses = {
 
-    val traitName = GeneratorUtils.getOperationResponseTraitName(operation.operationId)
+    val traitName = getOperationResponseTraitName(operation.operationId)
 
     val sealedTrait = TRAITDEF(traitName).withFlags(Flags.SEALED).empty
 
     val withDefault = operation.responses.keySet(DefaultResponse)
 
     val responses = for ((code, response) <- operation.responses.toSeq) yield {
-      val className = GeneratorUtils.getResponseClassName(operation.operationId, code)
+      val className = getResponseClassName(operation.operationId, code)
       val bodyType = response.schema.map(
-        body => GeneratorUtils.getTypeSupport(body)(ctx.addCurrentPath(operation.operationId, "body"))
+        body => getTypeSupport(body)(ctx.addCurrentPath(operation.operationId, "body"))
       )
       val params = bodyType.map(body => PARAM("body", body.tpe).tree).toSeq ++ {
         code match {
@@ -150,10 +151,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
       } else {
         CASECLASSDEF(className).withParams(params).withParents(traitName).withFlags(Flags.FINAL).empty
       }
-      val defs = bodyType.map {
-        support => support.defs.map(_.definition) ++ support.defs.map(_.jsonObject)
-      }.getOrElse(Nil)
-      defs :+ classDef
+      bodyType.map(_.definitions).getOrElse(Nil) :+ classDef
     }
 
     Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq, withDefault)

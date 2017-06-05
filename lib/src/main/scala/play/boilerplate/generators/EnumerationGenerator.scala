@@ -1,6 +1,6 @@
 package play.boilerplate.generators
 
-import play.boilerplate.generators.support.{DefinitionContext, TypeSupport, TypeSupportDefs}
+import play.boilerplate.generators.support.{TypeSupport, TypeSupportDefs}
 
 trait EnumerationGenerator {
   def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport
@@ -106,17 +106,17 @@ object VanillaEnumerations extends EnumerationGenerator {
       definition = generateEnumeration(enumClass, items),
       jsonReads  = generateEnumReads(enumClass),
       jsonWrites = generateEnumWrites(enumClass),
-      jsonObject = EmptyTree,
       queryBindable = generateEnumQueryBindable(enumClass),
       pathBindable  = generateEnumPathBindable(enumClass)
     ) :: Nil
   }
 
   override def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport = {
-    val enumClass = definitions.getClass(fullClassName)
+    val enumClassName = fullClassName.split('.').last
+    val enumClass = definitions.getClass(enumClassName)
     TypeSupport(
-      tpe = enumerationValueType(definitions.getClass(enumClass.nameString)),
-      fullQualified = enumerationValueType(definitions.getClass(enumClass.fullName('.'))),
+      tpe = enumerationValueType(enumClass),
+      fullQualified = enumerationValueType(definitions.getClass(fullClassName)),
       defs = generateEnumDefs(enumClass, items)
     )
   }

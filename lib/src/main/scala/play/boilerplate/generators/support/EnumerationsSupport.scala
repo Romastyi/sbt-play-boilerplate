@@ -13,7 +13,7 @@ trait EnumerationsSupport {
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
     val fullClassName = if (ctx.inModel && context.isInline) {
       Seq(ctx.modelPackageName, pathClassName).mkString(".")
-    } else if (ctx.inService && context.isInline) {
+    } else if ((ctx.inService || ctx.inController) && context.isInline) {
       Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
     } else {
       className

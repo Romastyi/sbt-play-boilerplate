@@ -15,7 +15,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
     val fullClassName = if (ctx.inModel && context.isInline) {
       Seq(ctx.modelPackageName, pathClassName).mkString(".")
-    } else if (ctx.inService && context.isInline) {
+    } else if ((ctx.inService || ctx.inController) && context.isInline) {
       Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
     } else {
       className
@@ -34,10 +34,11 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def generateObject(fullClassName: String, properties: Map[String, Definition], context: DefinitionContext)
                     (implicit ctx: GeneratorContext): TypeSupport = {
-    val objectClass = definitions.getClass(fullClassName)
+    val objectClassName = fullClassName.split('.').last
+    val objectClass = definitions.getClass(objectClassName)
     TypeSupport(
-      tpe = definitions.getClass(objectClass.nameString),
-      fullQualified = definitions.getClass(objectClass.fullName('.')),
+      tpe = objectClass,
+      fullQualified = definitions.getClass(fullClassName),
       defs = if (context.withoutDefinition) {
         Nil
       } else {
@@ -81,7 +82,6 @@ trait ObjectSupport { this: DefinitionsSupport =>
       definition = objectDef,
       jsonReads  = reads,
       jsonWrites = writes,
-      jsonObject = TypeSupport.generateJsonObject(objectClass, paramsReads :+ reads, paramsWrites :+ writes),
       queryBindable = EmptyTree,
       pathBindable  = EmptyTree
     )
