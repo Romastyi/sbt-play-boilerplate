@@ -12,7 +12,7 @@ trait DefinitionsSupport
   import definitions._
   import treehuggerDSL._
 
-  def getTypeSupport(definition: Definition, context: DefinitionContext = DefinitionContext.empty)
+  def getTypeSupport(definition: Definition, context: DefinitionContext = DefinitionContext.inline)
                     (implicit ctx: GeneratorContext): TypeSupport = {
     definition match {
       case OptionDefinition(_, base) =>
@@ -78,13 +78,11 @@ trait DefinitionsSupport
                                (implicit ctx: GeneratorContext): TypeSupport = {
     reference match {
       case m: Model =>
-        getTypeSupport(m.ref, context xor DefinitionContext.model)
+        getTypeSupport(m.ref, if (ctx.inModel || ctx.inService) DefinitionContext.withoutDefinition else DefinitionContext.inline)
       case p: Parameter =>
-        getTypeSupport(p.ref, context xor DefinitionContext.parameter)
-      case p: Property =>
-        getTypeSupport(p.ref, context xor DefinitionContext.property)
+        getTypeSupport(p.ref, if (ctx.inModel) DefinitionContext.withoutDefinition else DefinitionContext.inline)
       case RefDefinition(_, ref) =>
-        getTypeSupport(ref, DefinitionContext.empty)
+        getTypeSupport(ref, DefinitionContext.inline)
     }
   }
 

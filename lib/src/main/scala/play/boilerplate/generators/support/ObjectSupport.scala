@@ -10,23 +10,22 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def getObjectSupport(obj: ObjectDefinition, context: DefinitionContext)
                       (implicit ctx: GeneratorContext): TypeSupport = {
-    val className = obj.name/*.capitalize*/
+    val className = obj.name.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
-    val fullClassName = if (ctx.inModel && context.isModel) {
+    val fullClassName = if (ctx.inModel && context.isInline) {
       Seq(ctx.modelPackageName, pathClassName).mkString(".")
-    } else if (ctx.inService && context.isParameter) {
+    } else if (ctx.inService && context.isInline) {
       Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
     } else {
       className
     }
-    val haveDefinitions = (ctx.inModel && context.isModel) || (ctx.inService && context.isParameter)
     val support = generateObject(fullClassName, obj.properties, context)
     support.copy(
       defs = support.defs.map { defs =>
-        if (haveDefinitions) {
-          defs
-        } else {
+        if (context.withoutDefinition) {
           defs.copy(definition = EmptyTree)
+        } else {
+          defs
         }
       }
     )
@@ -36,11 +35,11 @@ trait ObjectSupport { this: DefinitionsSupport =>
     def param: ValDef = PARAM(name, support.tpe).empty
   }
 
-  def generateObjectDefs(objectClass: Symbol, properties: Map[String, Definition], context: DefinitionContext)
+  def generateObjectDefs(objectClass: Symbol, properties: Map[String, Definition])
                         (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
 
     val params = for ((name, prop) <- properties) yield {
-      name -> ObjectProperty(name, getTypeSupport(prop, context))
+      name -> ObjectProperty(name, getTypeSupport(prop))
     }
 
     val objectDef = if (params.isEmpty) {
@@ -67,7 +66,11 @@ trait ObjectSupport { this: DefinitionsSupport =>
     TypeSupport(
       tpe = definitions.getClass(objectClass.nameString),
       fullQualified = definitions.getClass(objectClass.fullName('.')),
-      defs = generateObjectDefs(objectClass, properties, context)(ctx.addCurrentPath(objectClass.nameString))
+      defs = if (context.withoutDefinition) {
+        Nil
+      } else {
+        generateObjectDefs(objectClass, properties)(ctx.addCurrentPath(objectClass.nameString))
+      }
     )
   }
 

@@ -35,8 +35,8 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
 
   "Full support" should "Parse petStore_v1.yaml" in {
 
-    val generator = new PlayModelGenerator()
-    printSyntaxString(generator.generate("petStore_v1.yaml", "test"))
+    //val generator = new PlayModelGenerator()
+    //printSyntaxString(generator.generate("petStore_v1.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")

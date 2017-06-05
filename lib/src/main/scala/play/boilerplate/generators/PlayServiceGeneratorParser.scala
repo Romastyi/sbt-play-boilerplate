@@ -40,7 +40,7 @@ class PlayServiceGeneratorParser(schema: Schema) {
       }
 
       val companionTree = OBJECTDEF(ctx.serviceClassName) := BLOCK {
-        generateResponseClasses ++ methods.flatMap(_.additionalDef)
+        generateResponseClasses(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
       }
 
       SyntaxString(ctx.serviceClassName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
@@ -134,7 +134,9 @@ class PlayServiceGeneratorParser(schema: Schema) {
 
     val responses = for ((code, response) <- operation.responses) yield {
       val className = GeneratorUtils.getResponseClassName(operation.operationId, code)
-      val bodyType = response.schema.map(GeneratorUtils.getTypeSupport(_))
+      val bodyType = response.schema.map(
+        body => GeneratorUtils.getTypeSupport(body)(ctx.addCurrentPath(operation.operationId, "body"))
+      )
       val params = bodyType.map(body => PARAM("body", body.tpe).tree).toSeq ++ {
         code match {
           case DefaultResponse =>
@@ -143,14 +145,15 @@ class PlayServiceGeneratorParser(schema: Schema) {
             Nil
         }
       }
-      if (params.isEmpty) {
+      val classDef = if (params.isEmpty) {
         CASEOBJECTDEF(className).withParents(traitName).empty
       } else {
         CASECLASSDEF(className).withParams(params).withParents(traitName).withFlags(Flags.FINAL).empty
       }
+      bodyType.map(_.defs.map(_.definition)).getOrElse(Nil) :+ classDef
     }
 
-    Responses(traitName, sealedTrait +: responses.toIndexedSeq, withDefault)
+    Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq, withDefault)
 
   }
 

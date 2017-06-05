@@ -19,7 +19,7 @@ trait GeneratorContext {
   def controllerClassName: String
 
   def currentPath: Seq[String]
-  def addCurrentPath(path: String): GeneratorContext
+  def addCurrentPath(path: String*): GeneratorContext
 
   def inModel: Boolean
   def setInModel(value: Boolean): GeneratorContext
@@ -64,7 +64,7 @@ case class DefaultGeneratorContext(override val fileName: String,
   override val controllerPackageName: String = basePackageName + ".controller"
   override val controllerClassName: String = objectNameFromFileName("Controller")
 
-  override def addCurrentPath(path: String): GeneratorContext = copy(currentPath = currentPath :+ path)
+  override def addCurrentPath(path: String*): GeneratorContext = copy(currentPath = currentPath ++ path)
 
   override def setInModel(value: Boolean): GeneratorContext = copy(inModel = true)
   override def setInService(value: Boolean): GeneratorContext = copy(inService = true)

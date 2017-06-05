@@ -181,13 +181,24 @@ trait PropertyParser { this: ReferenceParser =>
         val items = Option(prop.getItems).getOrElse {
           throw ParserException(s"Array items property is not specified for property.")
         }
-        items.setRequired(true)
         ArrayDefinition(
           name = name,
           items = getPropertyDef(schema, name, items),
           uniqueItems = Option(prop.getUniqueItems).exists(_ == true),
           minLength = Option(prop.getMinItems).map(Integer2int),
           maxLength = Option(prop.getMaxItems).map(Integer2int)
+        )
+      case prop: ObjectProperty =>
+        val items = for ((name, p) <- Option(prop.getProperties).map(_.asScala.toMap).getOrElse(Map.empty)) yield {
+          name -> getPropertyDef(schema, name, p)
+        }
+        ObjectDefinition(
+          properties = items,
+          name = Option(prop.getName).getOrElse(propertyName),
+          title = Option(prop.getTitle),
+          description = Option(prop.getDescription),
+          readOnly = Option(prop.getReadOnly).exists(_ == true),
+          allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true)
         )
       case prop: RefProperty =>
         findReferenceDef(schema, prop.get$ref())

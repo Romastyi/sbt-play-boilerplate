@@ -17,7 +17,7 @@ object GeneratorUtils extends support.DefinitionsSupport {
                        (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
     (path.parameters ++ operation.parameters).collect {
       case param: BodyParameter =>
-        val support = getTypeSupport(param)
+        val support = getTypeSupport(param.ref)
         param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.defs.map(_.definition), Nil)
     }.toMap
   }
@@ -41,7 +41,7 @@ object GeneratorUtils extends support.DefinitionsSupport {
         case _ => 4
       }
       .map { param =>
-        val support = getTypeSupport(param)
+        val support = getTypeSupport(param.ref)
         param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.defs.map(_.definition), getParamImplicits(param, support))
       }
       .toMap

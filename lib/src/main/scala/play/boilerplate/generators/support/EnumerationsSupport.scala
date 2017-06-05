@@ -11,21 +11,20 @@ trait EnumerationsSupport {
                     (implicit ctx: GeneratorContext): TypeSupport = {
     val className = enum.name.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
-    val fullClassName = if (ctx.inModel && context.isModel) {
+    val fullClassName = if (ctx.inModel && context.isInline) {
       Seq(ctx.modelPackageName, pathClassName).mkString(".")
-    } else if (ctx.inService && context.isParameter) {
+    } else if (ctx.inService && context.isInline) {
       Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
     } else {
       className
     }
-    val haveDefinitions = (ctx.inModel && context.isModel) || (ctx.inService && context.isParameter)
     val support = ctx.enumGenerator.getEnumerationSupport(fullClassName, enum.items)
     support.copy(
       defs = support.defs.map { defs =>
-        if (haveDefinitions) {
-          defs
-        } else {
+        if (context.withoutDefinition) {
           defs.copy(definition = EmptyTree)
+        } else {
+          defs
         }
       }
     )

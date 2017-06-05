@@ -136,7 +136,17 @@ paths:
         default:
           description: unexpected error
           schema:
-            $ref: '#/definitions/errorModel'
+            type: object
+            required:
+            - message
+            - code
+            properties:
+              message:
+                type: string
+              code:
+                type: integer
+                minimum: 100
+                maximum: 600
 parameters:
   tags:
     name: tags
@@ -204,6 +214,18 @@ definitions:
       uuid:
         type: string
         format: uuid
+      obj:
+        type: object
+        required:
+        - message
+        - code
+        properties:
+          message:
+            type: string
+          code:
+            type: integer
+            minimum: 100
+            maximum: 600
   PetTag:
     type: string
     enum: &PETTAG
