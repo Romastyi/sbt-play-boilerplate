@@ -1,91 +1,31 @@
 package play.boilerplate.generators
 
-import java.io.File.{separator, separatorChar}
+final case class GeneratorContext private (settings: GeneratorSettings,
+                                           currentPath: Seq[String],
+                                           isModel: Boolean,
+                                           inModel: Boolean,
+                                           inService: Boolean,
+                                           inClient: Boolean) {
 
-import play.boilerplate.generators.injection.InjectionProvider
-import play.boilerplate.generators.security.SecurityProvider
-
-trait GeneratorContext {
-
-  def fileName: String
-  def basePackageName: String
-  def codeProvidedPackage: String
-
-  def modelPackageName: String
-  def jsonPackageName: String
-  def jsonObjectName: String
-
-  def servicePackageName: String
-  def serviceClassName: String
-
-  def routesFileName: String
-  def controllerPackageName: String
-  def controllerClassName: String
-
-  def clientPackageName: String
-  def clientClassName: String
-
-  def currentPath: Seq[String]
-  def addCurrentPath(path: String*): GeneratorContext
-
-  def inModel: Boolean
-  def setInModel(value: Boolean): GeneratorContext
-
-  def inService: Boolean
-  def setInService(value: Boolean): GeneratorContext
-
-  def inClient: Boolean
-  def setInClient(value: Boolean): GeneratorContext
-
-  def enumGenerator: EnumerationGenerator
-  def securityProvider: SecurityProvider
-  def injectionProvider: InjectionProvider
+  def addCurrentPath(path: String*): GeneratorContext = copy(currentPath = currentPath ++ path)
+  def setIsModel(value: Boolean): GeneratorContext = copy(isModel = true)
+  def setInModel(value: Boolean): GeneratorContext = copy(inModel = true)
+  def setInService(value: Boolean): GeneratorContext = copy(inService = true)
+  def setInClient(value: Boolean): GeneratorContext = copy(inClient = true)
 
 }
 
-case class DefaultGeneratorContext(override val fileName: String,
-                                   override val basePackageName: String,
-                                   override val codeProvidedPackage: String,
-                                   override val currentPath: Seq[String] = Nil,
-                                   override val inModel: Boolean = false,
-                                   override val inService: Boolean = false,
-                                   override val inClient: Boolean = false,
-                                   override val enumGenerator: EnumerationGenerator = VanillaEnumerations,
-                                   override val securityProvider: SecurityProvider = SecurityProvider.default,
-                                   override val injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor()
-                                  ) extends GeneratorContext {
+object GeneratorContext {
 
-  private def sanitizeFileName: String = {
-    val sep = if (separatorChar == 92.toChar) "\\\\" else separator
-    fileName.split(sep)
-      .toList
-      .last
-      .replace(".yaml", "")
-      .replace(".json", "")
+  def initial(settings: GeneratorSettings): GeneratorContext = {
+    GeneratorContext(
+      settings = settings,
+      currentPath = Nil,
+      isModel = false,
+      inModel = false,
+      inService = false,
+      inClient = false
+    )
   }
-
-  private def objectNameFromFileName(obj: String): String = {
-    sanitizeFileName.capitalize + obj
-  }
-
-  override val modelPackageName: String = basePackageName + ".model"
-  override val jsonPackageName: String = modelPackageName + ".json"
-  override val jsonObjectName: String = "json"
-
-  override val servicePackageName: String = basePackageName + ".service"
-  override val serviceClassName: String = objectNameFromFileName("Service")
-
-  override val routesFileName: String = sanitizeFileName + ".routes"
-  override val controllerPackageName: String = basePackageName + ".controller"
-  override val controllerClassName: String = objectNameFromFileName("Controller")
-
-  override val clientPackageName: String = basePackageName + ".client"
-  override val clientClassName: String = objectNameFromFileName("Client")
-
-  override def addCurrentPath(path: String*): GeneratorContext = copy(currentPath = currentPath ++ path)
-
-  override def setInModel(value: Boolean): GeneratorContext = copy(inModel = true)
-  override def setInService(value: Boolean): GeneratorContext = copy(inService = true)
-  override def setInClient(value: Boolean): GeneratorContext = copy(inClient = true)
 
 }

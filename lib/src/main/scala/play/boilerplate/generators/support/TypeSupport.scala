@@ -26,7 +26,7 @@ case class TypeSupportDefs(symbol: Symbol,
 object TypeSupport {
 
   def generateJsonObject(symbol: Symbol, jsonReads: Seq[Tree], jsonWrites: Seq[Tree]): Tree = {
-    val jsonMethods = (jsonReads ++ jsonWrites).filterNot(_ == EmptyTree)
+    val jsonMethods = filterNonEmptyTree(jsonReads ++ jsonWrites)
     if (jsonMethods.nonEmpty) {
       OBJECTDEF(symbol.nameString) := BLOCK(jsonMethods)
     } else {

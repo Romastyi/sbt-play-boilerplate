@@ -12,21 +12,21 @@ class PlayServerGeneratorParser extends CodeGenerator {
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
-      IMPORT(ctx.modelPackageName, "_"),
-      IMPORT(ctx.jsonPackageName , "_"),
-      IMPORT(ctx.servicePackageName, ctx.serviceClassName),
-      IMPORT(ctx.serviceClassName, "_"),
+      IMPORT(ctx.settings.modelPackageName, "_"),
+      IMPORT(ctx.settings.jsonPackageName , "_"),
+      IMPORT(ctx.settings.servicePackageName, ctx.settings.serviceClassName),
+      IMPORT(ctx.settings.serviceClassName, "_"),
       IMPORT("play.api.mvc", "_"),
       IMPORT("play.api.libs.json", "_"),
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
     ) ++
-      ctx.securityProvider.controllerImports ++
-      ctx.injectionProvider.imports ++
-      Seq(ctx.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
+      ctx.settings.securityProvider.controllerImports ++
+      ctx.settings.injectionProvider.imports ++
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
   }
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
-    Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.serviceClassName)))
+    Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName)))
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
@@ -40,30 +40,35 @@ class PlayServerGeneratorParser extends CodeGenerator {
 
       val controllerImports = BLOCK {
         generateImports
-      } inPackage ctx.controllerPackageName
+      } inPackage ctx.settings.controllerPackageName
 
       val companionItems = methods.flatMap(_.implicits)
 
       val (companionObj, importCompanion) = if (companionItems.nonEmpty) {
-        val objDef = OBJECTDEF(ctx.controllerClassName) := BLOCK {
+        val objDef = OBJECTDEF(ctx.settings.controllerClassName) := BLOCK {
           companionItems
         }
-        (objDef, IMPORT(ctx.controllerClassName, "_"))
+        (objDef, IMPORT(ctx.settings.controllerClassName, "_"))
       } else {
         (EmptyTree, EmptyTree)
       }
 
-      val classDef = CLASSDEF(ctx.controllerClassName)
-        .withParents(TYPE_REF("Controller") +: ctx.securityProvider.controllerParents)
-        .withSelf("self", ctx.securityProvider.controllerSelfTypes: _ *) :=
+      val classDef = CLASSDEF(ctx.settings.controllerClassName)
+        .withParents(TYPE_REF("Controller") +: ctx.settings.securityProvider.controllerParents)
+        .withSelf("self", ctx.settings.securityProvider.controllerSelfTypes: _ *) :=
         BLOCK {
           filterNonEmptyTree(importCompanion +: methods.map(_.tree).toIndexedSeq)
         }
 
       // --- DI
-      val controllerTree = ctx.injectionProvider.classDefModifier(classDef, dependencies)
+      val controllerTree = ctx.settings.injectionProvider.classDefModifier(classDef, dependencies)
 
-      SourceCodeFile(ctx.controllerClassName, treeToString(controllerImports), controllerTree + "\n" + treeToString(companionObj)) :: Nil
+      SourceCodeFile(
+        packageName = ctx.settings.controllerPackageName,
+        className = ctx.settings.controllerClassName,
+        header = treeToString(controllerImports),
+        impl = controllerTree + "\n\n" + treeToString(companionObj)
+      ) :: Nil
 
     } else {
       Nil
@@ -83,7 +88,7 @@ class PlayServerGeneratorParser extends CodeGenerator {
     val bodyValues = generateValuesFromBody(operation.parameters, supportedProduces)
     val methodParams = getMethodParameters(path, operation)
 
-    val actionSecurity = ctx.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
+    val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
 
     val (actionType, parser) = if (operation.consumes.isEmpty || bodyValues.isEmpty) {
       (ACTION_EMPTY, PARSER_EMPTY)
@@ -239,10 +244,15 @@ class PlayServerGeneratorParser extends CodeGenerator {
     val helpers = generateHelpers
 
     if (helpers.nonEmpty) {
-      val imports = EmptyTree inPackage ctx.controllerPackageName
-      val objectName = ctx.controllerPackageName.split('.').last
+      val imports = EmptyTree inPackage ctx.settings.controllerPackageName
+      val objectName = ctx.settings.controllerPackageName.split('.').last
       val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
-      SourceCodeFile(objectName, treeToString(imports), treeToString(objectTree)) :: Nil
+      SourceCodeFile(
+        packageName = ctx.settings.controllerPackageName,
+        className = objectName,
+        header = treeToString(imports),
+        impl = treeToString(objectTree)
+      ) :: Nil
     } else {
       Nil
     }

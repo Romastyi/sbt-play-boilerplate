@@ -16,13 +16,19 @@ class PlayJsonGeneratorParser extends CodeGenerator {
 
     if (methods.nonEmpty) {
 
-      val imports = BLOCK {
-        Seq(IMPORT("play.api.libs.json", "_"))
-      } inPackage ctx.jsonPackageName
+      val imports = BLOCK(
+        IMPORT(ctx.settings.modelPackageName, "_"),
+        IMPORT("play.api.libs.json", "_")
+      ) inPackage ctx.settings.jsonPackageName
 
-      val packageObj = PACKAGEOBJECTDEF(ctx.jsonObjectName) := BLOCK(methods)
+      val packageObj = PACKAGEOBJECTDEF(ctx.settings.jsonObjectName) := BLOCK(methods)
 
-      SourceCodeFile(ctx.jsonObjectName, treeToString(imports), treeToString(packageObj)) :: Nil
+      SourceCodeFile(
+        packageName = ctx.settings.jsonPackageName,
+        className = ctx.settings.jsonObjectName,
+        header = treeToString(imports),
+        impl = treeToString(packageObj)
+      ) :: Nil
 
     } else {
       Nil

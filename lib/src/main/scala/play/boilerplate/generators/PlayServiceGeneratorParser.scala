@@ -11,18 +11,18 @@ class PlayServiceGeneratorParser extends CodeGenerator {
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Tree] = {
     Seq(
-      IMPORT(ctx.basePackageName, "_"),
+      IMPORT(ctx.settings.modelPackageName, "_"),
       IMPORT("scala.concurrent", "Future")
     ) ++
-      Seq(ctx.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_")) ++
-      ctx.securityProvider.serviceImports
+      ctx.settings.securityProvider.serviceImports ++
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val serviceImports = BLOCK {
       generateImports
-    } inPackage ctx.servicePackageName
+    } inPackage ctx.settings.servicePackageName
 
     val methods = for {
       path <- schema.paths
@@ -31,17 +31,22 @@ class PlayServiceGeneratorParser extends CodeGenerator {
 
     if (methods.nonEmpty) {
 
-      val serviceTree = TRAITDEF(ctx.serviceClassName) := BLOCK {
-        IMPORT(ctx.serviceClassName, "_") +:
+      val serviceTree = TRAITDEF(ctx.settings.serviceClassName) := BLOCK {
+        IMPORT(ctx.settings.serviceClassName, "_") +:
           methods.map(_.tree).toIndexedSeq :+
           generateOrErrorMethod
       }
 
-      val companionTree = OBJECTDEF(ctx.serviceClassName) := BLOCK {
+      val companionTree = OBJECTDEF(ctx.settings.serviceClassName) := BLOCK {
         generateResponseClasses(schema)(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
       }
 
-      SourceCodeFile(ctx.serviceClassName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
+      SourceCodeFile(
+        packageName = ctx.settings.servicePackageName,
+        className = ctx.settings.serviceClassName,
+        header = treeToString(serviceImports),
+        impl = treeToString(serviceTree, EmptyTree, companionTree)
+      ) :: Nil
 
     } else {
       Nil
@@ -55,7 +60,7 @@ class PlayServiceGeneratorParser extends CodeGenerator {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
-    val securityParams = ctx.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
+    val securityParams = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 

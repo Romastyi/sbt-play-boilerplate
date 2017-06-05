@@ -1,10 +1,11 @@
 package play.boilerplate.generators.support
 
-import play.boilerplate.generators.GeneratorContext
+import play.boilerplate.generators.{GeneratorContext, GeneratorUtils}
 import play.boilerplate.parser.model._
 
 trait ObjectSupport { this: DefinitionsSupport =>
 
+  import GeneratorUtils._
   import treehugger.forest._
   import definitions._
   import treehuggerDSL._
@@ -14,11 +15,16 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val className = obj.name.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
     val fullClassName = if (ctx.inModel && context.isInline) {
-      Seq(ctx.modelPackageName, pathClassName).mkString(".")
+      composeName(ctx.settings.modelPackageName, pathClassName)
     } else if ((ctx.inService || ctx.inClient) && context.isInline) {
-      Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
+      composeName(ctx.settings.servicePackageName, ctx.settings.serviceClassName, pathClassName)
     } else {
-      ctx.basePackageName + "." + className
+      val packageName = if (ctx.isModel) {
+        ctx.settings.modelPackageName
+      } else {
+        ctx.settings.basePackageName
+      }
+      composeName(packageName, className)
     }
     val support = generateObject(fullClassName, obj.properties, context)
     support.copy(

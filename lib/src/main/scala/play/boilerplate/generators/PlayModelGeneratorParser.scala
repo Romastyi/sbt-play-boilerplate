@@ -9,11 +9,12 @@ class PlayModelGeneratorParser extends CodeGenerator {
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
-    val init = EmptyTree inPackage ctx.modelPackageName
+    val init = EmptyTree inPackage ctx.settings.modelPackageName
 
     for {
       (name, model) <- schema.definitions
     } yield SourceCodeFile(
+      packageName = ctx.settings.modelPackageName,
       className = name.capitalize,
       header = treeToString(init),
       impl = treeToString(generateClass(model)(ctx.setInModel(true)): _ *)

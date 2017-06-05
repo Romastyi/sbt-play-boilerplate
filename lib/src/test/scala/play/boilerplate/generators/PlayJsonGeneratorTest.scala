@@ -11,7 +11,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
     printSyntaxString(generator.generate("enums/schema_inline.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").right.get
-    val ctx = DefaultGeneratorContext("enums/schema_inline.yaml", "test", "")
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_inline.yaml", "test", ""))
     val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -25,7 +25,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
     printSyntaxString(generator.generate("enums/schema_reuse.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("enums/schema_reuse.yaml").right.get
-    val ctx = DefaultGeneratorContext("enums/schema_reuse.yaml", "test", "")
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_reuse.yaml", "test", ""))
     val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -39,7 +39,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
     printSyntaxString(generator.generate("petStore_v1.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
-    val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v1.yaml", "test", ""))
     val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -53,7 +53,7 @@ class PlayJsonGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
     printSyntaxString(generator.generate("petStore_v2.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").right.get
-    val ctx = DefaultGeneratorContext("petStore_v2.yaml", "test", "")
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v2.yaml", "test", ""))
     val gen = new PlayJsonGeneratorParser().generate(schema)(ctx)
     printCodeFile(gen)
 

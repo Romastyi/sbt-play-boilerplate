@@ -6,14 +6,9 @@ trait PrintSyntaxString {
 
   def printCodeFile(codeFile: Iterable[CodeFile]): Unit = {
 
-    codeFile.foreach {
-      case source @ SourceCodeFile(_, header, impl) =>
-        println(s"--- ${source.fileName} ---")
-        println(header)
-        println(impl)
-      case ResourceFile(fileName, source) =>
-        println(s"--- $fileName ---")
-        println(source)
+    codeFile.foreach { source =>
+      println(s"--- ${source.fileName} ---")
+      println(source.source)
     }
 
   }

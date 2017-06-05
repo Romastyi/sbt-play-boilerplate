@@ -1,0 +1,53 @@
+package play.boilerplate.generators
+
+import GeneratorUtils._
+import play.boilerplate.generators.injection.InjectionProvider
+import play.boilerplate.generators.security.SecurityProvider
+
+abstract class GeneratorSettings(val fileName: String,
+                                 val basePackageName: String,
+                                 val codeProvidedPackage: String) {
+
+  def modelPackageName: String
+  def jsonPackageName: String
+  def jsonObjectName: String
+
+  def servicePackageName: String
+  def serviceClassName: String
+
+  def routesFileName: String
+  def controllerPackageName: String
+  def controllerClassName: String
+
+  def clientPackageName: String
+  def clientClassName: String
+
+  def enumGenerator: EnumerationGenerator
+  def securityProvider: SecurityProvider
+  def injectionProvider: InjectionProvider
+
+}
+
+case class DefaultGeneratorSettings(_fileName: String,
+                                    _basePackageName: String,
+                                    _codeProvidedPackage: String,
+                                    override val enumGenerator: EnumerationGenerator = VanillaEnumerations,
+                                    override val securityProvider: SecurityProvider = SecurityProvider.default,
+                                    override val injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor())
+  extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
+
+  override val modelPackageName: String = composeName(basePackageName, "model")
+  override val jsonPackageName: String = composeName(modelPackageName, "json" )
+  override val jsonObjectName: String = "json"
+
+  override val servicePackageName: String = composeName(basePackageName, "service")
+  override val serviceClassName: String = objectNameFromFileName(fileName, "Service")
+
+  override val routesFileName: String = composeName(sanitizeFileName(fileName), "routes")
+  override val controllerPackageName: String = composeName(basePackageName, "controller")
+  override val controllerClassName: String = objectNameFromFileName(fileName, "Controller")
+
+  override val clientPackageName: String = composeName(basePackageName, "client")
+  override val clientClassName: String = objectNameFromFileName(fileName, "Client")
+
+}

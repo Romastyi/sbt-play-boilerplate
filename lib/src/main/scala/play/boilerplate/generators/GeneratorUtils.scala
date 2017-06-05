@@ -1,9 +1,9 @@
 package play.boilerplate.generators
 
-import play.boilerplate.generators.support.TypeSupport
+import play.boilerplate.generators.support.{DefinitionsSupport, TypeSupport}
 import play.boilerplate.parser.model._
 
-object GeneratorUtils extends support.DefinitionsSupport {
+object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   import treehugger.forest._
   import definitions._
@@ -146,10 +146,6 @@ object GeneratorUtils extends support.DefinitionsSupport {
   }
 
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
-
-  def padTo(n: Int, s: String): String = s + " " * (n - s.length max 0)
-
-  def cleanDuplicateSlash(s: String): String = s.replaceAll("//+", "/")
 
   def doClientUrl(basePath: String, path: Iterable[PathPart]): String = {
     val parts = path.collect {

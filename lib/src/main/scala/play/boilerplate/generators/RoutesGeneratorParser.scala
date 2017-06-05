@@ -15,7 +15,7 @@ trait RoutesGeneratorParser extends CodeGenerator {
     } yield composeRoutes(schema.basePath, path, operation)
 
     ResourceFile(
-      fileName = ctx.routesFileName,
+      fileName = ctx.settings.routesFileName,
       source = routes.mkString("\n")
     ) :: Nil
 
@@ -37,7 +37,7 @@ trait RoutesGeneratorParser extends CodeGenerator {
       case (n, MethodParam(_, fullQualified, _, _)) => s"$n: ${treeToString(fullQualified.tpt)}"
     }
 
-    generateFullClassName(ctx.controllerClassName) + "." + operation.operationId + ps.mkString("(", ", ", ")")
+    generateFullClassName(ctx.settings.controllerClassName) + "." + operation.operationId + ps.mkString("(", ", ", ")")
 
   }
 

@@ -12,19 +12,19 @@ class PlayClientGeneratorParser extends CodeGenerator {
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
-      IMPORT(ctx.basePackageName, "_"),
-      IMPORT(ctx.basePackageName + ".json", "_"),
-      IMPORT(ctx.servicePackageName, ctx.serviceClassName),
-      IMPORT(ctx.serviceClassName, "_"),
+      IMPORT(ctx.settings.modelPackageName, "_"),
+      IMPORT(ctx.settings.jsonPackageName , "_"),
+      IMPORT(ctx.settings.servicePackageName, ctx.settings.serviceClassName),
+      IMPORT(ctx.settings.serviceClassName, "_"),
       IMPORT("play.api.http.HeaderNames", "_"),
       IMPORT("play.api.libs.ws", "_"),
       IMPORT("play.api.libs.json", "_"),
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_"),
       IMPORT("scala.concurrent", "Future")
     ) ++
-      ctx.securityProvider.controllerImports ++
-      ctx.injectionProvider.imports ++
-      Seq(ctx.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
+      ctx.settings.securityProvider.controllerImports ++
+      ctx.settings.injectionProvider.imports ++
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
   }
 
   def dependencies(implicit cxt: GeneratorContext): Seq[InjectionProvider.Dependency] = {
@@ -42,10 +42,10 @@ class PlayClientGeneratorParser extends CodeGenerator {
 
       val clientImports = BLOCK {
         generateImports
-      } inPackage ctx.clientPackageName
+      } inPackage ctx.settings.clientPackageName
 
-      val classDef = CLASSDEF(ctx.clientClassName)
-        .withParents(TYPE_REF(ctx.serviceClassName))
+      val classDef = CLASSDEF(ctx.settings.clientClassName)
+        .withParents(TYPE_REF(ctx.settings.serviceClassName))
         .withParams(
           PARAM("baseUrl", StringClass).empty,
           PARAM("headers", repeatedParamType(TYPE_TUPLE(StringClass, StringClass))).empty
@@ -56,9 +56,14 @@ class PlayClientGeneratorParser extends CodeGenerator {
         }
 
       // --- DI
-      val clientTree = ctx.injectionProvider.classDefModifier(classDef, dependencies)
+      val clientTree = ctx.settings.injectionProvider.classDefModifier(classDef, dependencies)
 
-      SourceCodeFile(ctx.clientClassName, treeToString(clientImports), clientTree) :: Nil
+      SourceCodeFile(
+        packageName = ctx.settings.clientPackageName,
+        className = ctx.settings.clientClassName,
+        header = treeToString(clientImports),
+        impl = clientTree
+      ) :: Nil
 
     } else {
       Nil
@@ -72,7 +77,7 @@ class PlayClientGeneratorParser extends CodeGenerator {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
-    val securityParams = ctx.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
+    val securityParams = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
     val fullBodyParams = bodyParams.keys.map {
       name => name -> (REF("Json") DOT "toJson" APPLY REF(name))
     }.toMap
@@ -263,13 +268,18 @@ class PlayClientGeneratorParser extends CodeGenerator {
 
   final def generatePackageObject(implicit ctx: GeneratorContext): Seq[SourceCodeFile] = {
 
-    val objectName = ctx.clientPackageName.split('.').last
+    val objectName = ctx.settings.clientPackageName.split('.').last
     val helpers = generateHelpers(objectName)
 
     if (helpers.nonEmpty) {
-      val imports = EmptyTree inPackage ctx.clientPackageName
+      val imports = EmptyTree inPackage ctx.settings.clientPackageName
       val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
-      SourceCodeFile(objectName, treeToString(imports), treeToString(objectTree)) :: Nil
+      SourceCodeFile(
+        packageName = ctx.settings.clientPackageName,
+        className = objectName,
+        header = treeToString(imports),
+        impl = treeToString(objectTree)
+      ) :: Nil
     } else {
       Nil
     }

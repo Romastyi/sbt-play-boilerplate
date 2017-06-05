@@ -11,7 +11,7 @@ class RoutesGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString 
     printRoutes(generator.generateRoutes("petStore_v1.yaml", "fullControllerName").toSeq)
 
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
-    val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v1.yaml", "test", ""))
     val gen = new RoutesGeneratorParser {}.generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -25,7 +25,7 @@ class RoutesGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString 
     printRoutes(generator.generateRoutes("petStore_v2.yaml", "fullControllerName").toSeq)
 
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").right.get
-    val ctx = DefaultGeneratorContext("petStore_v2.yaml", "test", "")
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v2.yaml", "test", ""))
     val gen = new RoutesGeneratorParser {}.generate(schema)(ctx)
     printCodeFile(gen)
 

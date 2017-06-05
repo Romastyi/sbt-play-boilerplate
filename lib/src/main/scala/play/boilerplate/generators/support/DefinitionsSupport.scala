@@ -82,16 +82,16 @@ trait DefinitionsSupport
         } else {
           DefinitionContext.inline
         }
-        getTypeSupport(m.ref, context)
+        getTypeSupport(m.ref, context)(ctx.setIsModel(true))
       case p: Parameter =>
         val context = if (ctx.inModel || ctx.inClient) {
           DefinitionContext.withoutDefinition
         } else {
           DefinitionContext.inline
         }
-        getTypeSupport(p.ref, context)
+        getTypeSupport(p.ref, context)(ctx.setIsModel(false))
       case RefDefinition(_, ref) =>
-        getTypeSupport(ref, DefinitionContext.inline)
+        getTypeSupport(ref, DefinitionContext.inline)(ctx.setIsModel(false))
     }
   }
 
