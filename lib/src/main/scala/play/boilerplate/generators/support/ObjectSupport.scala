@@ -73,13 +73,15 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
 
     val ObjectJson(reads, writes) = generateObjectJson(objectClass, params)
+    val paramsReads  = params.flatMap(_.support.defs.map(_.jsonReads ))
+    val paramsWrites = params.flatMap(_.support.defs.map(_.jsonWrites))
 
     val objectDefs = TypeSupportDefs(
       symbol = objectClass,
       definition = objectDef,
       jsonReads  = reads,
       jsonWrites = writes,
-      jsonObject = TypeSupport.generateJsonObject(objectClass, reads, writes),
+      jsonObject = TypeSupport.generateJsonObject(objectClass, paramsReads :+ reads, paramsWrites :+ writes),
       queryBindable = EmptyTree,
       pathBindable  = EmptyTree
     )

@@ -11,6 +11,8 @@ trait GeneratorContext {
   def codeProvidedPackage: String
 
   def modelPackageName: String
+  def jsonPackageName: String
+  def jsonObjectName: String
 
   def servicePackageName: String
   def serviceClassName: String
@@ -57,6 +59,8 @@ case class DefaultGeneratorContext(override val fileName: String,
   }
 
   override val modelPackageName: String = basePackageName + ".model"
+  override val jsonPackageName: String = modelPackageName + ".json"
+  override val jsonObjectName: String = "json"
 
   override val servicePackageName: String = basePackageName + ".service"
   override val serviceClassName: String = objectNameFromFileName("Service")

@@ -50,9 +50,9 @@ object GeneratorUtils extends support.DefinitionsSupport {
   def getParamImplicits(param: Parameter, support: TypeSupport): Seq[Tree] = {
     param match {
       case _: PathParameter =>
-        support.defs.map(_.pathBindable)
+        support.pathBindable
       case _: QueryParameter =>
-        support.defs.map(_.queryBindable)
+        support.queryBindable
       case _ =>
         Nil
     }
