@@ -18,7 +18,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     } else if ((ctx.inService || ctx.inController) && context.isInline) {
       Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
     } else {
-      className
+      ctx.basePackageName + "." + className
     }
     val support = generateObject(fullClassName, obj.properties, context)
     support.copy(
@@ -74,8 +74,6 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
 
     val ObjectJson(reads, writes) = generateObjectJson(objectClass, params)
-    val paramsReads  = params.flatMap(_.support.defs.map(_.jsonReads ))
-    val paramsWrites = params.flatMap(_.support.defs.map(_.jsonWrites))
 
     val objectDefs = TypeSupportDefs(
       symbol = objectClass,

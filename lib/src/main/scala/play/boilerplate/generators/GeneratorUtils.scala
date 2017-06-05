@@ -34,14 +34,16 @@ object GeneratorUtils extends support.DefinitionsSupport {
     case MIME_TYPE_JSON => MimeTypeSupport(REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON)
   }
 
-  case class MethodParam(valDef: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree])
+  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree])
 
   def getBodyParameters(path: Path, operation: Operation)
                        (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
     (path.parameters ++ operation.parameters).collect {
       case param: BodyParameter =>
         val support = getTypeSupport(param.ref)
-        param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.definitions, Nil)
+        val valDef = PARAM(param.name, support.tpe).empty
+        val fullQualified = PARAM(param.name, support.fullQualified).empty
+        param.name -> MethodParam(valDef, fullQualified, support.definitions, Nil)
     }.toMap
   }
 
@@ -65,7 +67,9 @@ object GeneratorUtils extends support.DefinitionsSupport {
       }
       .map { param =>
         val support = getTypeSupport(param.ref)
-        param.name -> MethodParam(PARAM(param.name, support.tpe).tree, support.definitions, getParamImplicits(param, support))
+        val valDef = PARAM(param.name, support.tpe).empty
+        val fullQualified = PARAM(param.name, support.fullQualified).empty
+        param.name -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support))
       }
       .toMap
   }
@@ -142,5 +146,25 @@ object GeneratorUtils extends support.DefinitionsSupport {
   }
 
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
+
+  def padTo(n: Int, s: String): String = s + " " * (n - s.length max 0)
+
+  def cleanDuplicateSlash(s: String): String = s.replaceAll("//+", "/")
+
+  def doRoutesUrl(basePath: String, path: Iterable[PathPart], operation: Operation): String = {
+    val parts = path.collect {
+      case StaticPart(str) =>
+        str
+      case ParamPart(name) =>
+        val param = operation.parameters.find(_.name == name).map(_.baseDef).getOrElse {
+          throw new RuntimeException(s"Url path parameter '$name' not found for operation (${operation.operationId}).")
+        }
+        param match {
+          case _: IntegerDefinition | _: LongDefinition => "$" + name + "<[0-9]+>"
+          case _ => ":" + name
+        }
+    }.toSeq
+    cleanDuplicateSlash((basePath +: parts).mkString("/"))
+  }
 
 }

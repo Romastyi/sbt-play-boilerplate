@@ -34,8 +34,8 @@ class PlayServerGeneratorParser(schema: Schema) {
 
     val methods = for {
       path <- schema.paths
-      op <- path.operations.values
-    } yield generateMethod(path, op)(ctx.addCurrentPath(op.operationId).setInController(true))
+      (_, operation) <- path.operations.toSeq.sortBy(_._1)
+    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInController(true))
 
     val controllerSources = if (methods.nonEmpty) {
 

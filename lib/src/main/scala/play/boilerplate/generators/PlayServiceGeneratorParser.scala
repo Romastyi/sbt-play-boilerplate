@@ -27,8 +27,8 @@ class PlayServiceGeneratorParser(schema: Schema) {
 
     val methods = for {
       path <- schema.paths
-      op <- path.operations.values
-    } yield generateMethod(path, op)(ctx.addCurrentPath(op.operationId).setInService(true))
+      (_, operation) <- path.operations.toSeq.sortBy(_._1)
+    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInService(true))
 
     if (methods.nonEmpty) {
 
@@ -97,10 +97,10 @@ class PlayServiceGeneratorParser(schema: Schema) {
   def generateResponseClasses(implicit ctx: GeneratorContext): Seq[Tree] = {
 
     val models = schema.definitions
-    val operations = schema.paths.flatMap(_.operations)
-    val operationResults = operations.map {
-      case (_, operation) => generateOperationResults(operation, models)
-    }
+    val operationResults = for {
+      path <- schema.paths
+      (_, operation) <- path.operations.toSeq.sortBy(_._1)
+    } yield generateOperationResults(operation, models)
 
     val traits = operationResults.filterNot(_.withDefault).map(_.traitName)
 

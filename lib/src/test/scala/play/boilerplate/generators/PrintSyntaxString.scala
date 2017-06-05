@@ -14,4 +14,9 @@ trait PrintSyntaxString {
 
   }
 
+  def printRoutes(routes: Seq[String]): Unit = {
+    println("--- routes ---")
+    routes.foreach(println)
+  }
+
 }

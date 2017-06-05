@@ -16,7 +16,7 @@ trait EnumerationsSupport {
     } else if ((ctx.inService || ctx.inController) && context.isInline) {
       Seq(ctx.servicePackageName, ctx.serviceClassName, pathClassName).mkString(".")
     } else {
-      className
+      ctx.basePackageName + "." + className
     }
     val support = ctx.enumGenerator.getEnumerationSupport(fullClassName, enum.items)
     support.copy(
