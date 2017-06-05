@@ -77,14 +77,14 @@ trait DefinitionsSupport
   private def getTypeSupportRef(reference: RefDefinition)(implicit ctx: GeneratorContext): TypeSupport = {
     reference match {
       case m: Model =>
-        val context = if (ctx.inModel || ctx.inService || ctx.inController) {
+        val context = if (ctx.inModel || ctx.inService || ctx.inClient) {
           DefinitionContext.withoutDefinition
         } else {
           DefinitionContext.inline
         }
         getTypeSupport(m.ref, context)
       case p: Parameter =>
-        val context = if (ctx.inModel || ctx.inController) {
+        val context = if (ctx.inModel || ctx.inClient) {
           DefinitionContext.withoutDefinition
         } else {
           DefinitionContext.inline

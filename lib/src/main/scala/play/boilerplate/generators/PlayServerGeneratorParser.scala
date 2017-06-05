@@ -35,7 +35,7 @@ class PlayServerGeneratorParser(schema: Schema) {
     val methods = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInController(true))
+    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
 
     val controllerSources = if (methods.nonEmpty) {
 
@@ -162,7 +162,7 @@ class PlayServerGeneratorParser(schema: Schema) {
     val responseConsumes = operation.consumes.filterNot(_ == MIME_TYPE_JSON)
 
     val cases = for ((code, response) <- operation.responses) yield {
-      val className = getOperationResponseTraitName(operation.operationId)
+      val className = getResponseClassName(operation.operationId, code)
       val statusCode = Some(code).flatMap {
         case DefaultResponse => None
         case StatusResponse(c) => Some(c)

@@ -14,8 +14,8 @@ import treehuggerDSL._
 import scala.collection.JavaConversions._
 
 class PlayClientGenerator(codeProvidedPackage: String,
-                          securityProvider: SecurityProvider,
-                          injectionProvider: InjectionProvider)
+                          securityProvider: SecurityProvider = SecurityProvider.default,
+                          injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor())
   extends DefaultClientGenerator
     with SharedGeneratorCode {
 

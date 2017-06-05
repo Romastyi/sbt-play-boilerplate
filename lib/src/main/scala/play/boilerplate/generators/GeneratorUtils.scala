@@ -151,6 +151,14 @@ object GeneratorUtils extends support.DefinitionsSupport {
 
   def cleanDuplicateSlash(s: String): String = s.replaceAll("//+", "/")
 
+  def doClientUrl(basePath: String, path: Iterable[PathPart]): String = {
+    val parts = path.collect {
+      case StaticPart(str) => str
+      case ParamPart(name) => "$" + name
+    }.toSeq
+    cleanDuplicateSlash((basePath +: parts).mkString("/"))
+  }
+
   def doRoutesUrl(basePath: String, path: Iterable[PathPart], operation: Operation): String = {
     val parts = path.collect {
       case StaticPart(str) =>

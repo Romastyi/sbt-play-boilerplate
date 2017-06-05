@@ -21,6 +21,9 @@ trait GeneratorContext {
   def controllerPackageName: String
   def controllerClassName: String
 
+  def clientPackageName: String
+  def clientClassName: String
+
   def currentPath: Seq[String]
   def addCurrentPath(path: String*): GeneratorContext
 
@@ -30,8 +33,8 @@ trait GeneratorContext {
   def inService: Boolean
   def setInService(value: Boolean): GeneratorContext
 
-  def inController: Boolean
-  def setInController(value: Boolean): GeneratorContext
+  def inClient: Boolean
+  def setInClient(value: Boolean): GeneratorContext
 
   def enumGenerator: EnumerationGenerator
   def securityProvider: SecurityProvider
@@ -45,7 +48,7 @@ case class DefaultGeneratorContext(override val fileName: String,
                                    override val currentPath: Seq[String] = Nil,
                                    override val inModel: Boolean = false,
                                    override val inService: Boolean = false,
-                                   override val inController: Boolean = false,
+                                   override val inClient: Boolean = false,
                                    override val enumGenerator: EnumerationGenerator = VanillaEnumerations,
                                    override val securityProvider: SecurityProvider = SecurityProvider.default,
                                    override val injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor()
@@ -71,10 +74,13 @@ case class DefaultGeneratorContext(override val fileName: String,
   override val controllerPackageName: String = basePackageName + ".controller"
   override val controllerClassName: String = objectNameFromFileName("Controller")
 
+  override val clientPackageName: String = basePackageName + ".client"
+  override val clientClassName: String = objectNameFromFileName("Client")
+
   override def addCurrentPath(path: String*): GeneratorContext = copy(currentPath = currentPath ++ path)
 
   override def setInModel(value: Boolean): GeneratorContext = copy(inModel = true)
   override def setInService(value: Boolean): GeneratorContext = copy(inService = true)
-  override def setInController(value: Boolean): GeneratorContext = copy(inController = true)
+  override def setInClient(value: Boolean): GeneratorContext = copy(inClient = true)
 
 }

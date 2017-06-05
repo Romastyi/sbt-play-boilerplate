@@ -20,7 +20,7 @@ trait RoutesGeneratorParser {
 
     val httpMethod = operation.httpMethod.toString.toUpperCase
     val url = doRoutesUrl(basePath, path.pathParts, operation)
-    val methodCall = generateMethodCall(path, operation)(ctx.addCurrentPath(operation.operationId).setInController(true))
+    val methodCall = generateMethodCall(path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
 
     s"${padTo(8, httpMethod)}            ${padTo(50, url)}          ${padTo(20, methodCall)}"
 
