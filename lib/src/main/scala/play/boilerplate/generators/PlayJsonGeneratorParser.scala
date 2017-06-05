@@ -1,14 +1,13 @@
 package play.boilerplate.generators
 
-import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.parser.model._
 
-class PlayJsonGeneratorParser {
+class PlayJsonGeneratorParser extends CodeGenerator {
 
   import treehugger.forest._
   import treehuggerDSL._
 
-  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val methods = schema.definitions.values.flatMap { model =>
       val support = GeneratorUtils.getTypeSupport(model.ref)(ctx.setInModel(true))
@@ -23,7 +22,7 @@ class PlayJsonGeneratorParser {
 
       val packageObj = PACKAGEOBJECTDEF(ctx.jsonObjectName) := BLOCK(methods)
 
-      SyntaxString(ctx.jsonObjectName, treeToString(imports), treeToString(packageObj)) :: Nil
+      SourceCodeFile(ctx.jsonObjectName, treeToString(imports), treeToString(packageObj)) :: Nil
 
     } else {
       Nil

@@ -1,10 +1,9 @@
 package play.boilerplate.generators
 
-import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.parser.model._
 
-class PlayServerGeneratorParser {
+class PlayServerGeneratorParser extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -30,7 +29,7 @@ class PlayServerGeneratorParser {
     Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.serviceClassName)))
   }
 
-  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val methods = for {
       path <- schema.paths
@@ -64,7 +63,7 @@ class PlayServerGeneratorParser {
       // --- DI
       val controllerTree = ctx.injectionProvider.classDefModifier(classDef, dependencies)
 
-      SyntaxString(ctx.controllerClassName, treeToString(controllerImports), controllerTree + "\n" + treeToString(companionObj)) :: Nil
+      SourceCodeFile(ctx.controllerClassName, treeToString(controllerImports), controllerTree + "\n" + treeToString(companionObj)) :: Nil
 
     } else {
       Nil
@@ -235,7 +234,7 @@ class PlayServerGeneratorParser {
 
   def generateHelpers(implicit ctx: GeneratorContext): Seq[Tree] = Seq(generateAcceptMatcher)
 
-  final def generatePackageObject(implicit ctx: GeneratorContext): Seq[SyntaxString] = {
+  final def generatePackageObject(implicit ctx: GeneratorContext): Seq[CodeFile] = {
 
     val helpers = generateHelpers
 
@@ -243,7 +242,7 @@ class PlayServerGeneratorParser {
       val imports = EmptyTree inPackage ctx.controllerPackageName
       val objectName = ctx.controllerPackageName.split('.').last
       val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
-      SyntaxString(objectName, treeToString(imports), treeToString(objectTree)) :: Nil
+      SourceCodeFile(objectName, treeToString(imports), treeToString(objectTree)) :: Nil
     } else {
       Nil
     }

@@ -1,22 +1,21 @@
 package play.boilerplate.generators
 
-import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.parser.model._
 
-class PlayModelGeneratorParser {
+class PlayModelGeneratorParser extends CodeGenerator {
 
   import treehugger.forest._
   import treehuggerDSL._
 
-  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val init = EmptyTree inPackage ctx.modelPackageName
 
     for {
       (name, model) <- schema.definitions
-    } yield SyntaxString(
-      name = name,
-      pre = treeToString(init),
+    } yield SourceCodeFile(
+      className = name.capitalize,
+      header = treeToString(init),
       impl = treeToString(generateClass(model)(ctx.setInModel(true)): _ *)
     )
 

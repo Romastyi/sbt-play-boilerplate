@@ -1,9 +1,8 @@
 package play.boilerplate.generators
 
-import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.parser.model._
 
-class PlayServiceGeneratorParser {
+class PlayServiceGeneratorParser extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -19,7 +18,7 @@ class PlayServiceGeneratorParser {
       ctx.securityProvider.serviceImports
   }
 
-  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val serviceImports = BLOCK {
       generateImports
@@ -42,7 +41,7 @@ class PlayServiceGeneratorParser {
         generateResponseClasses(schema)(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
       }
 
-      SyntaxString(ctx.serviceClassName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
+      SourceCodeFile(ctx.serviceClassName, treeToString(serviceImports), treeToString(serviceTree, companionTree)) :: Nil
 
     } else {
       Nil

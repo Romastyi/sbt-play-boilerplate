@@ -13,7 +13,7 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").right.get
     val ctx = DefaultGeneratorContext("enums/schema_inline.yaml", "test", "")
     val gen = new PlayModelGeneratorParser().generate(schema)(ctx)
-    printSyntaxString(gen)
+    printCodeFile(gen)
 
     true should be (true)
 
@@ -27,7 +27,7 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
     val schema = SwaggerBackend.parseSchema("enums/schema_reuse.yaml").right.get
     val ctx = DefaultGeneratorContext("enums/schema_reuse.yaml", "test", "")
     val gen = new PlayModelGeneratorParser().generate(schema)(ctx)
-    printSyntaxString(gen)
+    printCodeFile(gen)
 
     true should be (true)
 
@@ -41,7 +41,7 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")
     val gen = new PlayModelGeneratorParser().generate(schema)(ctx)
-    printSyntaxString(gen)
+    printCodeFile(gen)
 
     true should be (true)
 
@@ -55,7 +55,7 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v2.yaml", "test", "")
     val gen = new PlayModelGeneratorParser().generate(schema)(ctx)
-    printSyntaxString(gen)
+    printCodeFile(gen)
 
     true should be (true)
 

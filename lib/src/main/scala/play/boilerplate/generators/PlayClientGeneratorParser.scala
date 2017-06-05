@@ -1,10 +1,9 @@
 package play.boilerplate.generators
 
-import eu.unicredit.swagger.generators.SyntaxString
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.parser.model._
 
-class PlayClientGeneratorParser {
+class PlayClientGeneratorParser extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -32,7 +31,7 @@ class PlayClientGeneratorParser {
     Seq(InjectionProvider.Dependency("WS", TYPE_REF("WSClient")))
   }
 
-  def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[SyntaxString] = {
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val methods = for {
       path <- schema.paths
@@ -59,7 +58,7 @@ class PlayClientGeneratorParser {
       // --- DI
       val clientTree = ctx.injectionProvider.classDefModifier(classDef, dependencies)
 
-      SyntaxString(ctx.clientClassName, treeToString(clientImports), clientTree) :: Nil
+      SourceCodeFile(ctx.clientClassName, treeToString(clientImports), clientTree) :: Nil
 
     } else {
       Nil
@@ -262,7 +261,7 @@ class PlayClientGeneratorParser {
     generateRenderHeaderParams(packageName)
   )
 
-  final def generatePackageObject(implicit ctx: GeneratorContext): Seq[SyntaxString] = {
+  final def generatePackageObject(implicit ctx: GeneratorContext): Seq[SourceCodeFile] = {
 
     val objectName = ctx.clientPackageName.split('.').last
     val helpers = generateHelpers(objectName)
@@ -270,7 +269,7 @@ class PlayClientGeneratorParser {
     if (helpers.nonEmpty) {
       val imports = EmptyTree inPackage ctx.clientPackageName
       val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
-      SyntaxString(objectName, treeToString(imports), treeToString(objectTree)) :: Nil
+      SourceCodeFile(objectName, treeToString(imports), treeToString(objectTree)) :: Nil
     } else {
       Nil
     }

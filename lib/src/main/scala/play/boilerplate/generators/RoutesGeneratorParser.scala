@@ -2,17 +2,22 @@ package play.boilerplate.generators
 
 import play.boilerplate.parser.model._
 
-trait RoutesGeneratorParser {
+trait RoutesGeneratorParser extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
 
-  def generateRoutes(schema: Schema)(implicit ctx: GeneratorContext): Seq[String] = {
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
-    (for {
+    val routes = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield composeRoutes(schema.basePath, path, operation)).toIndexedSeq
+    } yield composeRoutes(schema.basePath, path, operation)
+
+    ResourceFile(
+      fileName = ctx.routesFileName,
+      source = routes.mkString("\n")
+    ) :: Nil
 
   }
 

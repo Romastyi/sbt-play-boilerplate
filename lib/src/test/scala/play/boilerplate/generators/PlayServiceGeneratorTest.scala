@@ -13,7 +13,7 @@ class PlayServiceGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v1.yaml", "test", "")
     val gen = new PlayServiceGeneratorParser().generate(schema)(ctx)
-    printSyntaxString(gen)
+    printCodeFile(gen)
 
     true should be (true)
 
@@ -27,7 +27,7 @@ class PlayServiceGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").right.get
     val ctx = DefaultGeneratorContext("petStore_v2.yaml", "test", "")
     val gen = new PlayServiceGeneratorParser().generate(schema)(ctx)
-    printSyntaxString(gen)
+    printCodeFile(gen)
 
     true should be (true)
 

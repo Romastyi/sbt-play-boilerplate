@@ -18,6 +18,7 @@ trait GeneratorContext {
   def servicePackageName: String
   def serviceClassName: String
 
+  def routesFileName: String
   def controllerPackageName: String
   def controllerClassName: String
 
@@ -54,14 +55,17 @@ case class DefaultGeneratorContext(override val fileName: String,
                                    override val injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor()
                                   ) extends GeneratorContext {
 
-  def objectNameFromFileName(obj: String): String = {
+  private def sanitizeFileName: String = {
     val sep = if (separatorChar == 92.toChar) "\\\\" else separator
     fileName.split(sep)
       .toList
       .last
       .replace(".yaml", "")
       .replace(".json", "")
-      .capitalize + obj
+  }
+
+  private def objectNameFromFileName(obj: String): String = {
+    sanitizeFileName.capitalize + obj
   }
 
   override val modelPackageName: String = basePackageName + ".model"
@@ -71,6 +75,7 @@ case class DefaultGeneratorContext(override val fileName: String,
   override val servicePackageName: String = basePackageName + ".service"
   override val serviceClassName: String = objectNameFromFileName("Service")
 
+  override val routesFileName: String = sanitizeFileName + ".routes"
   override val controllerPackageName: String = basePackageName + ".controller"
   override val controllerClassName: String = objectNameFromFileName("Controller")
 
