@@ -7,9 +7,6 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
 
   "Model generator: enums support." should "Inline definition." in {
 
-    val generator = new PlayModelGenerator()
-    printSyntaxString(generator.generate("enums/schema_inline.yaml", "test"))
-
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_inline.yaml", "test", ""))
     val gen = new PlayModelGeneratorParser().generate(schema)(ctx)
@@ -20,9 +17,6 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   }
 
   it should "Reuse definition" in {
-
-    val generator = new PlayModelGenerator()
-    printSyntaxString(generator.generate("enums/schema_reuse.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("enums/schema_reuse.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_reuse.yaml", "test", ""))
@@ -35,9 +29,6 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
 
   "Full support" should "Parse petStore_v1.yaml" in {
 
-    val generator = new PlayModelGenerator()
-    printSyntaxString(generator.generate("petStore_v1.yaml", "test"))
-
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v1.yaml", "test", ""))
     val gen = new PlayModelGeneratorParser().generate(schema)(ctx)
@@ -48,9 +39,6 @@ class PlayModelGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   }
 
   it should "Parse petStore_v2.yaml" in {
-
-    val generator = new PlayModelGenerator()
-    printSyntaxString(generator.generate("petStore_v2.yaml", "test"))
 
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v2.yaml", "test", ""))

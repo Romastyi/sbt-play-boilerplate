@@ -43,6 +43,6 @@ trait RoutesGeneratorParser extends CodeGenerator {
 
   }
 
-  def generateFullClassName(className: String): String = "@" + className
+  def generateFullClassName(className: String): String
 
 }

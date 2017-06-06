@@ -7,12 +7,9 @@ class RoutesGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString 
 
   "Full support" should "Parse petStore_v1.yaml" in {
 
-    val generator = new DynamicRoutesGenerator
-    printRoutes(generator.generateRoutes("petStore_v1.yaml", "fullControllerName").toSeq)
-
     val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v1.yaml", "test", ""))
-    val gen = new RoutesGeneratorParser {}.generate(schema)(ctx)
+    val gen = new DynamicRoutesGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
     true should be(true)
@@ -21,12 +18,9 @@ class RoutesGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString 
 
   it should "Parse petStore_v2.yaml" in {
 
-    val generator = new DynamicRoutesGenerator
-    printRoutes(generator.generateRoutes("petStore_v2.yaml", "fullControllerName").toSeq)
-
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v2.yaml", "test", ""))
-    val gen = new RoutesGeneratorParser {}.generate(schema)(ctx)
+    val gen = new DynamicRoutesGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
   }

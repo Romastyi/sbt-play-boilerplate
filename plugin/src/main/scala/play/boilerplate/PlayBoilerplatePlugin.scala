@@ -143,7 +143,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.generateServer := false,
     Keys.generateServerCodeGenerator := new PlayServerGeneratorParser(),
     Keys.generateRoutes := false,
-    Keys.generateRoutesCodeGenerator := new RoutesGeneratorParser {},
+    Keys.generateRoutesCodeGenerator := new DynamicRoutesGenerator(),
     Keys.generateServiceCodeGenerator := new PlayServiceGeneratorParser(),
     Keys.generatorsCodeGen := {
       generatorsCodeGenImpl(
