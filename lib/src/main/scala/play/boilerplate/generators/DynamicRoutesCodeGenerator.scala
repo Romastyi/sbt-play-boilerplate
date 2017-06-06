@@ -1,6 +1,6 @@
 package play.boilerplate.generators
 
-final class DynamicRoutesGenerator extends RoutesGeneratorParser {
+final class DynamicRoutesCodeGenerator extends RoutesCodeGenerator {
   override def generateFullClassName(className: String): String = {
     "@" + className
   }

@@ -3,7 +3,7 @@ package play.boilerplate.generators
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.parser.model._
 
-class PlayServerGeneratorParser extends CodeGenerator {
+class ServerCodeGenerator extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._

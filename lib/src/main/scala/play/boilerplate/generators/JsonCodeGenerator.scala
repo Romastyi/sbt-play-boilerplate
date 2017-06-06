@@ -2,7 +2,7 @@ package play.boilerplate.generators
 
 import play.boilerplate.parser.model._
 
-class PlayJsonGeneratorParser extends CodeGenerator {
+class JsonCodeGenerator extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
