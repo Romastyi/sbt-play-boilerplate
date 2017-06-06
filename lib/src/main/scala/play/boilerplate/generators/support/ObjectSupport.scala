@@ -53,10 +53,10 @@ trait ObjectSupport { this: DefinitionsSupport =>
     )
   }
 
-  case class ObjectProperty(name: String, support: TypeSupport, isOpt: Boolean) {
+  case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean) {
     def param: ValDef = PARAM(name, support.tpe).empty
     def json : ObjectJson = ObjectJson(reads, writes)
-    def reads : Tree = PAREN(REF("json") INFIX ("\\", LIT(name))) DOT (if (isOpt) "asOpt" else "as") APPLYTYPE support.tpe
+    def reads : Tree = PAREN(REF("json") INFIX ("\\", LIT(name))) DOT (if (isOpt) "asOpt" else "as") APPLYTYPE noOptType
     def writes: Tree = LIT(name) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT name))
   }
 
@@ -66,11 +66,11 @@ trait ObjectSupport { this: DefinitionsSupport =>
                         (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
 
     val params = for ((name, prop) <- properties.toSeq) yield {
-      val isOpt = prop match {
-        case _: OptionDefinition => true
-        case _ => false
+      val (noOptType, isOpt) = prop match {
+        case OptionDefinition(_, base) => (getTypeSupport(base).tpe, true)
+        case _ => (getTypeSupport(prop).tpe, false)
       }
-      ObjectProperty(name, getTypeSupport(prop), isOpt)
+      ObjectProperty(name, getTypeSupport(prop), noOptType, isOpt)
     }
 
     val objectDef = if (params.isEmpty) {
@@ -90,7 +90,12 @@ trait ObjectSupport { this: DefinitionsSupport =>
       pathBindable  = EmptyTree
     )
 
-    params.flatMap(_.support.defs) :+ objectDefs
+    val paramsDefs = params.flatMap(_.support.defs)
+      .groupBy(_.symbol.nameString)
+      .mapValues(_.head)
+      .values.toSeq
+
+    paramsDefs :+ objectDefs
 
   }
 

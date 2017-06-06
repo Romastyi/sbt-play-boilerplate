@@ -268,11 +268,13 @@ class PlayClientGeneratorParser extends CodeGenerator {
 
   final def generatePackageObject(implicit ctx: GeneratorContext): Seq[SourceCodeFile] = {
 
-    val objectName = ctx.settings.clientPackageName.split('.').last
+    val splittedPackageName = ctx.settings.clientPackageName.split('.')
+    val packageName = composeName(splittedPackageName.dropRight(1): _ *)
+    val objectName = splittedPackageName.last
     val helpers = generateHelpers(objectName)
 
     if (helpers.nonEmpty) {
-      val imports = EmptyTree inPackage ctx.settings.clientPackageName
+      val imports = EmptyTree inPackage packageName
       val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
       SourceCodeFile(
         packageName = ctx.settings.clientPackageName,

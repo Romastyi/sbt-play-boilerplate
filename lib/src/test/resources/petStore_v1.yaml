@@ -30,7 +30,18 @@ paths:
         - text/xml
         - text/html
       parameters:
-        - $ref: '#/parameters/tags'
+#        - $ref: '#/parameters/tags'
+        - name: tags
+          in: query
+          description: tags to filter by
+          required: false
+          type: array
+          items:
+            $ref: '#/definitions/PetTag'
+#            type: string
+#            enum:
+#              - young
+#              - mature
         - name: limit
           in: query
           description: maximum number of results to return

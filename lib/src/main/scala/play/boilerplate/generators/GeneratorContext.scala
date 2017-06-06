@@ -8,10 +8,10 @@ final case class GeneratorContext private (settings: GeneratorSettings,
                                            inClient: Boolean) {
 
   def addCurrentPath(path: String*): GeneratorContext = copy(currentPath = currentPath ++ path)
-  def setIsModel(value: Boolean): GeneratorContext = copy(isModel = true)
-  def setInModel(value: Boolean): GeneratorContext = copy(inModel = true)
-  def setInService(value: Boolean): GeneratorContext = copy(inService = true)
-  def setInClient(value: Boolean): GeneratorContext = copy(inClient = true)
+  def setIsModel(value: Boolean): GeneratorContext = copy(isModel = value)
+  def setInModel(value: Boolean): GeneratorContext = copy(inModel = value)
+  def setInService(value: Boolean): GeneratorContext = copy(inService = value)
+  def setInClient(value: Boolean): GeneratorContext = copy(inClient = value)
 
 }
 

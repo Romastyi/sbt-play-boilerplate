@@ -28,7 +28,9 @@ trait ResponseParser { this: PropertyParser =>
 
     respCode -> Response(
       code = respCode,
-      schema = Option(response.getSchema).map(getPropertyDef(schema, code, _)),
+      schema = Option(response.getSchema).map { model =>
+        getPropertyDef(schema, code, model, canBeOption = false)
+      },
       headers = headers
     )
 

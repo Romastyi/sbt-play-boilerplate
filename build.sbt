@@ -1,14 +1,14 @@
 lazy val common = Seq(
-    organization := "eu.unicredit",
-    version := "0.0.10-SNAPSHOT",
-    crossScalaVersions := Seq("2.10.4"),
-    scalacOptions ++= Seq("-target:jvm-1.7", "-feature", "-deprecation", "-language:_"),
-    resolvers += Resolver.sonatypeRepo("releases")
-  ) ++ sonatypePublish
+  organization := "eu.unicredit",
+  version := "0.0.1-SNAPSHOT",
+  crossScalaVersions := Seq("2.10.4"),
+  scalacOptions ++= Seq("-target:jvm-1.7", "-feature", "-deprecation", "-language:_"),
+  resolvers += Resolver.sonatypeRepo("releases")
+) ++ sonatypePublish
 
 lazy val lib = project
   .in(file("lib"))
-  .settings(common)
+  .settings(common: _ *)
   .settings(
     name := """sbt-play-boilerplate-lib""",
     libraryDependencies ++= Seq(
@@ -20,7 +20,7 @@ lazy val lib = project
 
 lazy val plugin = project
   .in(file("plugin"))
-  .settings(common)
+  .settings(common: _ *)
   .settings(
     name := """sbt-play-boilerplate""",
     sbtPlugin := true

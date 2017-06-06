@@ -172,18 +172,21 @@ trait PropertyParser { this: ReferenceParser =>
         )
       case prop: MapProperty =>
         val name = Option(prop.getName).getOrElse(propertyName)
+        val additionalProperties = Option(prop.getAdditionalProperties).getOrElse {
+          throw ParserException(s"Map 'additionalProperties' property is not specified for property.")
+        }
         MapDefinition(
           name = name,
-          additionalProperties = getPropertyDef(schema, name, prop.getAdditionalProperties)
+          additionalProperties = getPropertyDef(schema, name, additionalProperties, canBeOption = false)
         )
       case prop: ArrayProperty =>
         val name = Option(prop.getName).getOrElse(propertyName)
         val items = Option(prop.getItems).getOrElse {
-          throw ParserException(s"Array items property is not specified for property.")
+          throw ParserException(s"Array 'items' property is not specified for property.")
         }
         ArrayDefinition(
           name = name,
-          items = getPropertyDef(schema, name, items),
+          items = getPropertyDef(schema, name, items, canBeOption = false),
           uniqueItems = Option(prop.getUniqueItems).exists(_ == true),
           minLength = Option(prop.getMinItems).map(Integer2int),
           maxLength = Option(prop.getMaxItems).map(Integer2int)

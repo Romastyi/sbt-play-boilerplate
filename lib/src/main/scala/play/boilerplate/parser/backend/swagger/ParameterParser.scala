@@ -81,7 +81,6 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
           val items = Option(param.getItems).getOrElse {
             throw ParserException(s"Array items property is not specified for parameter.")
           }
-          items.setRequired(true)
           Some((param, items))
         case _ =>
           None
@@ -104,7 +103,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         val name = Option(param.getName).getOrElse(getParamName(parameter))
         factory.build(ArrayDefinition(
           name = name,
-          items = getPropertyDef(schema, name, prop),
+          items = getPropertyDef(schema, name, prop, canBeOption = false),
           uniqueItems = Option(param.isUniqueItems).exists(_ == true),
           minLength = Option(param.getMinLength).map(Integer2int),
           maxLength = Option(param.getMaxLength).map(Integer2int)

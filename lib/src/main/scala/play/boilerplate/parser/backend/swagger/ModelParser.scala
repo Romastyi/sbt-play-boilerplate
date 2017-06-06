@@ -16,7 +16,6 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           val items = Option(model.getItems).getOrElse {
             throw ParserException(s"Array items property is not specified for definition.")
           }
-          items.setRequired(true)
           Some((model, items))
         case _ =>
           None
@@ -70,7 +69,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
       case ArrayModel(m, items) =>
         ModelFactory.build(ArrayDefinition(
           name = modelName,
-          items = getPropertyDef(schema, modelName, items),
+          items = getPropertyDef(schema, modelName, items, canBeOption = false),
           uniqueItems = false,
           minLength = Option(m.getMaxItems).map(Integer2int),
           maxLength = Option(m.getMaxItems).map(Integer2int)

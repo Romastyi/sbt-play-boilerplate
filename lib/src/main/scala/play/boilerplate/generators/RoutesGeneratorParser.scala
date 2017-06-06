@@ -37,7 +37,9 @@ trait RoutesGeneratorParser extends CodeGenerator {
       case (n, MethodParam(_, fullQualified, _, _)) => s"$n: ${treeToString(fullQualified.tpt)}"
     }
 
-    generateFullClassName(ctx.settings.controllerClassName) + "." + operation.operationId + ps.mkString("(", ", ", ")")
+    val fullControllerClassName = composeName(ctx.settings.controllerPackageName, ctx.settings.controllerClassName)
+
+    generateFullClassName(fullControllerClassName) + "." + operation.operationId + ps.mkString("(", ", ", ")")
 
   }
 

@@ -18,17 +18,14 @@ object SwaggerBackend
     with PropertyParser
     with ReferenceParser {
 
-  override def parseSchema(fileName: String): Either[Throwable, Schema] = {
+  override def parseSchema(fileName: String): Try[Schema] = {
 
-    (for {
+    for {
       swagger <- Try(new SwaggerParser().read(fileName))
       schema = Option(swagger).map(parseSwagger).getOrElse {
         throw ParserException(s"Parsing schema file is failed ($fileName).")
       }
-    } yield schema) match {
-      case Success(model) => Right(model)
-      case Failure(cause) => Left(cause)
-    }
+    } yield schema
 
   }
 
