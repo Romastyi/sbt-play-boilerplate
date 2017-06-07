@@ -21,6 +21,8 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT("play.api.libs.json", "_"),
       IMPORT("play.api.libs.concurrent.Execution.Implicits", "_"),
       IMPORT("play.api.mvc", "_"),
+      IMPORT("QueryStringBindable", "_"),
+      IMPORT("PathBindable", "_"),
       IMPORT("scala.concurrent", "Future")
     ) ++
       ctx.settings.securityProvider.controllerImports ++
@@ -53,7 +55,11 @@ class ClientCodeGenerator extends CodeGenerator {
         )
         .withSelf("self") :=
         BLOCK {
-          methods.toIndexedSeq :+ generateOrErrorMethod
+          filterNonEmptyTree(
+            methods.flatMap(_.implicits).toIndexedSeq ++
+            methods.map(_.tree).toIndexedSeq :+
+            generateOrErrorMethod
+          )
         }
 
       // --- DI
@@ -74,15 +80,34 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  def doClientUrl(basePath: String, path: Iterable[PathPart]): String = {
-    val parts = path.collect {
-      case StaticPart(str) => str
-      case ParamPart(name) => "${_render_path_param(\"" + name + "\", " + name + ")}"
+  def composeClientUrl(basePath: String, path: Path, operation: Operation): Tree = {
+
+    val parts = path.pathParts.collect {
+      case StaticPart(str) => LIT(str)
+      case ParamPart(name) => REF("_render_path_param") APPLY (LIT(name), REF(name))
     }.toSeq
-    cleanDuplicateSlash((basePath +: parts).mkString("/"))
+
+    val urlParts = (Seq(REF("baseUrl"), LIT(basePath.dropWhile(_ == '/'))) ++ parts).foldLeft(List.empty[Tree]) { case (acc, term) =>
+      if (acc.isEmpty) acc :+ term else acc :+ LIT("/") :+ term
+    }
+
+    val urlParams: Seq[Tree] = (path.parameters ++ operation.parameters).toSeq collect {
+      case param: QueryParameter => LIT(param.name) INFIX ("->", REF(param.name))
+    }
+
+    val baseUrl = INTERP(StringContext_s, urlParts: _ *)
+
+    if (urlParams.isEmpty) {
+      baseUrl
+    } else {
+      baseUrl INFIX("+", REF("_render_url_params") APPLY (urlParams: _*))
+    }
+
   }
 
-  def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): Tree = {
+  case class Method(tree: Tree, implicits: Seq[Tree])
+
+  def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
@@ -91,38 +116,17 @@ class ClientCodeGenerator extends CodeGenerator {
       name => name -> (REF("Json") DOT "toJson" APPLY REF(name))
     }.toMap
 
-    //probably to be fixed with a custom ordering
-    val urlParams: Seq[Tree] = (path.parameters ++ operation.parameters).toSeq collect {
-      case query: QueryParameter =>
-        val name = query.name
-        val ref = query.ref match {
-          case _: OptionDefinition => REF(name)
-          case _ => SOME(REF(name))
-        }
-        LIT(name) INFIX ("->", ref)
-    }
-
     val headerParams: Seq[Tree] = (path.parameters ++ operation.parameters).toSeq collect {
       case param: HeaderParameter =>
         val name = param.name
-/*
         val ref = param.ref match {
           case _: OptionDefinition => SOME(REF(name))
           case _ => REF(name)
         }
-*/
-        LIT(name) INFIX ("->", REF(name))
+        LIT(name) INFIX ("->", ref)
     }
 
-    val baseUrl =
-      INTERP("s", LIT(cleanDuplicateSlash("$baseUrl/" + doClientUrl(schema.basePath, path.pathParts))))
-    val baseUrlWithParams = if (urlParams.isEmpty) {
-      baseUrl
-    } else {
-      baseUrl INFIX("+", REF("_render_url_params") APPLY (urlParams: _*))
-    }
-
-    val wsUrl = REF("WS") DOT "url" APPLY baseUrlWithParams
+    val wsUrl = REF("WS") DOT "url" APPLY composeClientUrl(schema.basePath, path, operation)
     val wsUrlWithAccept = wsUrl DOT "withHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT("application/json")))
     val wsUrlWithHeaderParams = if (headerParams.isEmpty) {
       wsUrlWithAccept
@@ -141,26 +145,31 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val opType = operation.httpMethod.toString.toLowerCase
+    val responses = generateResponses(operation)
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
       .withFlags(Flags.OVERRIDE)
       .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values) :=
       BLOCK {
         wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY {
-          LAMBDA(PARAM("resp").tree) ==> BLOCK(generateResponses(operation))
+          LAMBDA(PARAM("resp").tree) ==> BLOCK(responses.tree)
         } DOT "recoverWith" APPLY BLOCK {
           CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
         }
       }
 
-    methodTree.withDoc(
+    val tree = methodTree.withDoc(
       s"""${Option(operation.description).getOrElse("")}
          |
          """.stripMargin
     )
 
+    val implicits = methodParams.values.flatMap(_.implicits).toSeq
+
+    Method(tree, responses.implicits ++ implicits)
+
   }
 
-  def generateResponses(operation: Operation)(implicit ctx: GeneratorContext): Tree = {
+  def generateResponses(operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
     val responses = operation.responses.toSeq.sortBy {
       case (DefaultResponse, _) => 2
@@ -169,15 +178,17 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val cases = for ((code, response) <- responses) yield {
       val className = getResponseClassName(operation.operationId, code)
-      val bodyParam = response.schema.map { body =>
-        REF("resp") DOT "json" DOT "as" APPLYTYPE getTypeSupport(body).tpe
+      val bodySupport = response.schema.map(body => getTypeSupport(body))
+      val bodyParam = bodySupport.map { body =>
+        REF("resp") DOT "json" DOT "as" APPLYTYPE body.tpe
       }
-      code match {
+      val tree = code match {
         case DefaultResponse =>
           CASE(ID("status")) ==> (REF(className) APPLY (bodyParam.toSeq :+ REF("status")))
         case StatusResponse(status) =>
           CASE(LIT(status)) ==> bodyParam.map(bp => REF(className) APPLY bp).getOrElse(REF(className))
       }
+      (tree, bodySupport.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
 
     val UnexpectedResultCase = if (operation.responses.keySet(DefaultResponse)) {
@@ -188,9 +199,11 @@ class ClientCodeGenerator extends CodeGenerator {
       )
     }
 
-    REF("resp") DOT "status" MATCH {
-      cases ++ UnexpectedResultCase
+    val tree = REF("resp") DOT "status" MATCH {
+      cases.map(_._1) ++ UnexpectedResultCase
     }
+
+    Method(tree, cases.flatMap(_._2))
 
   }
 
@@ -221,12 +234,6 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  /*
-  def _render_path_param[A](key: String, value: A)(implicit pb: PathBindable[A]): String = {
-    pb.unbind(key, value)
-  }
-   */
-
   final def generateRenderPathParam(packageName: String): Seq[Tree] = {
     val A = RootClass.newAliasType("A")
     val funcDef = DEF("_render_path_param", StringClass)
@@ -242,6 +249,8 @@ class ClientCodeGenerator extends CodeGenerator {
 
   final def generateRenderUrlParams(packageName: String): Seq[Tree] = {
 
+    val imports = IMPORT("scala.language", "implicitConversions")
+
     val wrapper = RootClass.newClass("QueryValueWrapper")
     val wrapperDef = TRAITDEF(wrapper).withFlags(Flags.SEALED).empty
 
@@ -253,7 +262,7 @@ class ClientCodeGenerator extends CodeGenerator {
       .empty
 
     val T = RootClass.newAliasType("T")
-    val wrapperImplicit = DEF("toQueryValueWrapper", wrapperImpl)
+    val wrapperImplicit = DEF("toQueryValueWrapper", wrapper)
       .withTypeParams(TYPEVAR(T))
       .withParams(PARAM("value", T).empty)
       .withParams(PARAM("qb", TYPE_REF("QueryStringBindable") TYPE_OF T).withFlags(Flags.IMPLICIT).empty)
@@ -264,7 +273,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val funcDef = DEFINFER("_render_url_params")
       .withFlags(PRIVATEWITHIN(packageName))
-      .withParams(PARAM("pairs", TYPE_*(TYPE_TUPLE(StringClass, wrapperImpl))).tree) :=
+      .withParams(PARAM("pairs", TYPE_*(TYPE_TUPLE(StringClass, wrapper))).tree) :=
       BLOCK(
         Seq(
           VAL("parts") := {
@@ -281,7 +290,7 @@ class ClientCodeGenerator extends CodeGenerator {
         )
       )
 
-    wrapperDef :: wrapperImplDef :: wrapperImplicit :: funcDef :: Nil
+    imports :: wrapperDef :: wrapperImplDef :: wrapperImplicit :: funcDef :: Nil
 
   }
 

@@ -42,7 +42,7 @@ class ServerCodeGenerator extends CodeGenerator {
         generateImports
       } inPackage ctx.settings.controllerPackageName
 
-      val companionItems = methods.flatMap(_.implicits)
+      val companionItems = filterNonEmptyTree(methods.flatMap(_.implicits))
 
       val (companionObj, importCompanion) = if (companionItems.nonEmpty) {
         val objDef = OBJECTDEF(ctx.settings.controllerClassName) := BLOCK {
@@ -207,7 +207,11 @@ class ServerCodeGenerator extends CodeGenerator {
       )
     }
 
-    Method(BLOCK(cases.map(_.tree) ++ UnexpectedResultCase), cases.flatMap(_.implicits))
+    val tree = BLOCK {
+      cases.map(_.tree) ++ UnexpectedResultCase
+    }
+
+    Method(tree, cases.flatMap(_.implicits))
 
   }
 
