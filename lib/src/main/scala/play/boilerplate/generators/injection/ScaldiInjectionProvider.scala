@@ -11,18 +11,24 @@ final class ScaldiInjectionProvider extends InjectionProvider {
   }
 
   override def classDefModifier(classDef: ClassDef, dependencies: Seq[Dependency]): String = {
-    val injects = dependencies.map { case Dependency(name, tpe) =>
-      VAL(name, tpe).withFlags(Flags.LAZY) := REF("inject").APPLYTYPE(tpe)
+    val injects = dependencies.flatMap { case Dependency(name, tpe) =>
+      val valName = "_" + name
+      Seq(
+        VAL(valName, tpe).withFlags(Flags.LAZY, Flags.PRIVATE) := REF("inject").APPLYTYPE(tpe),
+        DEF(name, tpe) := REF(valName)
+      )
     }
     val injector = PARAM("inj", TYPE_REF("Injector")).withFlags(Flags.IMPLICIT).tree
-    val tree = classDef.copy(
-      vparams = classDef.vparams :+ injector,
+    val classTree = classDef.copy(
       impl = classDef.impl.copy(
         parents = classDef.impl.parents :+ REF("Injectable"),
         body = injects.toList ++ classDef.impl.body
       )
     )
-    treeToString(tree)
+    val tree = treeToString(classTree)
+    tree
+      .replaceFirst(s"\\)\\s*\\{", ")(" + treeToString(injector) + ") {")
+      .replaceFirst(s"\\)\\s*extends", ")(" + treeToString(injector) + ") extends")
   }
 
 }

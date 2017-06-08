@@ -53,8 +53,11 @@ class ServerCodeGenerator extends CodeGenerator {
         (EmptyTree, EmptyTree)
       }
 
+      val parents = Seq(TYPE_REF("Controller"), TYPE_REF("ControllerHelper")) ++
+        ctx.settings.securityProvider.controllerParents
+
       val classDef = CLASSDEF(ctx.settings.controllerClassName)
-        .withParents(TYPE_REF("Controller") +: ctx.settings.securityProvider.controllerParents)
+        .withParents(parents)
         .withSelf("self", ctx.settings.securityProvider.controllerSelfTypes: _ *) :=
         BLOCK {
           filterNonEmptyTree(importCompanion +: methods.map(_.tree).toIndexedSeq)
@@ -74,7 +77,7 @@ class ServerCodeGenerator extends CodeGenerator {
       Nil
     }
 
-    controllerSources ++ generatePackageObject
+    controllerSources ++ generateHelperTrait
 
   }
 
@@ -243,19 +246,16 @@ class ServerCodeGenerator extends CodeGenerator {
 
   def generateHelpers(implicit ctx: GeneratorContext): Seq[Tree] = Seq(generateAcceptMatcher)
 
-  final def generatePackageObject(implicit ctx: GeneratorContext): Seq[CodeFile] = {
+  final def generateHelperTrait(implicit ctx: GeneratorContext): Seq[CodeFile] = {
 
-    val splittedPackageName = ctx.settings.controllerPackageName.split('.')
-    val packageName = composeName(splittedPackageName.dropRight(1): _ *)
-    val objectName = splittedPackageName.last
     val helpers = generateHelpers
 
     if (helpers.nonEmpty) {
-      val imports = EmptyTree inPackage packageName
-      val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
+      val imports = EmptyTree inPackage ctx.settings.controllerPackageName
+      val objectTree = TRAITDEF("ControllerHelper") := BLOCK(helpers)
       SourceCodeFile(
         packageName = ctx.settings.controllerPackageName,
-        className = objectName,
+        className = "ControllerHelper",
         header = treeToString(imports),
         impl = treeToString(objectTree)
       ) :: Nil

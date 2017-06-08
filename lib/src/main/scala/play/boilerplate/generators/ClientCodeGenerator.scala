@@ -48,7 +48,7 @@ class ClientCodeGenerator extends CodeGenerator {
       } inPackage ctx.settings.clientPackageName
 
       val classDef = CLASSDEF(ctx.settings.clientClassName)
-        .withParents(TYPE_REF(ctx.settings.serviceClassName))
+        .withParents(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelper"))
         .withParams(
           PARAM("baseUrl", StringClass).empty,
           PARAM("headers", TYPE_*(TYPE_TUPLE(StringClass, StringClass))).empty
@@ -76,7 +76,7 @@ class ClientCodeGenerator extends CodeGenerator {
       Nil
     }
 
-    clientSources ++ generatePackageObject
+    clientSources ++ generateHelperTrait
 
   }
 
@@ -234,10 +234,10 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  final def generateRenderPathParam(packageName: String): Seq[Tree] = {
+  final def generateRenderPathParam: Seq[Tree] = {
     val A = RootClass.newAliasType("A")
     val funcDef = DEF("_render_path_param", StringClass)
-      .withFlags(PRIVATEWITHIN(packageName))
+      .withFlags(Flags.PROTECTED)
       .withTypeParams(TYPEVAR(A))
       .withParams(PARAM("key", StringClass).empty, PARAM("value", A).empty)
       .withParams(PARAM("pb", TYPE_REF("PathBindable") TYPE_OF A).withFlags(Flags.IMPLICIT).empty) :=
@@ -247,7 +247,7 @@ class ClientCodeGenerator extends CodeGenerator {
     funcDef :: Nil
   }
 
-  final def generateRenderUrlParams(packageName: String): Seq[Tree] = {
+  final def generateRenderUrlParams: Seq[Tree] = {
 
     val imports = IMPORT("scala.language", "implicitConversions")
 
@@ -271,8 +271,8 @@ class ClientCodeGenerator extends CodeGenerator {
         wrapperImpl APPLY (REF("qb") DOT "unbind" APPLY (WILDCARD, REF("value")))
       }
 
-    val funcDef = DEFINFER("_render_url_params")
-      .withFlags(PRIVATEWITHIN(packageName))
+    val funcDef = DEF("_render_url_params", StringClass)
+      .withFlags(Flags.PROTECTED)
       .withParams(PARAM("pairs", TYPE_*(TYPE_TUPLE(StringClass, wrapper))).tree) :=
       BLOCK(
         Seq(
@@ -294,9 +294,9 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  final def generateRenderHeaderParams(packageName: String): Seq[Tree] = {
-    val fundDef = DEFINFER("_render_header_params")
-      .withFlags(PRIVATEWITHIN(packageName))
+  final def generateRenderHeaderParams: Seq[Tree] = {
+    val fundDef = DEF("_render_header_params", SeqClass TYPE_OF TYPE_TUPLE(StringClass, StringClass))
+      .withFlags(Flags.PROTECTED)
       .withParams(PARAM("pairs", TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))).tree) :=
       BLOCK(
         Seq(
@@ -325,28 +325,25 @@ class ClientCodeGenerator extends CodeGenerator {
     classDef :: Nil
   }
 
-  def generateHelpers(packageName: String)(implicit ctx: GeneratorContext): Seq[Tree] = {
+  def generateHelpers(implicit ctx: GeneratorContext): Seq[Tree] = {
     generateUnexpectedResponseStatus ++
-    generateRenderPathParam(packageName) ++
-    generateRenderUrlParams(packageName) ++
-    generateRenderHeaderParams(packageName)
+    generateRenderPathParam ++
+    generateRenderUrlParams ++
+    generateRenderHeaderParams
   }
 
-  final def generatePackageObject(implicit ctx: GeneratorContext): Seq[SourceCodeFile] = {
+  final def generateHelperTrait(implicit ctx: GeneratorContext): Seq[CodeFile] = {
 
-    val splittedPackageName = ctx.settings.clientPackageName.split('.')
-    val packageName = composeName(splittedPackageName.dropRight(1): _ *)
-    val objectName = splittedPackageName.last
-    val helpers = generateHelpers(objectName)
+    val helpers = generateHelpers
 
     if (helpers.nonEmpty) {
       val imports = BLOCK {
         IMPORT("play.api.mvc", "_")
-      } inPackage packageName
-      val objectTree = OBJECTDEF(objectName).withFlags(Flags.PACKAGE) := BLOCK(helpers)
+      } inPackage ctx.settings.clientPackageName
+      val objectTree = TRAITDEF("ClientHelper") := BLOCK(helpers)
       SourceCodeFile(
         packageName = ctx.settings.clientPackageName,
-        className = objectName,
+        className = "ClientHelper",
         header = treeToString(imports),
         impl = treeToString(objectTree)
       ) :: Nil
