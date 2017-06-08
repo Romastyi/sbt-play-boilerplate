@@ -33,8 +33,8 @@ trait OperationParser { this: ParameterParser with ResponseParser =>
       schemes    = Option(operation.getSchemes).map(_.asScala.map(_.toValue)).getOrElse(schema.schemes),
       consumes   = Option(operation.getConsumes).map(_.asScala).getOrElse(schema.consumes),
       produces   = Option(operation.getProduces).map(_.asScala).getOrElse(schema.produces),
-      responses  = Option(operation.getResponses).map(_.asScala.toMap.map {
-        case (code, response) => parseResponse(schema, code, response)
+      responses  = Option(operation.getResponses).map(_.asScala.toMap.flatMap {
+        case (code, response) => Option(response).map(parseResponse(schema, code, _))
       }).getOrElse(schema.responses),
       description = Option(operation.getDescription),
       security    = parseSecurityRequirement(operation),

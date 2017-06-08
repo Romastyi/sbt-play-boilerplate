@@ -63,15 +63,15 @@ object SwaggerBackend
     val responses = Option(swagger.getResponses)
       .map(_.asScala.toMap)
       .getOrElse(Map.empty)
-      .map { case (code, response) =>
-        parseResponse(Schema.empty, code, response)
+      .flatMap { case (code, response) =>
+        Option(response).map(parseResponse(Schema.empty, code, _))
       }
 
     val securitySchemas = Option(swagger.getSecurityDefinitions)
       .map(_.asScala.toMap)
       .getOrElse(Map.empty)
-      .map { case (name, schema) =>
-        name -> parseSecuritySchema(name, schema)
+      .flatMap { case (name, schema) =>
+        Option(schema).map(name -> parseSecuritySchema(name, _))
       }
 
     Schema(
