@@ -74,6 +74,8 @@ object PlayBoilerplatePlugin extends AutoPlugin {
                                     destPackage: String,
                                     providedPackage: String): GeneratedFiles = {
 
+    generatorsCleanImpl(sourceManagedDir, destPackage)
+
     val generated = for {
       swaggerFile <- collectSwaggerFiles(sourceDir)
       swaggerFileName = swaggerFile.getAbsolutePath
