@@ -4,6 +4,16 @@ import java.io.File.{separator, separatorChar}
 
 trait StringUtils {
 
+  def decapitalize(s: String): String = {
+    if (s == null) null
+    else if (s.length == 0) ""
+    else {
+      val chars = s.toCharArray
+      chars(0) = chars(0).toLower
+      new String(chars)
+    }
+  }
+
   def sanitizeFileName(fileName: String): String = {
     val sep = if (separatorChar == 92.toChar) "\\\\" else separator
     fileName.split(sep)

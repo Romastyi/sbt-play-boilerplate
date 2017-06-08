@@ -40,10 +40,11 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
                        (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
     (path.parameters ++ operation.parameters).collect {
       case param: BodyParameter =>
+        val paramName = decapitalize(param.name)
         val support = getTypeSupport(param.ref)
-        val valDef = PARAM(param.name, support.tpe).empty
-        val fullQualified = PARAM(param.name, support.fullQualified).empty
-        param.name -> MethodParam(valDef, fullQualified, support.definitions, Nil)
+        val valDef = PARAM(paramName, support.tpe).empty
+        val fullQualified = PARAM(paramName, support.fullQualified).empty
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil)
     }.toMap
   }
 
@@ -66,10 +67,11 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         case _ => 4
       }
       .map { param =>
+        val paramName = decapitalize(param.name)
         val support = getTypeSupport(param.ref)
-        val valDef = PARAM(param.name, support.tpe).empty
-        val fullQualified = PARAM(param.name, support.fullQualified).empty
-        param.name -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support))
+        val valDef = PARAM(paramName, support.tpe).empty
+        val fullQualified = PARAM(paramName, support.fullQualified).empty
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support))
       }
       .toMap
   }
