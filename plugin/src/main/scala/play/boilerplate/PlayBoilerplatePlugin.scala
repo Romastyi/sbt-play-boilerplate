@@ -37,19 +37,18 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
   }
 
-  private def collectSwaggerFiles(sourceDir: File): Seq[File] = {
+  private def collectSwaggerFiles(sourceDir: File): Set[File] = {
     if (sourceDir.exists() && sourceDir.isDirectory) {
-      sourceDir.listFiles().filter(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml"))
+      sourceDir.listFiles().filter(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")).toSet
     } else {
       println(s"Provided swagger source dir $sourceDir doesn't exists")
-      Nil
+      Set.empty
     }
   }
 
-  sealed trait GeneratedFile
-  case class GeneratedSource(file: File) extends GeneratedFile
-  case class GeneratedResource(file: File) extends GeneratedFile
-  case class GeneratedFiles(sources: Seq[File], resources: Seq[File])
+  case class GeneratedFiles(sources: Set[File], resources: Set[File]) {
+    def all: Set[File] = sources ++ resources
+  }
 
   private def writeFile(file: File, source: String): File = {
     IO.touch(file)
@@ -57,42 +56,33 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     file
   }
 
-  private def generateCodeFile(codeFile: CodeFile, sourcesDir: File, resourcesDir: File): GeneratedFile = {
+  private def generateCodeFile(codeFile: CodeFile, sourcesDir: File, resourcesDir: File): File = {
     codeFile match {
       case source: SourceCodeFile =>
-        GeneratedSource(writeFile(sourcesDir / source.fileName, source.source))
+        writeFile(sourcesDir / source.fileName, source.source)
       case resource: ResourceFile =>
-        GeneratedResource(writeFile(resourcesDir / resource.fileName, resource.source))
+        writeFile(resourcesDir / resource.fileName, resource.source)
     }
   }
 
-  private def generatorsCodeGenImpl(generators: Seq[CodeGenerator],
+  private def generatorsCodeGenImpl(swaggerFiles: Set[File],
+                                    generators: Seq[CodeGenerator],
                                     settings: (String, String, String) => GeneratorSettings,
-                                    sourceDir: File,
                                     sourceManagedDir: File,
                                     resourcesDir: File,
                                     destPackage: String,
-                                    providedPackage: String): GeneratedFiles = {
+                                    providedPackage: String): Set[File] = {
 
     generatorsCleanImpl(sourceManagedDir, destPackage)
 
-    val generated = for {
-      swaggerFile <- collectSwaggerFiles(sourceDir)
+    for {
+      swaggerFile <- swaggerFiles
       swaggerFileName = swaggerFile.getAbsolutePath
       schema = SwaggerBackend.parseSchema(swaggerFileName).get
       context = GeneratorContext.initial(settings(swaggerFileName, destPackage, providedPackage))
       generator <- generators
       codeFile <- generator.generate(schema)(context)
     } yield generateCodeFile(codeFile, sourceManagedDir, resourcesDir)
-
-    GeneratedFiles(
-      sources = generated.collect {
-        case GeneratedSource(file) => file
-      },
-      resources = generated.collect {
-        case GeneratedResource(file) => file
-      }
-    )
 
   }
 
@@ -104,9 +94,9 @@ object PlayBoilerplatePlugin extends AutoPlugin {
   override def trigger: PluginTrigger = noTrigger
 
   override val projectSettings: Seq[Def.Setting[_]] = Seq(
-    watchSources ++= Keys.generatorSourceDir.value.***.get,
-    sourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.sources),
-    resourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.resources),
+    watchSources ++= collectSwaggerFiles(Keys.generatorSourceDir.value).toSeq,
+    sourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.sources.toSeq),
+    resourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.resources.toSeq),
     Keys.generators := {
 
       val jsonCodeGenerators = Seq(Keys.generateJsonCodeGenerator.value)
@@ -148,14 +138,29 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.generateRoutesCodeGenerator := new DynamicRoutesCodeGenerator(),
     Keys.generateServiceCodeGenerator := new ServiceCodeGenerator(),
     Keys.generatorsCodeGen := {
-      generatorsCodeGenImpl(
-        Keys.generators.value,
-        Keys.generatorSettings.value,
-        Keys.generatorSourceDir.value,
-        (sourceManaged in Compile).value,
-        (resourceDirectory in Compile).value,
-        Keys.generatorDestPackage.value,
-        Keys.generatorProvidedPackage.value
+      val cachedFiles = FileFunction.cached(
+        Keys.generatorSourceDir.value / ".sbt-play-boilerplate",
+        FilesInfo.lastModified,
+        FilesInfo.hash
+      ) { files =>
+        generatorsCodeGenImpl(
+          files,
+          Keys.generators.value,
+          Keys.generatorSettings.value,
+          (sourceManaged in Compile).value,
+          (resourceDirectory in Compile).value,
+          Keys.generatorDestPackage.value,
+          Keys.generatorProvidedPackage.value
+        )
+      }
+      val files = cachedFiles(collectSwaggerFiles(Keys.generatorSourceDir.value))
+      GeneratedFiles(
+        sources = files.flatMap(
+          file => file.relativeTo((sourceManaged in Compile).value).map(_ => file)
+        ),
+        resources = files.flatMap(
+          file => file.relativeTo((resourceDirectory in Compile).value).map(_ => file)
+        )
       )
     },
     Keys.generatorsClean := {
