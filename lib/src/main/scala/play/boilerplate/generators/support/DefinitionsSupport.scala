@@ -35,42 +35,26 @@ trait DefinitionsSupport
         )
       case ref: RefDefinition =>
         getTypeSupportRef(ref)
-      case impl: DefinitionImpl =>
-        getTypeSupportImpl(impl, context)
+      case simple: SimpleDefinition =>
+        ctx.settings.customTypeSupport.getSimpleTypeSupport(ctx).lift(simple).getOrElse {
+          getSimpleTypeSupport(simple)
+        }
+      case complex: ComplexDefinition =>
+        ctx.settings.customTypeSupport.getComplexTypeSupport(ctx).lift((complex, context)).getOrElse {
+          getComplexTypeSupport(complex, context)
+        }
       case _ =>
         throw new RuntimeException(s"Unsupported definition type ${definition.getClass.getName}.")
     }
   }
 
-  private def getTypeSupportImpl(definitionImpl: DefinitionImpl, context: DefinitionContext)
-                                (implicit cxt: GeneratorContext): TypeSupport = {
-    definitionImpl match {
+  private def getComplexTypeSupport(definition: ComplexDefinition, context: DefinitionContext)
+                                   (implicit cxt: GeneratorContext): TypeSupport = {
+    definition match {
       case obj: ObjectDefinition =>
         getObjectSupport(obj, context)
       case enum: EnumDefinition =>
         getEnumSupport(enum, context)
-      case str: StringDefinition =>
-        getStringSupport(str)
-      case bool: BooleanDefinition =>
-        getBooleanSupport(bool)
-      case double: DoubleDefinition =>
-        getDoubleSupport(double)
-      case float: FloatDefinition =>
-        getFloatSupport(float)
-      case int: IntegerDefinition =>
-        getIntegerSupport(int)
-      case long: LongDefinition =>
-        getLongSupport(long)
-      case decimal: DecimalDefinition =>
-        getDecimalSupport(decimal)
-      case date: DateDefinition =>
-        getDateSupport(date)
-      case dt: DateTimeDefinition =>
-        getDateTimeSupport(dt)
-      case uuid: UUIDDefinition =>
-        getUUIDSupport(uuid)
-      case file: FileDefinition =>
-        getFileSupport(file)
     }
   }
 

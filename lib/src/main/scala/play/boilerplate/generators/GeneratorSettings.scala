@@ -3,6 +3,7 @@ package play.boilerplate.generators
 import GeneratorUtils._
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.generators.security.SecurityProvider
+import play.boilerplate.generators.support.CustomTypeSupport
 
 abstract class GeneratorSettings(val fileName: String,
                                  val basePackageName: String,
@@ -25,6 +26,7 @@ abstract class GeneratorSettings(val fileName: String,
   def enumGenerator: EnumerationGenerator
   def securityProvider: SecurityProvider
   def injectionProvider: InjectionProvider
+  def customTypeSupport: CustomTypeSupport
 
 }
 
@@ -33,7 +35,8 @@ case class DefaultGeneratorSettings(_fileName: String,
                                     _codeProvidedPackage: String,
                                     override val enumGenerator: EnumerationGenerator = VanillaEnumerations,
                                     override val securityProvider: SecurityProvider = SecurityProvider.default,
-                                    override val injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor())
+                                    override val injectionProvider: InjectionProvider = new InjectionProvider.DefaultInConstructor(),
+                                    override val customTypeSupport: CustomTypeSupport = CustomTypeSupport.empty)
   extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
 
   override val modelPackageName: String = composeName(basePackageName, "model")

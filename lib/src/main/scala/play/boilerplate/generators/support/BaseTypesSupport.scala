@@ -13,6 +13,33 @@ trait BaseTypesSupport {
   private lazy val UUIDClass           = definitions.getClass("java.util.UUID")
   private lazy val FileClass           = definitions.getClass("java.io.File")
 
+  def getSimpleTypeSupport(definition: SimpleDefinition): TypeSupport = {
+    definition match {
+      case str: StringDefinition =>
+        getStringSupport(str)
+      case bool: BooleanDefinition =>
+        getBooleanSupport(bool)
+      case double: DoubleDefinition =>
+        getDoubleSupport(double)
+      case float: FloatDefinition =>
+        getFloatSupport(float)
+      case int: IntegerDefinition =>
+        getIntegerSupport(int)
+      case long: LongDefinition =>
+        getLongSupport(long)
+      case decimal: DecimalDefinition =>
+        getDecimalSupport(decimal)
+      case date: DateDefinition =>
+        getDateSupport(date)
+      case dt: DateTimeDefinition =>
+        getDateTimeSupport(dt)
+      case uuid: UUIDDefinition =>
+        getUUIDSupport(uuid)
+      case file: FileDefinition =>
+        getFileSupport(file)
+    }
+  }
+
   def getStringSupport(str: StringDefinition): TypeSupport = {
     TypeSupport(StringClass, StringClass, Nil)
   }
