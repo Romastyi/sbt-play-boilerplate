@@ -19,6 +19,7 @@ final class ScaldiInjectionProvider extends InjectionProvider {
       )
     }
     val injector = PARAM("inj", TYPE_REF("Injector")).withFlags(Flags.IMPLICIT).tree
+    val className = classDef.name.toString()
     val classTree = classDef.copy(
       impl = classDef.impl.copy(
         parents = classDef.impl.parents :+ REF("Injectable"),
@@ -29,6 +30,8 @@ final class ScaldiInjectionProvider extends InjectionProvider {
     tree
       .replaceFirst(s"\\)\\s*\\{", ")(" + treeToString(injector) + ") {")
       .replaceFirst(s"\\)\\s*extends", ")(" + treeToString(injector) + ") extends")
+      .replaceFirst(s"$className\\s*\\{", className + "(" + treeToString(injector) + ") {")
+      .replaceFirst(s"$className\\s*extends", className + "(" + treeToString(injector) + ") extends")
   }
 
 }
