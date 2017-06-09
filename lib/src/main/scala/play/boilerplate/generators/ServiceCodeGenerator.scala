@@ -87,8 +87,14 @@ class ServiceCodeGenerator extends CodeGenerator {
     val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
 
     val methodTree = DEF("onError", FUTURE(StringClass))
-      .withParams(operationId, cause)
-      .empty
+      .withParams(operationId, cause) :=
+      BLOCK(
+        VAL("message") := INFIX_CHAIN("+",
+          INTERP(StringContext_s, LIT("Unexpected error (operationId: "), REF("operationId"), LIT("): ")),
+          REF("cause") DOT "getMessage"
+        ),
+        REF("Future") DOT "successful" APPLY REF("message")
+      )
 
     methodTree.withDoc(
       "Error handler",
