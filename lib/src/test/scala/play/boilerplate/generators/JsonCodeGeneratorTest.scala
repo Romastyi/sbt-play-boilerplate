@@ -1,6 +1,7 @@
 package play.boilerplate.generators
 
 import org.scalatest.{FlatSpec, Matchers}
+import play.boilerplate.generators.support.CustomTypeSupport
 import play.boilerplate.parser.backend.swagger.SwaggerBackend
 
 class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString {
@@ -41,7 +42,10 @@ class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
   it should "Parse petStore_v2.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v2.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
+      "petStore_v2.yaml", "test", "",
+      customTypeSupport = CustomTypeSupport.jodaLocalDateSupport ++ CustomTypeSupport.jodaDateTimeSupport()
+    ))
     val gen = new JsonCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
