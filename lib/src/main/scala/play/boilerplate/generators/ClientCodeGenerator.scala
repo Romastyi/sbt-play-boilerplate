@@ -55,10 +55,9 @@ class ClientCodeGenerator extends CodeGenerator {
         )
         .withSelf("self") :=
         BLOCK {
-          filterNonEmptyTree(
+          cleanBaseUrlValDef +: filterNonEmptyTree(
             methods.flatMap(_.implicits).toIndexedSeq ++
-            methods.map(_.tree).toIndexedSeq :+
-            generateOrErrorMethod
+            methods.map(_.tree).toIndexedSeq
           )
         }
 
@@ -80,14 +79,19 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  def composeClientUrl(basePath: String, path: Path, operation: Operation): Tree = {
+  def cleanBaseUrlValDef: ValDef = {
+    VAL("_cleanBaseUrl", StringClass).withFlags(Flags.PRIVATE) :=
+      REF("baseUrl") DOT "replaceAll" APPLY (LIT("\\s+$"), LIT("")) DOT "replaceAll" APPLY (LIT("//+$"), LIT(""))
+  }
+
+  def composeClientUrl(basePath: String, path: Path, operation: Operation): ValDef = {
 
     val parts = path.pathParts.collect {
       case StaticPart(str) => LIT(str)
       case ParamPart(name) => REF("_render_path_param") APPLY (LIT(name), REF(name))
     }.toSeq
 
-    val urlParts = (Seq(REF("baseUrl"), LIT(basePath.dropWhile(_ == '/'))) ++ parts).foldLeft(List.empty[Tree]) { case (acc, term) =>
+    val urlParts = (Seq(REF("{_cleanBaseUrl}"), LIT(basePath.dropWhile(_ == '/'))) ++ parts).foldLeft(List.empty[Tree]) { case (acc, term) =>
       if (acc.isEmpty) acc :+ term else acc :+ LIT("/") :+ term
     }
 
@@ -97,11 +101,13 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val baseUrl = INTERP(StringContext_s, urlParts: _ *)
 
-    if (urlParams.isEmpty) {
+    val tree = if (urlParams.isEmpty) {
       baseUrl
     } else {
       baseUrl INFIX("+", REF("_render_url_params") APPLY (urlParams: _*))
     }
+
+    VAL("url") := tree
 
   }
 
@@ -126,7 +132,8 @@ class ClientCodeGenerator extends CodeGenerator {
         LIT(name) INFIX ("->", ref)
     }
 
-    val wsUrl = REF("WS") DOT "url" APPLY composeClientUrl(schema.basePath, path, operation)
+    val urlValDef = composeClientUrl(schema.basePath, path, operation)
+    val wsUrl = REF("WS") DOT "url" APPLY REF("url")
     val wsUrlWithAccept = wsUrl DOT "withHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT("application/json")))
     val wsUrlWithHeaderParams = if (headerParams.isEmpty) {
       wsUrlWithAccept
@@ -149,13 +156,14 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
       .withFlags(Flags.OVERRIDE)
       .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values) :=
-      BLOCK {
+      BLOCK(
+        urlValDef,
         wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY {
           LAMBDA(PARAM("resp").tree) ==> BLOCK(responses.tree)
         } DOT "recoverWith" APPLY BLOCK {
           CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
         }
-      }
+      )
 
     val tree = methodTree.withDoc(
       s"""${Option(operation.description).getOrElse("")}
@@ -204,33 +212,6 @@ class ClientCodeGenerator extends CodeGenerator {
     }
 
     Method(tree, cases.flatMap(_._2))
-
-  }
-
-  def generateOrErrorMethod: Tree = {
-
-    val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
-    val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
-
-    val methodTree = DEF("onError", FUTURE(StringClass.toType))
-      .withFlags(Flags.OVERRIDE)
-      .withParams(operationId, cause) :=
-      BLOCK {
-        REF("Future") DOT "successful" APPLY {
-          INFIX_CHAIN("+",
-            LIT("Operation '"),
-            REF("operationId"),
-            LIT("' error: "),
-            REF("cause") DOT "getMessage"
-          )
-        }
-      }
-
-    methodTree.withDoc(
-      "Error handler",
-      DocTag.Param("operationId", "Operation where error was occurred"),
-      DocTag.Param("cause"      , "An occurred error")
-    )
 
   }
 
