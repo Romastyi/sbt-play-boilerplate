@@ -9,8 +9,12 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
   object Keys {
 
+    trait GenSettings {
+      def apply(fileName: String, basePackageName: String, codeProvidedPackage: String): GeneratorSettings
+    }
+
     val generators: SettingKey[Seq[CodeGenerator]] = settingKey("generators")
-    val generatorSettings: SettingKey[(String, String, String) => GeneratorSettings] = settingKey("generatorSettings")
+    val generatorSettings: SettingKey[GenSettings] = settingKey("generatorSettings")
     val generatorSourceDir: SettingKey[File] = settingKey("generatorSourceDir")
     val generatorDestPackage: SettingKey[String] = settingKey("generatorDestPackage")
     val generatorProvidedPackage: SettingKey[String] = settingKey("generatorProvidedPackage")
@@ -30,6 +34,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val generateRoutes: SettingKey[Boolean] = settingKey("generateRoutes")
     val generateRoutesCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateRoutesCodeGenerator")
 
+    val generateService: SettingKey[Boolean] = settingKey("generateService")
     val generateServiceCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateServiceCodeGenerator")
 
     val generatorsCodeGen: TaskKey[GeneratedFiles] = taskKey("generatorsCodeGen")
@@ -67,7 +72,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
   private def generatorsCodeGenImpl(swaggerFiles: Set[File],
                                     generators: Seq[CodeGenerator],
-                                    settings: (String, String, String) => GeneratorSettings,
+                                    genSettings: Keys.GenSettings,
                                     sourceManagedDir: File,
                                     resourcesDir: File,
                                     destPackage: String,
@@ -79,7 +84,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       swaggerFile <- swaggerFiles
       swaggerFileName = swaggerFile.getAbsolutePath
       schema = SwaggerBackend.parseSchema(swaggerFileName).get
-      context = GeneratorContext.initial(settings(swaggerFileName, destPackage, providedPackage))
+      context = GeneratorContext.initial(genSettings(swaggerFileName, destPackage, providedPackage))
       generator <- generators
       codeFile <- generator.generate(schema)(context)
     } yield generateCodeFile(codeFile, sourceManagedDir, resourcesDir)
@@ -102,13 +107,13 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       val jsonCodeGenerators = Seq(Keys.generateJsonCodeGenerator.value)
         .filter(_ => Keys.generateJson.value)
       val modelCodeGenerators = Seq(Keys.generateModelCodeGenerator.value)
-        .filter(_ => Keys.generateModel.value)
+        .filter(_ => Keys.generateModel.value || Keys.generateService.value)
       val clientCodeGenerators = Seq(Keys.generateClientCodeGenerator.value)
         .filter(_ => Keys.generateClient.value)
       val serverCodeGenerators = Seq(Keys.generateServerCodeGenerator.value)
         .filter(_ => Keys.generateServer.value)
       val serviceCodeGenerators = Seq(Keys.generateServiceCodeGenerator.value)
-        .filter(_ => Keys.generateClient.value || Keys.generateServer.value)
+        .filter(_ => Keys.generateClient.value || Keys.generateServer.value || Keys.generateService.value)
       val routesCodeGenerators = Seq(Keys.generateRoutesCodeGenerator.value)
         .filter(_ => Keys.generateRoutes.value)
 
@@ -120,8 +125,9 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       routesCodeGenerators
 
     },
-    Keys.generatorSettings := { case (fileName, basePackageName, codeProvidedPackage) =>
-      DefaultGeneratorSettings(fileName, basePackageName, codeProvidedPackage)
+    Keys.generatorSettings := new Keys.GenSettings {
+      def apply(fileName: String, basePackageName: String, codeProvidedPackage: String): GeneratorSettings =
+        DefaultGeneratorSettings(fileName, basePackageName, codeProvidedPackage)
     },
     Keys.generatorSourceDir := (sourceDirectory in Compile).value / "swagger",
     Keys.generatorDestPackage := "test.api",
@@ -136,6 +142,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.generateServerCodeGenerator := new ServerCodeGenerator(),
     Keys.generateRoutes := false,
     Keys.generateRoutesCodeGenerator := new DynamicRoutesCodeGenerator(),
+    Keys.generateService := false,
     Keys.generateServiceCodeGenerator := new ServiceCodeGenerator(),
     Keys.generatorsCodeGen := {
       val cachedFiles = FileFunction.cached(
