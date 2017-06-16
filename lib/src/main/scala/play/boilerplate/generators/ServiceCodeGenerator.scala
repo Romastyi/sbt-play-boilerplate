@@ -15,6 +15,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       IMPORT("scala.concurrent", "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
+      ctx.settings.loggerProvider.imports ++
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
   }
 
@@ -31,11 +32,16 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     if (methods.nonEmpty) {
 
-      val serviceTree = TRAITDEF(ctx.settings.serviceClassName) := BLOCK {
-        IMPORT(ctx.settings.serviceClassName, "_") +:
-          methods.map(_.tree).toIndexedSeq :+
-          generateOrErrorMethod
-      }
+      val serviceTree = TRAITDEF(ctx.settings.serviceClassName)
+        .withParents(ctx.settings.loggerProvider.parents)
+        .withSelf("self", ctx.settings.loggerProvider.selfTypes: _ *) :=
+        BLOCK {
+          IMPORT(ctx.settings.serviceClassName, "_") +: filterNonEmptyTree(
+            ctx.settings.loggerProvider.loggerDefs ++
+            methods.map(_.tree).toIndexedSeq :+
+            generateOrErrorMethod
+          )
+        }
 
       val companionTree = OBJECTDEF(ctx.settings.serviceClassName) := BLOCK {
         generateResponseClasses(schema)(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
@@ -81,7 +87,7 @@ class ServiceCodeGenerator extends CodeGenerator {
 
   }
 
-  def generateOrErrorMethod: Tree = {
+  def generateOrErrorMethod(implicit ctx: GeneratorContext): Tree = {
 
     val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
     val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
@@ -93,6 +99,7 @@ class ServiceCodeGenerator extends CodeGenerator {
           INTERP(StringContext_s, LIT("Unexpected error (operationId: "), REF("operationId"), LIT("): ")),
           REF("cause") DOT "getMessage"
         ),
+        ctx.settings.loggerProvider.error(REF("message"), REF("cause")),
         REF("Future") DOT "successful" APPLY REF("message")
       )
 

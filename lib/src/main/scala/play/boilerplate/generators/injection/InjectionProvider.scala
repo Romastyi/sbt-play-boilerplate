@@ -35,6 +35,8 @@ object InjectionProvider {
 
   }
 
+  def defaultInConstructor: InjectionProvider = new DefaultInConstructor()
+
   class DefaultInMethods extends InjectionProvider {
 
     override def imports: Seq[Import] = Nil
@@ -53,5 +55,7 @@ object InjectionProvider {
     }
 
   }
+
+  def defaultInMethods: InjectionProvider = new DefaultInMethods()
 
 }
