@@ -28,10 +28,10 @@ class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
   }
 
-  "Full support" should "Parse petStore_v1.yaml" in {
+  "Full support" should "Parse petStore.v1.yaml" in {
 
-    val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v1.yaml", "test", ""))
+    val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", ""))
     val gen = new JsonCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -39,11 +39,11 @@ class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
   }
 
-  it should "Parse petStore_v2.yaml" in {
+  it should "Parse petStore.v2.yaml" in {
 
-    val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").get
+    val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
-      "petStore_v2.yaml", "test", "",
+      "petStore.v2.yaml", "test", "",
       customTypeSupport = CustomTypeSupport.jodaLocalDateSupport ++ CustomTypeSupport.jodaDateTimeSupport()
     ))
     val gen = new JsonCodeGenerator().generate(schema)(ctx)

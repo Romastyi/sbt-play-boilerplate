@@ -23,8 +23,35 @@ trait StringUtils {
       .replace(".json", "")
   }
 
-  def objectNameFromFileName(fileName: String, obj: String): String = {
-    sanitizeFileName(fileName).capitalize + obj
+  def objectNameFromFileName(fileName: String, obj: String, skipNotValidChars: Boolean = true): String = {
+    stringToValidIdentifier(sanitizeFileName(fileName), skipNotValidChars).capitalize + obj
+  }
+
+  def stringToValidIdentifier(str: String, skipNotValidChars: Boolean): String = {
+
+    def addUnderscore(sb: StringBuilder): Unit = {
+      if (!skipNotValidChars) sb.append('_')
+    }
+
+    val sb = new StringBuilder()
+    var afterUnderscore = false
+
+    if (!Character.isJavaIdentifierStart(str.charAt(0))) {
+      afterUnderscore = true
+      addUnderscore(sb)
+    }
+    str.toCharArray.foreach { c =>
+      if (Character.isJavaIdentifierPart(c)) {
+        if (afterUnderscore) sb.append(c.toUpper) else sb.append(c)
+        afterUnderscore = false
+      } else if (!afterUnderscore) {
+        afterUnderscore = true
+        addUnderscore(sb)
+      }
+    }
+
+    sb.mkString
+
   }
 
   def padTo(n: Int, s: String): String = s + " " * (n - s.length max 0)

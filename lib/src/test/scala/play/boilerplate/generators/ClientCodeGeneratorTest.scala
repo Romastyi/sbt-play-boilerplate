@@ -5,10 +5,10 @@ import play.boilerplate.parser.backend.swagger.SwaggerBackend
 
 class ClientCodeGeneratorTest  extends FlatSpec with Matchers with PrintSyntaxString {
 
-  "Full support" should "Parse petStore_v1.yaml" in {
+  "Full support" should "Parse petStore.v1.yaml" in {
 
-    val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v1.yaml", "test", "", injectionProvider = new injection.ScaldiInjectionProvider()))
+    val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", "", injectionProvider = new injection.ScaldiInjectionProvider()))
     val gen = new ClientCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -16,10 +16,10 @@ class ClientCodeGeneratorTest  extends FlatSpec with Matchers with PrintSyntaxSt
 
   }
 
-  it should "Parse petStore_v2.yaml" in {
+  it should "Parse petStore.v2.yaml" in {
 
-    val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore_v2.yaml", "test", ""))
+    val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", ""))
     val gen = new ClientCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

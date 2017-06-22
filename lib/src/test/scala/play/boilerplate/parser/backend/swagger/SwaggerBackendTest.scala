@@ -22,18 +22,18 @@ class SwaggerBackendTest extends FlatSpec with Matchers {
 
   }
 
-  "SwaggerBackend: full support" should "Parse petStore_v1.yaml" in {
+  "SwaggerBackend: full support" should "Parse petStore.v1.yaml" in {
 
-    val schema = SwaggerBackend.parseSchema("petStore_v1.yaml").get
+    val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
     println(schema)
 
     true should be (true)
 
   }
 
-  it should "Parse petStore_v2.yaml" in {
+  it should "Parse petStore.v2.yaml" in {
 
-    val schema = SwaggerBackend.parseSchema("petStore_v2.yaml").get
+    val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
     println(schema)
 
     true should be (true)
