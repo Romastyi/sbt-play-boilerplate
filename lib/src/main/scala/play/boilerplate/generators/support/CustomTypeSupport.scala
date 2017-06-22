@@ -55,38 +55,43 @@ object CustomTypeSupport {
     }
   }
 
-  def jodaLocalDateSupport: CustomTypeSupport = {
-    simple { _ => {
-      case _: DateDefinition =>
-        val LocalDateClass = definitions.getClass("org.joda.time.LocalDate")
-        TypeSupport(LocalDateClass, LocalDateClass, Nil)
-    }}
-  }
+  def jodaLocalDateSupport: CustomTypeSupport = simple { _ => {
+    case _: DateDefinition =>
+      val LocalDateClass = definitions.getClass("org.joda.time.LocalDate")
+      TypeSupport(LocalDateClass, LocalDateClass, Nil)
+  }}
 
-  def jodaDateTimeSupport(pattern: String = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"): CustomTypeSupport = {
-    simple { _ => {
-      case _: DateTimeDefinition =>
-        val DateTimeClass  = definitions.getClass("org.joda.time.DateTime")
-        val defs = TypeSupportDefs(
-          symbol = DateTimeClass,
-          definition = EmptyTree,
-          jsonReads  = {
-            val readsType = definitions.getClass("Reads") TYPE_OF DateTimeClass
-            VAL(DateTimeClass.nameString + "Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-              REF("Reads") DOT "jodaDateReads" APPLY LIT(pattern)
-            }
-          },
-          jsonWrites = {
-            val writesType = definitions.getClass("Writes") TYPE_OF DateTimeClass
-            VAL(DateTimeClass.nameString + "Writes", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-              REF("Writes") DOT "jodaDateWrites" APPLY LIT(pattern)
-            }
-          },
-          queryBindable = EmptyTree,
-          pathBindable  = EmptyTree
-        )
-        TypeSupport(DateTimeClass, DateTimeClass, defs :: Nil)
-    }}
-  }
+  def jodaDateTimeSupport(pattern: String = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"): CustomTypeSupport = simple { _ => {
+    case _: DateTimeDefinition =>
+      val DateTimeClass  = definitions.getClass("org.joda.time.DateTime")
+      val defs = TypeSupportDefs(
+        symbol = DateTimeClass,
+        definition = EmptyTree,
+        jsonReads  = {
+          val readsType = definitions.getClass("Reads") TYPE_OF DateTimeClass
+          VAL(DateTimeClass.nameString + "Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            REF("Reads") DOT "jodaDateReads" APPLY LIT(pattern)
+          }
+        },
+        jsonWrites = {
+          val writesType = definitions.getClass("Writes") TYPE_OF DateTimeClass
+          VAL(DateTimeClass.nameString + "Writes", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            REF("Writes") DOT "jodaDateWrites" APPLY LIT(pattern)
+          }
+        },
+        queryBindable = EmptyTree,
+        pathBindable  = EmptyTree
+      )
+      TypeSupport(DateTimeClass, DateTimeClass, defs :: Nil)
+  }}
+
+  def emptyObjectAsJsObject: CustomTypeSupport = complex { _ => {
+    case (obj: ObjectDefinition, ctx) if obj.properties.isEmpty && ctx.isInline =>
+      TypeSupport(
+        tpe = definitions.getClass("play.api.libs.json.JsObject"),
+        fullQualified = definitions.getClass("play.api.libs.json.JsObject"),
+        defs = Nil
+      )
+  }}
 
 }

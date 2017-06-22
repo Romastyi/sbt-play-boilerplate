@@ -1,0 +1,25 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: Enum support test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+definitions:
+  Model:
+    type: object
+    required:
+      - id
+      - jsObj
+    properties:
+      id:
+        type: integer
+        format: int64
+      jsObj:
+        type: object
+      jsObjOpt:
+        type: object
+  EmptyObject:
+    type: object
