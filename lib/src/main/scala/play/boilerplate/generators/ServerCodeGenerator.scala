@@ -26,7 +26,8 @@ class ServerCodeGenerator extends CodeGenerator {
   }
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
-    Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName)))
+    Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName))) ++
+      ctx.settings.securityProvider.controllerDependencies
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {

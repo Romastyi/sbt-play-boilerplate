@@ -1,6 +1,7 @@
 package play.boilerplate.generators.security
 
 import io.swagger.models.{Operation => SwaggerOperation}
+import play.boilerplate.generators.injection.InjectionProvider.Dependency
 import play.boilerplate.parser.model.SecurityRequirement
 import treehugger.forest._
 import treehuggerDSL._
@@ -16,6 +17,8 @@ trait SecurityProvider {
   def controllerParents: Seq[Type]
 
   def controllerSelfTypes: Seq[Type]
+
+  def controllerDependencies: Seq[Dependency]
 
   def serviceImports: Seq[Import]
 
@@ -41,6 +44,7 @@ object SecurityProvider {
     override val controllerSelfTypes: Seq[Type] = Nil
     override val controllerImports: Seq[Import] = Nil
     override val controllerParents: Seq[Type] = Nil
+    override val controllerDependencies: Seq[Dependency] = Nil
     override val serviceImports: Seq[Import] = Nil
     override def getActionSecurity(security: Seq[SecurityRequirement]): ActionSecurity = WithoutSecurity
   }

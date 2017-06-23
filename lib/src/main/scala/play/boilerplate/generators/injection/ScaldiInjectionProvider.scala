@@ -11,12 +11,18 @@ final class ScaldiInjectionProvider extends InjectionProvider {
   }
 
   override def classDefModifier(classDef: ClassDef, dependencies: Seq[Dependency]): String = {
-    val injects = dependencies.flatMap { case Dependency(name, tpe) =>
-      val valName = "_" + name
-      Seq(
-        VAL(valName, tpe).withFlags(Flags.LAZY, Flags.PRIVATE) := REF("inject").APPLYTYPE(tpe),
-        DEF(name, tpe) := REF(valName)
-      )
+    val injects = dependencies.flatMap {
+      case Dependency(name, tpe, isOverride) =>
+        val valName = "_" + name
+        val methodDef = if (isOverride) {
+          DEF(name, tpe).withFlags(Flags.OVERRIDE)
+        } else {
+          DEF(name, tpe)
+        }
+        Seq(
+          VAL(valName, tpe).withFlags(Flags.LAZY, Flags.PRIVATE) := REF("inject").APPLYTYPE(tpe),
+          methodDef := REF(valName)
+        )
     }
     val injector = PARAM("inj", TYPE_REF("Injector")).withFlags(Flags.IMPLICIT).tree
     val className = classDef.name.toString()
