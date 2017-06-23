@@ -21,5 +21,7 @@ definitions:
         type: object
       jsObjOpt:
         type: object
+      jsObjRef:
+        $ref: '#/definitions/EmptyObject'
   EmptyObject:
     type: object

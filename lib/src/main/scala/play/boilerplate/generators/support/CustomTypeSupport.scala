@@ -86,7 +86,7 @@ object CustomTypeSupport {
   }}
 
   def emptyObjectAsJsObject: CustomTypeSupport = complex { _ => {
-    case (obj: ObjectDefinition, ctx) if obj.properties.isEmpty && ctx.isInline =>
+    case (obj: ObjectDefinition, _) if obj.properties.isEmpty =>
       TypeSupport(
         tpe = definitions.getClass("play.api.libs.json.JsObject"),
         fullQualified = definitions.getClass("play.api.libs.json.JsObject"),

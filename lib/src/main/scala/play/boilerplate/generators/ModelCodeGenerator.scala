@@ -4,6 +4,7 @@ import play.boilerplate.parser.model._
 
 class ModelCodeGenerator extends CodeGenerator {
 
+  import GeneratorUtils._
   import treehugger.forest._
   import treehuggerDSL._
 
@@ -13,11 +14,13 @@ class ModelCodeGenerator extends CodeGenerator {
 
     for {
       (name, model) <- schema.definitions
+      impl = filterNonEmptyTree(generateClass(model)(ctx.setInModel(true)))
+      if impl.nonEmpty
     } yield SourceCodeFile(
       packageName = ctx.settings.modelPackageName,
-      className = name.capitalize,
+      className = name,
       header = treeToString(init),
-      impl = treeToString(generateClass(model)(ctx.setInModel(true)): _ *)
+      impl = treeToString(impl: _ *)
     )
 
   }

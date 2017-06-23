@@ -29,24 +29,24 @@ trait StringUtils {
 
   def stringToValidIdentifier(str: String, skipNotValidChars: Boolean): String = {
 
-    def addUnderscore(sb: StringBuilder): Unit = {
-      if (!skipNotValidChars) sb.append('_')
-    }
-
     val sb = new StringBuilder()
-    var afterUnderscore = false
 
-    if (!Character.isJavaIdentifierStart(str.charAt(0))) {
-      afterUnderscore = true
-      addUnderscore(sb)
-    }
-    str.toCharArray.foreach { c =>
+    str.toCharArray.foldLeft {
+      if (!Character.isJavaIdentifierStart(str.charAt(0))) {
+        sb.append('_')
+        true
+      } else {
+        false
+      }
+    } { case (afterUnderscore, c) =>
       if (Character.isJavaIdentifierPart(c)) {
         if (afterUnderscore) sb.append(c.toUpper) else sb.append(c)
-        afterUnderscore = false
+        false
       } else if (!afterUnderscore) {
-        afterUnderscore = true
-        addUnderscore(sb)
+        if (!skipNotValidChars) sb.append('_')
+        true
+      } else {
+        true
       }
     }
 
