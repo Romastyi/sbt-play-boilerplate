@@ -58,7 +58,7 @@ class ClientCodeGenerator extends CodeGenerator {
           cleanBaseUrlValDef +: filterNonEmptyTree(
             methods.flatMap(_.implicits).toIndexedSeq ++
             methods.map(_.tree).toIndexedSeq
-          )
+          ) :+ generateParseResponseAsJson
         }
 
       // --- DI
@@ -81,7 +81,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
   def cleanBaseUrlValDef: ValDef = {
     VAL("_cleanBaseUrl", StringClass).withFlags(Flags.PRIVATE) :=
-      REF("baseUrl") DOT "replaceAll" APPLY (LIT("\\s+$"), LIT("")) DOT "replaceAll" APPLY (LIT("//+$"), LIT(""))
+      REF("baseUrl") DOT "trim" DOT "replaceAll" APPLY (LIT("/+$"), LIT(""))
   }
 
   def composeClientUrl(basePath: String, path: Path, operation: Operation): ValDef = {
@@ -166,7 +166,7 @@ class ClientCodeGenerator extends CodeGenerator {
       )
 
     val tree = methodTree.withDoc(
-      s"""${Option(operation.description).getOrElse("")}
+      s"""${operation.description.getOrElse("")}
          |
          """.stripMargin
     )
@@ -188,7 +188,7 @@ class ClientCodeGenerator extends CodeGenerator {
       val className = getResponseClassName(operation.operationId, code)
       val bodySupport = response.schema.map(body => getTypeSupport(body))
       val bodyParam = bodySupport.map { body =>
-        REF("resp") DOT "json" DOT "as" APPLYTYPE body.tpe
+        REF("parseResponseAsJson") APPLYTYPE body.tpe APPLY REF("resp")
       }
       val tree = code match {
         case DefaultResponse =>
@@ -212,6 +212,29 @@ class ClientCodeGenerator extends CodeGenerator {
     }
 
     Method(tree, cases.flatMap(_._2))
+
+  }
+
+  final def generateParseResponseAsJson(implicit ctx: GeneratorContext): Tree = {
+
+    val TryClass = definitions.getClass("scala.util.Try")
+    val A = RootClass.newAliasType("A")
+
+    DEF("parseResponseAsJson", A)
+      .withFlags(Flags.PROTECTED)
+      .withTypeParams(TYPEVAR(A))
+      .withParams(PARAM("resp", TYPE_REF("WSResponse")).empty)
+      .withParams(PARAM("rs", TYPE_REF("Reads") TYPE_OF A).withFlags(Flags.IMPLICIT).empty) :=
+      BLOCK {
+        TryClass APPLY (REF("resp") DOT "json" DOT "as" APPLYTYPE A) DOT "recover" APPLY BLOCK(
+          CASE(REF("cause")) ==> BLOCK(
+            ctx.settings.loggerProvider.warning(
+              LIT("Could not parse response body as Json. Response body:\n") INFIX("+", REF("resp") DOT "body")
+            ),
+            THROW(REF("cause"))
+          )
+        ) DOT "get"
+      }
 
   }
 

@@ -13,17 +13,19 @@ trait LoggerProvider {
 
   def selfTypes: Seq[Type]
 
-  def trace(message: Ident, cause: Ident): Tree
+  def trace(message: Tree): Tree
 
-  def debug(message: Ident, cause: Ident): Tree
+  def debug(message: Tree): Tree
 
-  def info(message: Ident, cause: Ident): Tree
+  def info(message: Tree): Tree
 
-  def warning(message: Ident, cause: Ident): Tree
+  def warning(message: Tree): Tree
 
-  def error(message: Ident, cause: Ident): Tree
+  def warning(message: Tree, cause: Ident): Tree
 
-  def fatal(message: Ident, cause: Ident): Tree
+  def error(message: Tree, cause: Ident): Tree
+
+  def fatal(message: Tree, cause: Ident): Tree
 
 }
 
@@ -41,17 +43,19 @@ object LoggerProvider {
 
     override def selfTypes: Seq[Type] = Nil
 
-    override def trace(message: Ident, cause: Ident): Tree = REF("logger") DOT "trace" APPLY (message, cause)
+    override def trace(message: Tree): Tree = REF("logger") DOT "trace" APPLY message
 
-    override def debug(message: Ident, cause: Ident): Tree = REF("logger") DOT "debug" APPLY (message, cause)
+    override def debug(message: Tree): Tree = REF("logger") DOT "debug" APPLY message
 
-    override def info(message: Ident, cause: Ident): Tree = REF("logger") DOT "info" APPLY (message, cause)
+    override def info(message: Tree): Tree = REF("logger") DOT "info" APPLY message
 
-    override def warning(message: Ident, cause: Ident): Tree = REF("logger") DOT "warn" APPLY (message, cause)
+    override def warning(message: Tree): Tree = REF("logger") DOT "warn" APPLY message
 
-    override def error(message: Ident, cause: Ident): Tree = REF("logger") DOT "error" APPLY (message, cause)
+    override def warning(message: Tree, cause: Ident): Tree = REF("logger") DOT "warn" APPLY (message, cause)
 
-    override def fatal(message: Ident, cause: Ident): Tree = error(message, cause)
+    override def error(message: Tree, cause: Ident): Tree = REF("logger") DOT "error" APPLY (message, cause)
+
+    override def fatal(message: Tree, cause: Ident): Tree = error(message, cause)
 
   }
 
@@ -65,17 +69,19 @@ object LoggerProvider {
 
     override def selfTypes: Seq[Type] = Nil
 
-    override def trace(message: Ident, cause: Ident): Tree = EmptyTree
+    override def trace(message: Tree): Tree = EmptyTree
 
-    override def debug(message: Ident, cause: Ident): Tree = EmptyTree
+    override def debug(message: Tree): Tree = EmptyTree
 
-    override def info(message: Ident, cause: Ident): Tree = EmptyTree
+    override def info(message: Tree): Tree = EmptyTree
 
-    override def warning(message: Ident, cause: Ident): Tree = EmptyTree
+    override def warning(message: Tree): Tree = EmptyTree
 
-    override def error(message: Ident, cause: Ident): Tree = EmptyTree
+    override def warning(message: Tree, cause: Ident): Tree = EmptyTree
 
-    override def fatal(message: Ident, cause: Ident): Tree = EmptyTree
+    override def error(message: Tree, cause: Ident): Tree = EmptyTree
+
+    override def fatal(message: Tree, cause: Ident): Tree = EmptyTree
 
   }
 
