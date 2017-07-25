@@ -5,8 +5,8 @@ trait WithDefault[T] { this: Definition =>
 }
 
 trait WithMinMax[T] { this: Definition =>
-  def min: Option[T]
-  def max: Option[T]
+  def minimum: Option[T]
+  def maximum: Option[T]
 }
 
 trait WithMinMaxLength { this: Definition =>

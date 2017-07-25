@@ -120,7 +120,9 @@ trait PropertyParser { this: ReferenceParser =>
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true),
-          default = Option(prop.getDefault).map(Integer2int)
+          default = Option(prop.getDefault).map(Integer2int),
+          minimum = Option(prop.getMinimum).map(_.intValue()),
+          maximum = Option(prop.getMaximum).map(_.intValue())
         )
       case prop: LongProperty =>
         LongDefinition(
@@ -129,7 +131,9 @@ trait PropertyParser { this: ReferenceParser =>
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true),
-          default = Option(prop.getDefault).map(Long2long)
+          default = Option(prop.getDefault).map(Long2long),
+          minimum = Option(prop.getMinimum).map(_.longValue()),
+          maximum = Option(prop.getMaximum).map(_.longValue())
         )
       case prop: BaseIntegerProperty =>
         IntegerDefinition(
@@ -138,7 +142,9 @@ trait PropertyParser { this: ReferenceParser =>
           description = Option(prop.getDescription),
           readOnly = Option(prop.getReadOnly).exists(_ == true),
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true),
-          default = None
+          default = None,
+          minimum = Option(prop.getMinimum).map(_.intValue()),
+          maximum = Option(prop.getMaximum).map(_.intValue())
         )
       case prop: DecimalProperty =>
         DecimalDefinition(

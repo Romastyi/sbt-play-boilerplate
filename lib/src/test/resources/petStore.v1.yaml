@@ -182,6 +182,7 @@ definitions:
       id:
         type: integer
         format: int64
+        minimum: 0
       name:
         type: string
       tag:
@@ -221,6 +222,7 @@ definitions:
       code:
         type: integer
         format: int32
+        minimum: 0
       message:
         type: string
       level:

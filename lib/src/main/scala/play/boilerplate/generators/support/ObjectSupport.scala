@@ -54,6 +54,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   sealed trait Constraint
   final case class ListConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
+  final case class Maximum(value: Any) extends Constraint
+  final case class Minimum(value: Any) extends Constraint
   final case class MaxLength(length: Int) extends Constraint
   final case class MinLength(length: Int) extends Constraint
   final case class Pattern(pattern: String) extends Constraint
@@ -72,6 +74,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
         collectPropertyConstraints(additionalProperties)
       case _: EmailDefinition =>
         Email :: Nil
+      case p: WithMinMax[_] =>
+        p.maximum.map(Maximum).toList ++ p.minimum.map(Minimum).toList
       case p: WithMinMaxLength =>
         p.maxLength.map(MaxLength).toList ++ p.minLength.map(MinLength).toList
       case p: WithPattern =>
@@ -85,6 +89,10 @@ trait ObjectSupport { this: DefinitionsSupport =>
     constraint match {
       case ListConstraint(constraints, tpe) if constraints.nonEmpty =>
         REF("Reads") DOT "list" APPLYTYPE tpe APPLY constraints.map(getReadsConstraint(_, tpe))
+      case Maximum(value) =>
+        REF("Reads") DOT "max" APPLYTYPE noOptType APPLY LIT(value)
+      case Minimum(value) =>
+        REF("Reads") DOT "min" APPLYTYPE noOptType APPLY LIT(value)
       case MaxLength(length) =>
         REF("Reads") DOT "maxLength" APPLYTYPE noOptType APPLY LIT(length)
       case MinLength(length) =>

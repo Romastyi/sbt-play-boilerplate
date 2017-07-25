@@ -148,16 +148,20 @@ final case class IntegerDefinition(override val name: String,
                                    override val description: Option[String],
                                    override val readOnly: Boolean,
                                    override val allowEmptyValue: Boolean,
-                                   override val default: Option[Int]
-                                  ) extends DefinitionImpl with SimpleDefinition with WithReadOnly with WithDefault[Int]
+                                   override val default: Option[Int],
+                                   override val minimum: Option[Int],
+                                   override val maximum: Option[Int]
+                                  ) extends DefinitionImpl with SimpleDefinition with WithReadOnly with WithDefault[Int] with WithMinMax[Int]
 
 final case class LongDefinition(override val name: String,
                                 override val title: Option[String],
                                 override val description: Option[String],
                                 override val readOnly: Boolean,
                                 override val allowEmptyValue: Boolean,
-                                override val default: Option[Long]
-                               ) extends DefinitionImpl with SimpleDefinition with WithReadOnly with WithDefault[Long]
+                                override val default: Option[Long],
+                                override val minimum: Option[Long],
+                                override val maximum: Option[Long]
+                               ) extends DefinitionImpl with SimpleDefinition with WithReadOnly with WithDefault[Long] with WithMinMax[Long]
 
 final case class DecimalDefinition(override val name: String,
                                    override val title: Option[String],
