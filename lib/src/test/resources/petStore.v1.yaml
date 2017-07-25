@@ -243,3 +243,5 @@ definitions:
     enum: &PETTAG
       - young
       - mature
+  CaseObject:
+    type: object

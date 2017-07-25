@@ -55,12 +55,13 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean) {
     def param: ValDef = PARAM(name, support.tpe).empty
-    def json : ObjectJson = ObjectJson(reads, writes)
-    def reads : Tree = PAREN(REF("json") INFIX ("\\", LIT(name))) DOT (if (isOpt) "asOpt" else "as") APPLYTYPE noOptType
-    def writes: Tree = LIT(name) INFIX ("->", (REF("Json") DOT "toJson")(REF("o") DOT name))
+    def json : ObjectPropertyJson = ObjectPropertyJson(name, reads, writes)
+    def reads : Enumerator = VALFROM(name) := PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "readNullable" else "read") APPLYTYPE noOptType
+    def writes: Tree = LIT(name) INFIX ("->", REF("o") DOT name)
   }
 
-  case class ObjectJson(reads: Tree, writes: Tree)
+  final case class ObjectJson(reads: Tree, writes: Tree)
+  final case class ObjectPropertyJson(name: String, reads: Enumerator, writes: Tree)
 
   def generateObjectDefs(objectClass: Symbol, properties: Map[String, Definition])
                         (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
@@ -113,44 +114,32 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectReads(modelName: String, modelType: Type, properties: Seq[ObjectJson])
+  def generateObjectReads(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
                          (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
     val readsType  = definitions.getClass("Reads") TYPE_OF modelType
 
     val modelReads = VAL(s"${modelName}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-      ANONDEF(readsType) :=
-        LAMBDA(PARAM("json").tree) ==>
-          REF("JsSuccess") APPLY {
-          if (caseObject) {
-            REF(modelName)
-          } else {
-            REF(modelName) APPLY properties.map(_.reads)
-          }
-        }
+      if (caseObject) {
+        ANONDEF(readsType) := LAMBDA(PARAM("json").tree) ==> REF("JsSuccess") APPLY REF(modelName)
+      } else {
+        FOR (properties.map(_.reads): _ *) YIELD REF(modelName) APPLY (properties.map(js => REF(js.name)): _ *)
+      }
     }
 
     modelReads
 
   }
 
-  def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectJson])
+  def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
                           (implicit ctx: GeneratorContext): Tree = {
 
-    val caseObject = properties.isEmpty
     val writesType = definitions.getClass("Writes") TYPE_OF modelType
 
     val modelWrites = VAL(s"${modelName}Writes", writesType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
       ANONDEF(writesType) :=
-        LAMBDA(PARAM("o").tree) ==>
-          REF("JsObject") APPLY {
-          if (caseObject) {
-            SeqClass APPLY Seq.empty
-          } else {
-            SeqClass APPLY properties.map(_.writes) DOT "filter" APPLY (REF("_") DOT "_2" INFIX ("!=", REF("JsNull")))
-          }
-        }
+        LAMBDA(PARAM("o").tree) ==> REF("Json") DOT "obj" APPLY (properties.map(_.writes): _ *)
     }
 
     modelWrites
