@@ -218,6 +218,8 @@ class ClientCodeGenerator extends CodeGenerator {
   final def generateParseResponseAsJson(implicit ctx: GeneratorContext): Tree = {
 
     val TryClass = definitions.getClass("scala.util.Try")
+    val JsonParseExceptionClass = definitions.getClass("com.fasterxml.jackson.core.JsonParseException")
+    val JsResultExceptionClass  = definitions.getClass("JsResultException")
     val A = RootClass.newAliasType("A")
 
     DEF("parseResponseAsJson", A)
@@ -227,12 +229,12 @@ class ClientCodeGenerator extends CodeGenerator {
       .withParams(PARAM("rs", TYPE_REF("Reads") TYPE_OF A).withFlags(Flags.IMPLICIT).empty) :=
       BLOCK {
         TryClass APPLY (REF("resp") DOT "json" DOT "as" APPLYTYPE A) DOT "recover" APPLY BLOCK(
-          CASE(REF("cause")) ==> BLOCK(
-            ctx.settings.loggerProvider.warning(
-              LIT("Could not parse response body as Json. Response body:\n") INFIX("+", REF("resp") DOT "body")
-            ),
-            THROW(REF("cause"))
-          )
+          CASE(ID("cause") withType JsonParseExceptionClass) ==>
+            THROW(REF("JsonParsingError") APPLY (REF("cause") DOT "getMessage", REF("resp") DOT "body")),
+          CASE(ID("cause") withType JsResultExceptionClass) ==>
+            THROW(REF("JsonValidationError") APPLY (REF("cause") DOT "getMessage", REF("resp") DOT "json")),
+          CASE(REF("cause")) ==>
+            THROW(REF("UnexpectedResponseError") APPLY (REF("resp") DOT "status", REF("resp") DOT "body", REF("cause")))
         ) DOT "get"
       }
 
@@ -312,25 +314,52 @@ class ClientCodeGenerator extends CodeGenerator {
     fundDef :: Nil
   }
 
-  final def generateUnexpectedResponseStatus: Seq[Tree] = {
-    val classDef = CASECLASSDEF("UnexpectedResponseStatus")
-      .withParams(PARAM("status", IntClass).tree, PARAM("body", StringClass).tree)
-      .withParents(ThrowableClass, definitions.getClass("scala.util.control.NoStackTrace")) :=
+  final def generateErrors: Seq[Tree] = {
+    val NoStackTraceClass = definitions.getClass("scala.util.control.NoStackTrace")
+    val JsonParsingError = CASECLASSDEF("JsonParsingError")
+      .withParams(PARAM("error", StringClass).tree, PARAM("body", StringClass).tree)
+      .withParents(ThrowableClass, NoStackTraceClass) :=
       BLOCK {
         DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
           INFIX_CHAIN("+",
-            LIT("unexpected response status: "),
+            LIT("JSON parsing error: "),
+            REF("error"),
+            LIT("\nOriginal body: "),
+            REF("body")
+          )
+        }
+      }
+    val JsonValidationError = CASECLASSDEF("JsonValidationError")
+      .withParams(PARAM("error", StringClass).tree, PARAM("body", "JsValue").tree)
+      .withParents(ThrowableClass, NoStackTraceClass) :=
+      BLOCK {
+        DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
+          INFIX_CHAIN("+",
+            LIT("JSON validation error: "),
+            REF("error"),
+            LIT("\nOriginal body: "),
+            REF("body")
+          )
+        }
+      }
+    val UnexpectedResponseError = CASECLASSDEF("UnexpectedResponseError")
+      .withParams(PARAM("status", IntClass).tree, PARAM("body", StringClass).tree, PARAM("cause", ThrowableClass).tree)
+      .withParents(ThrowableClass, NoStackTraceClass) :=
+      BLOCK {
+        DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
+          INFIX_CHAIN("+",
+            LIT("Unexpected response status: "),
             REF("status"),
             LIT(" "),
             REF("body")
           )
         }
       }
-    classDef :: Nil
+    JsonParsingError :: JsonValidationError :: UnexpectedResponseError :: Nil
   }
 
   def generateHelpers(implicit ctx: GeneratorContext): Seq[Tree] = {
-    generateUnexpectedResponseStatus ++
+    generateErrors ++
     generateRenderPathParam ++
     generateRenderUrlParams ++
     generateRenderHeaderParams
@@ -341,9 +370,10 @@ class ClientCodeGenerator extends CodeGenerator {
     val helpers = generateHelpers
 
     if (helpers.nonEmpty) {
-      val imports = BLOCK {
+      val imports = BLOCK(
+        IMPORT("play.api.libs.json", "_"),
         IMPORT("play.api.mvc", "_")
-      } inPackage ctx.settings.clientPackageName
+      ) inPackage ctx.settings.clientPackageName
       val objectTree = TRAITDEF("ClientHelper") := BLOCK(helpers)
       SourceCodeFile(
         packageName = ctx.settings.clientPackageName,
