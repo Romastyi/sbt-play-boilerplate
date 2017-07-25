@@ -21,9 +21,9 @@ final case class OptionDefinition(override val name: String,
 final case class ArrayDefinition(override val name: String,
                                  items: Definition,
                                  uniqueItems: Boolean,
-                                 override val minLength: Option[Int],
-                                 override val maxLength: Option[Int]
-                                ) extends Definition with WithMinMaxLength {
+                                 minItems: Option[Int],
+                                 maxItems: Option[Int]
+                                ) extends Definition {
   override val baseDef: Definition = items.baseDef
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(items = items.resolve(resolver))

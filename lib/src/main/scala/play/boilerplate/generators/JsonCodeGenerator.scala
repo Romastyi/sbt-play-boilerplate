@@ -21,7 +21,8 @@ class JsonCodeGenerator extends CodeGenerator {
     if (methods.nonEmpty) {
 
       val imports = BLOCK(
-        IMPORT("play.api.libs.json", "_")
+        IMPORT("play.api.libs.json", "_"),
+        IMPORT("play.api.libs.functional.syntax", "_")
       ) inPackage ctx.settings.modelPackageName
 
       val packageObj = PACKAGEOBJECTDEF(ctx.settings.jsonObjectName) := BLOCK(methods)

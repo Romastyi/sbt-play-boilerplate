@@ -7,7 +7,6 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   import GeneratorUtils._
   import treehugger.forest._
-  import definitions._
   import treehuggerDSL._
 
   def getObjectSupport(obj: ObjectDefinition, context: DefinitionContext)
@@ -53,11 +52,67 @@ trait ObjectSupport { this: DefinitionsSupport =>
     )
   }
 
-  case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean) {
+  sealed trait Constraint
+  final case class ListConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
+  final case class MaxLength(length: Int) extends Constraint
+  final case class MinLength(length: Int) extends Constraint
+  final case class Pattern(pattern: String) extends Constraint
+  case object Email extends Constraint
+
+  def collectPropertyConstraints(property: Definition)(implicit ctx: GeneratorContext): Seq[Constraint] = {
+    property match {
+      case OptionDefinition(_, base) =>
+        collectPropertyConstraints(base)
+      case ArrayDefinition(_, items, _, minItems, maxItems) =>
+        val list = ListConstraint(collectPropertyConstraints(items), getTypeSupport(items).tpe)
+        list +: (minItems.map(MaxLength).toList ++ maxItems.map(MinLength).toList)
+      case RefDefinition(_, ref) =>
+        collectPropertyConstraints(ref)
+      case MapDefinition(_, additionalProperties) =>
+        collectPropertyConstraints(additionalProperties)
+      case p: WithMinMaxLength =>
+        p.maxLength.map(MaxLength).toList ++ p.minLength.map(MinLength).toList
+      case p: WithPattern =>
+        p.pattern.map(Pattern).toList
+      case _ =>
+        Nil
+    }
+  }
+
+  def getReadsConstraint(constraint: Constraint, noOptType: Type): Tree = {
+    constraint match {
+      case ListConstraint(constraints, tpe) if constraints.nonEmpty =>
+        REF("Reads") DOT "list" APPLYTYPE tpe APPLY constraints.map(getReadsConstraint(_, tpe))
+      case MaxLength(length) =>
+        REF("Reads") DOT "maxLength" APPLYTYPE noOptType APPLY LIT(length)
+      case MinLength(length) =>
+        REF("Reads") DOT "minLength" APPLYTYPE noOptType APPLY LIT(length)
+      case Pattern(pattern) =>
+        REF("Reads") DOT "pattern"   APPLYTYPE noOptType APPLY (LIT(pattern) DOT "r")
+      case Email =>
+        REF("Reads") DOT "email"
+      case _ =>
+        EmptyTree
+    }
+  }
+
+  case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean, constraints: Seq[Constraint]) {
     def param: ValDef = PARAM(name, support.tpe).empty
     def json : ObjectPropertyJson = ObjectPropertyJson(name, reads, writes)
-    def reads : Enumerator = VALFROM(name) := PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "readNullable" else "read") APPLYTYPE noOptType
-    def writes: Tree = LIT(name) INFIX ("->", REF("o") DOT name)
+    def reads : Enumerator = {
+      val readsConstraints = filterNonEmptyTree(constraints.map(getReadsConstraint(_, noOptType)))
+      val readsDef = PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "readNullable" else "read") APPLYTYPE noOptType
+      VALFROM(name) := {
+        if (constraints.isEmpty) {
+          readsDef
+        } else {
+          readsDef APPLY INFIX_CHAIN("keepAnd", readsConstraints)
+        }
+      }
+    }
+    def writes: Tree = {
+      LIT(name) INFIX ("->", REF("o") DOT name)
+    }
   }
 
   final case class ObjectJson(reads: Tree, writes: Tree)
@@ -71,7 +126,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
         case OptionDefinition(_, base) => (getTypeSupport(base).tpe, true)
         case _ => (getTypeSupport(prop).tpe, false)
       }
-      ObjectProperty(name, getTypeSupport(prop), noOptType, isOpt)
+      ObjectProperty(name, getTypeSupport(prop), noOptType, isOpt, collectPropertyConstraints(prop))
     }
 
     val objectDef = if (params.isEmpty) {

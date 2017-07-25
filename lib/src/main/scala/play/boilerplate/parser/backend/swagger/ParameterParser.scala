@@ -105,8 +105,8 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
           name = name,
           items = getPropertyDef(schema, name, prop, canBeOption = false),
           uniqueItems = Option(param.isUniqueItems).exists(_ == true),
-          minLength = Option(param.getMinLength).map(Integer2int),
-          maxLength = Option(param.getMaxLength).map(Integer2int)
+          minItems = Option(param.getMinItems).map(Integer2int),
+          maxItems = Option(param.getMaxItems).map(Integer2int)
         ))
       case EnumParameter(param, items) =>
         factory.build(EnumDefinition(

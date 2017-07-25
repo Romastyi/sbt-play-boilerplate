@@ -71,8 +71,8 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           name = modelName,
           items = getPropertyDef(schema, modelName, items, canBeOption = false),
           uniqueItems = false,
-          minLength = Option(m.getMaxItems).map(Integer2int),
-          maxLength = Option(m.getMaxItems).map(Integer2int)
+          minItems = Option(m.getMinItems).map(Integer2int),
+          maxItems = Option(m.getMaxItems).map(Integer2int)
         ))
       case EnumModel(m, items) =>
         ModelFactory.build(EnumDefinition(
