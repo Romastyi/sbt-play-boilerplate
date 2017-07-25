@@ -17,6 +17,8 @@ trait BaseTypesSupport {
     definition match {
       case str: StringDefinition =>
         getStringSupport(str)
+      case email: EmailDefinition =>
+        getEmailSupport(email)
       case bool: BooleanDefinition =>
         getBooleanSupport(bool)
       case double: DoubleDefinition =>
@@ -41,6 +43,10 @@ trait BaseTypesSupport {
   }
 
   def getStringSupport(str: StringDefinition): TypeSupport = {
+    TypeSupport(StringClass, StringClass, Nil)
+  }
+
+  def getEmailSupport(str: EmailDefinition): TypeSupport = {
     TypeSupport(StringClass, StringClass, Nil)
   }
 

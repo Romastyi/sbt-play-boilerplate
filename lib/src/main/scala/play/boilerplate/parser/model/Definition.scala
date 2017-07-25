@@ -108,6 +108,17 @@ final case class StringDefinition(override val name: String,
                                   override val pattern: Option[String]
                                  ) extends DefinitionImpl with SimpleDefinition with WithReadOnly with WithDefault[String] with WithMinMaxLength with WithPattern
 
+final case class EmailDefinition(override val name: String,
+                                 override val title: Option[String],
+                                 override val description: Option[String],
+                                 override val readOnly: Boolean,
+                                 override val allowEmptyValue: Boolean,
+                                 override val default: Option[String],
+                                 override val minLength: Option[Int],
+                                 override val maxLength: Option[Int],
+                                 override val pattern: Option[String]
+                                ) extends DefinitionImpl with SimpleDefinition with WithReadOnly with WithDefault[String] with WithMinMaxLength with WithPattern
+
 final case class BooleanDefinition(override val name: String,
                                    override val title: Option[String],
                                    override val description: Option[String],

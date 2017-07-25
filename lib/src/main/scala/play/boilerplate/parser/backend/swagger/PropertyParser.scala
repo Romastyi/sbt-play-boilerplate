@@ -62,6 +62,18 @@ trait PropertyParser { this: ReferenceParser =>
           allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true),
           default = Option(prop.getDefault)
         )
+      case prop: EmailProperty =>
+        EmailDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
+          title = Option(prop.getTitle),
+          description = Option(prop.getDescription),
+          readOnly = Option(prop.getReadOnly).exists(_ == true),
+          allowEmptyValue = Option(prop.getAllowEmptyValue).exists(_ == true),
+          default = Option(prop.getDefault),
+          minLength = Option(prop.getMinLength).map(Integer2int),
+          maxLength = Option(prop.getMaxLength).map(Integer2int),
+          pattern = Option(prop.getPattern)
+        )
       case prop: StringProperty =>
         StringDefinition(
           name = Option(prop.getName).getOrElse(propertyName),

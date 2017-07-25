@@ -70,6 +70,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
         collectPropertyConstraints(ref)
       case MapDefinition(_, additionalProperties) =>
         collectPropertyConstraints(additionalProperties)
+      case _: EmailDefinition =>
+        Email :: Nil
       case p: WithMinMaxLength =>
         p.maxLength.map(MaxLength).toList ++ p.minLength.map(MinLength).toList
       case p: WithPattern =>
@@ -103,7 +105,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
       val readsConstraints = filterNonEmptyTree(constraints.map(getReadsConstraint(_, noOptType)))
       val readsDef = PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "readNullable" else "read") APPLYTYPE noOptType
       VALFROM(name) := {
-        if (constraints.isEmpty) {
+        if (readsConstraints.isEmpty) {
           readsDef
         } else {
           readsDef APPLY INFIX_CHAIN("keepAnd", readsConstraints)
