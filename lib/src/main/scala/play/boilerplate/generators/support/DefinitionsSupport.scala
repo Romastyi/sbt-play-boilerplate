@@ -30,8 +30,8 @@ trait DefinitionsSupport
       case MapDefinition(_, additionalProperties) =>
         val support = getTypeSupport(additionalProperties, context)
         support.copy(
-          tpe = RootClass.newClass("Map") TYPE_OF (StringClass, support.tpe),
-          fullQualified = RootClass.newClass("Map") TYPE_OF (StringClass, support.fullQualified)
+          tpe = ImmutableMapClass TYPE_OF (StringClass, support.tpe),
+          fullQualified = ImmutableMapClass TYPE_OF (StringClass, support.fullQualified)
         )
       case ref: RefDefinition =>
         getTypeSupportRef(ref)

@@ -54,6 +54,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   sealed trait Constraint
   final case class ListConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
+  final case class MapConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
   final case class Maximum(value: Any) extends Constraint
   final case class Minimum(value: Any) extends Constraint
   final case class MaxLength(length: Int) extends Constraint
@@ -71,7 +72,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
       case RefDefinition(_, ref) =>
         collectPropertyConstraints(ref)
       case MapDefinition(_, additionalProperties) =>
-        collectPropertyConstraints(additionalProperties)
+        MapConstraint(collectPropertyConstraints(additionalProperties), getTypeSupport(additionalProperties).tpe) :: Nil
       case _: EmailDefinition =>
         Email :: Nil
       case p: WithMinMax[_] =>
@@ -89,6 +90,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
     constraint match {
       case ListConstraint(constraints, tpe) if constraints.nonEmpty =>
         REF("Reads") DOT "list" APPLYTYPE tpe APPLY constraints.map(getReadsConstraint(_, tpe))
+      case MapConstraint(constraints, tpe) if constraints.nonEmpty =>
+        REF("Reads") DOT "map" APPLYTYPE tpe APPLY constraints.map(getReadsConstraint(_, tpe))
       case Maximum(value) =>
         REF("Reads") DOT "max" APPLYTYPE noOptType APPLY LIT(value)
       case Minimum(value) =>
@@ -187,7 +190,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
     val modelReads = VAL(s"${modelName}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
       if (caseObject) {
-        ANONDEF(readsType) := LAMBDA(PARAM("json").tree) ==> REF("JsSuccess") APPLY REF(modelName)
+        REF("Reads") DOT "pure" APPLY REF(modelName)
       } else {
         FOR (properties.map(_.reads): _ *) YIELD REF(modelName) APPLY (properties.map(js => REF(js.name)): _ *)
       }
