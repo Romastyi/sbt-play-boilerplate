@@ -5,7 +5,6 @@ import play.boilerplate.parser.backend.swagger.SwaggerBackend
 
 class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString {
 
-/*
   "Model generator: enums support." should "Inline definition." in {
 
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").get
@@ -27,7 +26,6 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
     true should be (true)
 
   }
-*/
 
   "Model generator: Polymorphism support." should "Inheritance" in {
 
@@ -40,7 +38,6 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
 
   }
 
-/*
   "Full support" should "Parse petStore.v1.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
@@ -62,6 +59,5 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
     true should be (true)
 
   }
-*/
 
 }

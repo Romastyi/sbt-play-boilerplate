@@ -9,8 +9,12 @@ trait ObjectSupport { this: DefinitionsSupport =>
   import treehugger.forest._
   import treehuggerDSL._
 
-  def composeFullClassName(name: String, context: DefinitionContext)(implicit ctx: GeneratorContext): String = {
-    val className = name.capitalize
+  def composeClassName(objName: String): String = objName.capitalize
+
+  def composeInterfaceName(objName: String): String = "I" + composeClassName(objName)
+
+  def composeFullClassName(objName: String, context: DefinitionContext)(implicit ctx: GeneratorContext): String = {
+    val className = objName.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
     if (ctx.inModel && context.isInline) {
       composeName(ctx.settings.modelPackageName, pathClassName)
@@ -28,7 +32,10 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def getObjectSupport(obj: ObjectDefinition, context: DefinitionContext)
                       (implicit ctx: GeneratorContext): TypeSupport = {
-    val support = generateObject(composeFullClassName(obj.name, context), obj.properties, context)
+    val fullClassName = composeFullClassName(obj.name, context)
+    val newCtx = ctx.addCurrentPath(composeClassName(obj.name))
+    val params = generateClassParams(obj.properties)(newCtx)
+    val support = generateObject(fullClassName, params, Nil, context)(newCtx)
     support.copy(
       defs = support.defs.map { defs =>
         if (context.withoutDefinition) {
@@ -42,10 +49,45 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def getComplexObjectSupport(complex: ComplexObjectDefinition, context: DefinitionContext)
                              (implicit ctx: GeneratorContext): TypeSupport = {
-    ???
+    val fullClassName = composeFullClassName(complex.name, context)
+    val interfaces = complex.interfaces.map(
+      _.baseDef match {
+        case obj: ObjectDefinition =>
+          val symbol = definitions.getClass(composeInterfaceName(obj.name))
+          val params = generateClassParams(obj.properties)(ctx.addCurrentPath(composeClassName(obj.name)))
+          (symbol, params)
+        case other =>
+          throw new RuntimeException(s"Complex object could not inherits any definition except object ($other).")
+      }
+    )
+    val parents = interfaces.map(_._1)
+    val parentsParams = interfaces.flatMap(_._2)
+    val ownProperties = complex.inlines.map(
+      _.baseDef match {
+        case obj: ObjectDefinition =>
+          obj.properties
+        case other =>
+          throw new RuntimeException(s"Complex object could not inlines any definition except object ($other).")
+      }
+    ).reduceLeftOption(_ ++ _).getOrElse(Map.empty)
+    val newCtx = ctx.addCurrentPath(composeClassName(complex.name))
+    val ownParams = generateClassParams(ownProperties)(newCtx)
+    val support = generateObject(fullClassName, parentsParams ++ ownParams, parents, context)(newCtx)
+    support.copy(
+      defs = support.defs.map { defs =>
+        if (context.withoutDefinition) {
+          defs.copy(definition = EmptyTree)
+        } else {
+          defs
+        }
+      }
+    )
   }
 
-  def generateObject(fullClassName: String, properties: Map[String, Definition], context: DefinitionContext)
+  def generateObject(fullClassName: String,
+                     params: Seq[ObjectProperty],
+                     parents: Seq[Symbol],
+                     context: DefinitionContext)
                     (implicit ctx: GeneratorContext): TypeSupport = {
     val objectClassName = fullClassName.split('.').last
     val objectClass = definitions.getClass(objectClassName)
@@ -55,46 +97,25 @@ trait ObjectSupport { this: DefinitionsSupport =>
       defs = if (context.withoutDefinition) {
         Nil
       } else {
-        val (interface, interfaceDef) = if (ctx.needInterface) {
-          val symbol = definitions.getClass("I" + objectClassName)
-          (Some(symbol), Some(generateInterface(symbol, properties)(ctx.addCurrentPath(objectClass.nameString))))
+        val interface = if (ctx.needInterface) {
+          Some(generateInterfaceDefs(definitions.getClass(composeInterfaceName(objectClassName)), params))
         } else {
-          (None, None)
+          None
         }
-        generateObjectDefs(objectClass, properties, interface.toList)(ctx.addCurrentPath(objectClass.nameString)) ++
-          interfaceDef
+        interface.toList ++
+        generateObjectDefs(objectClass, params, parents ++ interface.map(_.symbol))
       }
     )
-  }
-
-  def generateInterface(interfaceSymbol: Symbol, properties: Map[String, Definition])
-                       (implicit ctx: GeneratorContext): TypeSupportDefs = {
-
-    val definition = TRAITDEF(interfaceSymbol).withFlags(Flags.SEALED) := BLOCK(
-      for ((name, prop) <- properties) yield {
-        DEF(name, getTypeSupport(prop).tpe).empty
-      }
-    )
-
-    TypeSupportDefs(
-      symbol = interfaceSymbol,
-      definition = definition,
-      jsonReads = EmptyTree,
-      jsonWrites = EmptyTree,
-      queryBindable = EmptyTree,
-      pathBindable = EmptyTree
-    )
-
   }
 
   sealed trait Constraint
-  final case class ListConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
-  final case class MapConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
-  final case class Maximum(value: Any) extends Constraint
-  final case class Minimum(value: Any) extends Constraint
-  final case class MaxLength(length: Int) extends Constraint
-  final case class MinLength(length: Int) extends Constraint
-  final case class Pattern(pattern: String) extends Constraint
+  case class ListConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
+  case class MapConstraint(constraints: Seq[Constraint], tpe: Type) extends Constraint
+  case class Maximum(value: Any) extends Constraint
+  case class Minimum(value: Any) extends Constraint
+  case class MaxLength(length: Int) extends Constraint
+  case class MinLength(length: Int) extends Constraint
+  case class Pattern(pattern: String) extends Constraint
   case object Email extends Constraint
 
   def collectPropertyConstraints(property: Definition)(implicit ctx: GeneratorContext): Seq[Constraint] = {
@@ -145,8 +166,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
   }
 
   case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean, constraints: Seq[Constraint]) {
-    def param: ValDef = PARAM(name, support.tpe).empty
-    def json : ObjectPropertyJson = ObjectPropertyJson(name, reads, writes)
+    def method: DefDef = DEF(name, support.tpe).empty
+    def param : ValDef = PARAM(name, support.tpe).empty
+    def json  : ObjectPropertyJson = ObjectPropertyJson(name, reads, writes)
     def reads : Enumerator = {
       val readsConstraints = filterNonEmptyTree(constraints.map(getReadsConstraint(_, noOptType)))
       val readsDef = PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "readNullable" else "read") APPLYTYPE noOptType
@@ -163,19 +185,41 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
   }
 
-  final case class ObjectJson(reads: Tree, writes: Tree)
-  final case class ObjectPropertyJson(name: String, reads: Enumerator, writes: Tree)
+  case class ObjectJson(reads: Tree, writes: Tree)
+  case class ObjectPropertyJson(name: String, reads: Enumerator, writes: Tree)
 
-  def generateObjectDefs(objectClass: Symbol, properties: Map[String, Definition], parents: Seq[Symbol])
-                        (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
-
-    val params = for ((name, prop) <- properties.toSeq) yield {
+  def generateClassParams(properties: Map[String, Definition])
+                         (implicit ctx: GeneratorContext): Seq[ObjectProperty] = {
+    for ((name, prop) <- properties.toSeq) yield {
+      val support = getTypeSupport(prop)
       val (noOptType, isOpt) = prop match {
         case OptionDefinition(_, base) => (getTypeSupport(base).tpe, true)
-        case _ => (getTypeSupport(prop).tpe, false)
+        case _ => (support.tpe, false)
       }
-      ObjectProperty(name, getTypeSupport(prop), noOptType, isOpt, collectPropertyConstraints(prop))
+      ObjectProperty(name, support, noOptType, isOpt, collectPropertyConstraints(prop))
     }
+  }
+
+  def generateInterfaceDefs(interfaceName: Symbol, params: Seq[ObjectProperty])
+                           (implicit ctx: GeneratorContext): TypeSupportDefs = {
+
+    val definition = TRAITDEF(interfaceName).withFlags(Flags.SEALED) := BLOCK(
+      params.map(_.method)
+    )
+
+    TypeSupportDefs(
+      symbol = interfaceName,
+      definition = definition,
+      jsonReads = EmptyTree,
+      jsonWrites = EmptyTree,
+      queryBindable = EmptyTree,
+      pathBindable = EmptyTree
+    )
+
+  }
+
+  def generateObjectDefs(objectClass: Symbol, params: Seq[ObjectProperty], parents: Seq[Symbol])
+                        (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
 
     val objectDef = if (params.isEmpty) {
       CASEOBJECTDEF(objectClass).withParents(parents).tree

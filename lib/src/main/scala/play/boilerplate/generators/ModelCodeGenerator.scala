@@ -14,7 +14,7 @@ class ModelCodeGenerator extends CodeGenerator {
 
     for {
       (name, model) <- schema.definitions
-      impl = filterNonEmptyTree(generateClass(model)(ctx.setInModel(true)))
+      impl = filterNonEmptyTree(generateClass(model))
       if impl.nonEmpty
     } yield SourceCodeFile(
       packageName = ctx.settings.modelPackageName,
@@ -26,7 +26,7 @@ class ModelCodeGenerator extends CodeGenerator {
   }
 
   private def generateClass(model: Model)(implicit ctx: GeneratorContext): Seq[Tree] = {
-    GeneratorUtils.getTypeSupport(model.ref).definitions
+    GeneratorUtils.getTypeSupportRef(model).definitions
   }
 
 }

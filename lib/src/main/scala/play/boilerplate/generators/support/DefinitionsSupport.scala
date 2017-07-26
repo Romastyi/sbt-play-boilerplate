@@ -56,11 +56,11 @@ trait DefinitionsSupport
       case enum: EnumDefinition =>
         getEnumSupport(enum, context)
       case complex: ComplexObjectDefinition =>
-        ???
+        getComplexObjectSupport(complex, context)
     }
   }
 
-  private def getTypeSupportRef(reference: RefDefinition)(implicit ctx: GeneratorContext): TypeSupport = {
+  def getTypeSupportRef(reference: RefDefinition)(implicit ctx: GeneratorContext): TypeSupport = {
     reference match {
       case m: Model =>
         val context = if (ctx.inModel || ctx.inService || ctx.inClient) {
@@ -68,7 +68,8 @@ trait DefinitionsSupport
         } else {
           DefinitionContext.inline
         }
-        getTypeSupport(m.ref, context)(ctx.setIsModel(true).setNeedInterface(m.isInterface))
+        val newCtx = ctx.setInModel(true).setIsModel(true).setNeedInterface(m.isInterface)
+        getTypeSupport(m.ref, context)(newCtx)
       case p: Parameter =>
         val context = if (ctx.inModel) {
           DefinitionContext.withoutDefinition

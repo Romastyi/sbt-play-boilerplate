@@ -1,14 +1,12 @@
 package play.boilerplate.parser.model
 
-import scala.annotation.tailrec
-
 final class Model(name: String, ref: Definition, val isInterface: Boolean) extends RefDefinition(name, ref) {
 
-  @tailrec
-  private def findComplex(definition: Definition): Option[ComplexObjectDefinition] = definition match {
-    case RefDefinition(_, reference) => findComplex(reference)
-    case complex: ComplexObjectDefinition => Some(complex)
-    case _ => None
+  private def findComplex(definition: Definition): Option[ComplexObjectDefinition] = {
+    definition.baseDef match {
+      case complex: ComplexObjectDefinition => Some(complex)
+      case _ => None
+    }
   }
 
   lazy val complexObject: Option[ComplexObjectDefinition] = findComplex(ref)

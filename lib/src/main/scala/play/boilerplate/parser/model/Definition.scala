@@ -1,7 +1,5 @@
 package play.boilerplate.parser.model
 
-import scala.annotation.tailrec
-
 sealed trait Definition extends WithResolve[Definition] {
   def name: String
   def baseDef: Definition = this
@@ -96,16 +94,10 @@ final case class ComplexObjectDefinition(interfaces: Seq[Definition],
                                          override val allowEmptyValue: Boolean
                                         ) extends DefinitionImpl with ComplexDefinition {
 
-  @tailrec
   def hasInterface(definition: Definition): Boolean = {
-    definition match {
-      case RefDefinition(_, ref) =>
-        hasInterface(ref)
+    definition.baseDef match {
       case obj: ObjectDefinition =>
-        interfaces.exists {
-          case RefDefinition(_, ref) => ref == obj
-          case other => other == obj
-        }
+        interfaces.exists(_.baseDef == obj)
       case _ =>
         false
     }
