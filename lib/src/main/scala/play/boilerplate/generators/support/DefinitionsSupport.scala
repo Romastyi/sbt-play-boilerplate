@@ -55,6 +55,8 @@ trait DefinitionsSupport
         getObjectSupport(obj, context)
       case enum: EnumDefinition =>
         getEnumSupport(enum, context)
+      case complex: ComplexObjectDefinition =>
+        ???
     }
   }
 
@@ -66,7 +68,7 @@ trait DefinitionsSupport
         } else {
           DefinitionContext.inline
         }
-        getTypeSupport(m.ref, context)(ctx.setIsModel(true))
+        getTypeSupport(m.ref, context)(ctx.setIsModel(true).setNeedInterface(m.isInterface))
       case p: Parameter =>
         val context = if (ctx.inModel) {
           DefinitionContext.withoutDefinition

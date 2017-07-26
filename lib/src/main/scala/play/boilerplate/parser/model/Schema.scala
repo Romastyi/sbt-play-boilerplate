@@ -14,11 +14,31 @@ case class Schema(host: String,
                   parameters: Map[String, Parameter],
                   responses: Map[ResponseCode, Response]
                  ) extends WithResolve[Schema] {
+
+  private def markInterfaces(definitions: Map[String, Model]): Map[String, Model] = {
+    val complexObjects = definitions.values.flatMap(_.complexObject)
+    if (complexObjects.nonEmpty) {
+      for ((name, model) <- definitions) yield {
+        if (model.complexObject.isEmpty) {
+          val isIntf = complexObjects.foldLeft(false) {
+            case (false, complex) => complex.hasInterface(model.ref)
+            case (true, _) => true
+          }
+          name -> new Model(name, model.ref, isInterface = isIntf)
+        } else {
+          name -> model
+        }
+      }
+    } else {
+      definitions
+    }
+  }
+
   override def resolve(resolver: DefinitionResolver): Schema = {
     copy(
-      definitions = for ((name, model) <- definitions) yield {
+      definitions = markInterfaces(for ((name, model) <- definitions) yield {
         name -> model.resolve(resolver)
-      },
+      }),
       parameters = for ((name, param) <- parameters) yield {
         name -> param.resolve(resolver)
       },
@@ -27,6 +47,7 @@ case class Schema(host: String,
       }
     )
   }
+
 }
 
 object Schema {

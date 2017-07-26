@@ -9,11 +9,10 @@ trait ObjectSupport { this: DefinitionsSupport =>
   import treehugger.forest._
   import treehuggerDSL._
 
-  def getObjectSupport(obj: ObjectDefinition, context: DefinitionContext)
-                      (implicit ctx: GeneratorContext): TypeSupport = {
-    val className = obj.name.capitalize
+  def composeFullClassName(name: String, context: DefinitionContext)(implicit ctx: GeneratorContext): String = {
+    val className = name.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
-    val fullClassName = if (ctx.inModel && context.isInline) {
+    if (ctx.inModel && context.isInline) {
       composeName(ctx.settings.modelPackageName, pathClassName)
     } else if ((ctx.inService || ctx.inClient) && context.isInline) {
       composeName(ctx.settings.servicePackageName, ctx.settings.serviceClassName, pathClassName)
@@ -25,7 +24,11 @@ trait ObjectSupport { this: DefinitionsSupport =>
       }
       composeName(packageName, className)
     }
-    val support = generateObject(fullClassName, obj.properties, context)
+  }
+
+  def getObjectSupport(obj: ObjectDefinition, context: DefinitionContext)
+                      (implicit ctx: GeneratorContext): TypeSupport = {
+    val support = generateObject(composeFullClassName(obj.name, context), obj.properties, context)
     support.copy(
       defs = support.defs.map { defs =>
         if (context.withoutDefinition) {
@@ -35,6 +38,11 @@ trait ObjectSupport { this: DefinitionsSupport =>
         }
       }
     )
+  }
+
+  def getComplexObjectSupport(complex: ComplexObjectDefinition, context: DefinitionContext)
+                             (implicit ctx: GeneratorContext): TypeSupport = {
+    ???
   }
 
   def generateObject(fullClassName: String, properties: Map[String, Definition], context: DefinitionContext)
@@ -47,9 +55,36 @@ trait ObjectSupport { this: DefinitionsSupport =>
       defs = if (context.withoutDefinition) {
         Nil
       } else {
-        generateObjectDefs(objectClass, properties)(ctx.addCurrentPath(objectClass.nameString))
+        val (interface, interfaceDef) = if (ctx.needInterface) {
+          val symbol = definitions.getClass("I" + objectClassName)
+          (Some(symbol), Some(generateInterface(symbol, properties)(ctx.addCurrentPath(objectClass.nameString))))
+        } else {
+          (None, None)
+        }
+        generateObjectDefs(objectClass, properties, interface.toList)(ctx.addCurrentPath(objectClass.nameString)) ++
+          interfaceDef
       }
     )
+  }
+
+  def generateInterface(interfaceSymbol: Symbol, properties: Map[String, Definition])
+                       (implicit ctx: GeneratorContext): TypeSupportDefs = {
+
+    val definition = TRAITDEF(interfaceSymbol).withFlags(Flags.SEALED) := BLOCK(
+      for ((name, prop) <- properties) yield {
+        DEF(name, getTypeSupport(prop).tpe).empty
+      }
+    )
+
+    TypeSupportDefs(
+      symbol = interfaceSymbol,
+      definition = definition,
+      jsonReads = EmptyTree,
+      jsonWrites = EmptyTree,
+      queryBindable = EmptyTree,
+      pathBindable = EmptyTree
+    )
+
   }
 
   sealed trait Constraint
@@ -131,7 +166,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
   final case class ObjectJson(reads: Tree, writes: Tree)
   final case class ObjectPropertyJson(name: String, reads: Enumerator, writes: Tree)
 
-  def generateObjectDefs(objectClass: Symbol, properties: Map[String, Definition])
+  def generateObjectDefs(objectClass: Symbol, properties: Map[String, Definition], parents: Seq[Symbol])
                         (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
 
     val params = for ((name, prop) <- properties.toSeq) yield {
@@ -143,9 +178,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
 
     val objectDef = if (params.isEmpty) {
-      CASEOBJECTDEF(objectClass).tree
+      CASEOBJECTDEF(objectClass).withParents(parents).tree
     } else {
-      CASECLASSDEF(objectClass).withParams(params.map(_.param)).tree
+      CASECLASSDEF(objectClass).withParams(params.map(_.param)).withParents(parents).tree
     }
 
     val ObjectJson(reads, writes) = generateObjectJson(objectClass, params)

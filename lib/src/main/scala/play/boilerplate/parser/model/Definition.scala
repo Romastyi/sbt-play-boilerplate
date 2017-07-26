@@ -1,5 +1,7 @@
 package play.boilerplate.parser.model
 
+import scala.annotation.tailrec
+
 sealed trait Definition extends WithResolve[Definition] {
   def name: String
   def baseDef: Definition = this
@@ -84,6 +86,37 @@ final case class ObjectDefinition(properties: Map[String, Definition],
       properties = for ((name, prop) <- properties) yield name -> prop.resolve(resolver)
     )
   }
+}
+
+final case class ComplexObjectDefinition(interfaces: Seq[Definition],
+                                         inlines: Seq[Definition],
+                                         override val name: String,
+                                         override val title: Option[String],
+                                         override val description: Option[String],
+                                         override val allowEmptyValue: Boolean
+                                        ) extends DefinitionImpl with ComplexDefinition {
+
+  @tailrec
+  def hasInterface(definition: Definition): Boolean = {
+    definition match {
+      case RefDefinition(_, ref) =>
+        hasInterface(ref)
+      case obj: ObjectDefinition =>
+        interfaces.exists {
+          case RefDefinition(_, ref) => ref == obj
+          case other => other == obj
+        }
+      case _ =>
+        false
+    }
+  }
+
+  override def resolve(resolver: DefinitionResolver): Definition = {
+    copy(
+      interfaces = interfaces.map(_.resolve(resolver))
+    )
+  }
+
 }
 
 final case class EnumDefinition(items: Iterable[String],

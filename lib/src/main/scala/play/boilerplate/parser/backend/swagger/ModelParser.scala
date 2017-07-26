@@ -1,7 +1,7 @@
 package play.boilerplate.parser.backend.swagger
 
 import io.swagger.models.properties.{ObjectProperty, StringProperty, Property => SwaggerProperty}
-import io.swagger.models.{ArrayModel, ModelImpl, RefModel, Model => SwaggerModel}
+import io.swagger.models.{ArrayModel, ModelImpl, RefModel, Model => SwaggerModel, ComposedModel => SwaggerComposedModel}
 import play.boilerplate.parser.backend.ParserException
 import play.boilerplate.parser.model._
 
@@ -60,6 +60,22 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
     }
   }
 
+  object ComposedModel {
+    def unapply(arg: SwaggerModel): Option[(Seq[RefModel], Seq[ModelImpl])] = {
+      arg match {
+        case model: SwaggerComposedModel =>
+          val interfaces = Option(model.getInterfaces).map(_.asScala).getOrElse(Nil)
+          val inlines = Option(model.getAllOf)
+            .map(_.asScala.filter(_.isInstanceOf[ModelImpl]))
+            .getOrElse(Nil)
+            .map(_.asInstanceOf[ModelImpl])
+          Some((interfaces, inlines))
+        case _ =>
+          None
+      }
+    }
+  }
+
   protected def parseModel(schema: Schema, modelName: String, model: SwaggerModel)
                           (implicit ctx: ParserContext): Model = {
 
@@ -94,6 +110,17 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           description = Option(m.getDescription),
           readOnly = false,
           allowEmptyValue = Option(m.getAllowEmptyValue).exists(_ == true)
+        ))
+      case ComposedModel(interfaces, inlines) =>
+        ModelFactory.build(ComplexObjectDefinition(
+          interfaces = interfaces.map(
+            ref => findReferenceDef(schema, ref.get$ref())
+          ),
+          inlines = inlines.map(parseModel(schema, "", _)),
+          name = modelName,
+          title = Option(model.getTitle),
+          description = Option(model.getDescription),
+          allowEmptyValue = false
         ))
       case ref: RefModel =>
         ModelFactory.build(findReferenceDef(schema, ref.get$ref()))
