@@ -49,7 +49,7 @@ case class DefaultGeneratorSettings(_fileName: String,
   override val servicePackageName: String = composeName(basePackageName, "service")
   override val serviceClassName: String = objectNameFromFileName(fileName, "Service")
 
-  override val routesFileName: String = composeName(sanitizeFileName(fileName), "routes")
+  override val routesFileName: String = composeName(stringToValidIdentifier(sanitizeFileName(fileName), skipNotValidChars = true), "routes")
   override val controllerPackageName: String = composeName(basePackageName, "controller")
   override val controllerClassName: String = objectNameFromFileName(fileName, "Controller")
 
