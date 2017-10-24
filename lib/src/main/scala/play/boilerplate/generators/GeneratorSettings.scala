@@ -42,7 +42,7 @@ case class DefaultGeneratorSettings(_fileName: String,
                                     override val customTypeSupport: CustomTypeSupport = CustomTypeSupport.empty)
   extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
 
-  override val modelPackageName: String = composeName(basePackageName, "model")
+  override def modelPackageName: String = composeName(basePackageName, "model")
   override val jsonPackageName: String = composeName(modelPackageName, "json" )
   override val jsonObjectName: String = "json"
 

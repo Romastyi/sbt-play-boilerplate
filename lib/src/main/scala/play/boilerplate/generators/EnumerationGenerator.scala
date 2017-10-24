@@ -1,33 +1,21 @@
 package play.boilerplate.generators
 
 import play.boilerplate.generators.support.{TypeSupport, TypeSupportDefs}
+import treehugger.forest._
+import definitions._
+import treehuggerDSL._
 
 trait EnumerationGenerator {
   def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport
 }
 
-object VanillaEnumerations extends EnumerationGenerator {
-
-  import treehugger.forest._
-  import definitions._
-  import treehuggerDSL._
-
-  private lazy val EnumerationClass = definitions.getClass("Enumeration")
-  private lazy val ExceptionClass = definitions.getClass("Exception")
+sealed trait CommonEnumerations extends EnumerationGenerator {
 
   def enumerationValueType(enumClass: Symbol): Type = {
     TYPE_REF(enumClass DOT "Value")
   }
 
-  def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
-
-    OBJECTDEF(enumClass) withParents EnumerationClass := BLOCK {
-      items.map { item =>
-        VAL(item.capitalize) := REF("Value") APPLY LIT(item)
-      }
-    }
-
-  }
+  def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef
 
   def generateEnumReads(enumClass: Symbol): ValDef = {
 
@@ -87,6 +75,7 @@ object VanillaEnumerations extends EnumerationGenerator {
   def generateEnumBindable(enumClass: Symbol, baseClassName: String, classSuffix: String): Tree = {
 
     val enumValue = enumerationValueType(enumClass)
+    val ExceptionClass = definitions.getClass("Exception")
 
     val bindable = (TYPE_REF(baseClassName) DOT "Parsing") APPLYTYPE enumValue APPLY(
       enumClass DOT "withName",
@@ -118,6 +107,58 @@ object VanillaEnumerations extends EnumerationGenerator {
       tpe = enumerationValueType(enumClass),
       fullQualified = enumerationValueType(definitions.getClass(fullClassName)),
       defs = generateEnumDefs(enumClass, items)
+    )
+  }
+
+}
+
+object VanillaEnumerations extends CommonEnumerations {
+
+  override def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
+    val EnumerationClass = definitions.getClass("Enumeration")
+    OBJECTDEF(enumClass) withParents EnumerationClass := BLOCK {
+      items.map { item =>
+        VAL(item.capitalize) := REF("Value") APPLY LIT(item)
+      }
+    }
+  }
+
+}
+
+object SealedTraitEnumerations extends CommonEnumerations {
+
+  override def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
+    val NoSuchElementExceptionClass = definitions.getClass("NoSuchElementException")
+    val valueTpe = TYPE_REF("Value")
+    val traitDef: Tree = TRAITDEF("Value").withFlags(Flags.SEALED) withParents orderedType(valueTpe) := BLOCK(
+      DEF("id", IntClass).empty,
+      DEF("name", StringClass).empty,
+      DEF("toString", StringClass).withFlags(Flags.OVERRIDE) := REF("name"),
+      DEF("compare", IntClass).withFlags(Flags.OVERRIDE).withParams(PARAM("that", valueTpe).tree) := BLOCK {
+        IF((THIS DOT "id") INFIX("<", REF("that") DOT "id")) THEN LIT(-1) ELSE {
+          IF((THIS DOT "id") INFIX("==", REF("that") DOT "id")) THEN LIT(0) ELSE LIT(1)
+        }
+      }
+    )
+    val casesDef: Seq[Tree] = items.toIndexedSeq.zipWithIndex.map { case (item, idx) =>
+      CASEOBJECTDEF(item.capitalize) withParents valueTpe := BLOCK(
+        VAL("id", IntClass).withFlags(Flags.OVERRIDE) := LIT(idx),
+        VAL("name", StringClass).withFlags(Flags.OVERRIDE) := LIT(item)
+      )
+    }
+    val allValues: Tree = VAL("values", ImmutableSetClass TYPE_OF valueTpe) := {
+      ImmutableSetClass.APPLY(items.toIndexedSeq.map(item => REF(item.capitalize)))
+    }
+    val withName: Tree = DEF("withName", valueTpe).withParams(PARAM("s", StringClass).tree) := {
+      REF("values") DOT "find" APPLY (WILDCARD DOT "toString" INFIX("==", REF("s"))) DOT "getOrElse" APPLY {
+        THROW(NEW(
+          NoSuchElementExceptionClass,
+          INTERP(StringContext_s, LIT("No value found for '"), REF("s"), LIT("' in enumeration '"), THIS DOT "getClass", LIT("'."))
+        ))
+      }
+    }
+    OBJECTDEF(enumClass) := BLOCK(
+      traitDef +: casesDef :+ allValues :+ withName
     )
   }
 

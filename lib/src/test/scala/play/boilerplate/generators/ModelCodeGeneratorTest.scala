@@ -8,7 +8,7 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   "Model generator: enums support." should "Inline definition." in {
 
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_inline.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_inline.yaml", "test", "", enumGenerator = SealedTraitEnumerations))
     val gen = new ModelCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
