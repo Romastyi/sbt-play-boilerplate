@@ -9,6 +9,9 @@ case class Response(code: ResponseCode,
                     headers: Map[String, Definition]
                     /*examples: Map[String, AnyRef]*/
                    ) extends WithResolve[Response] {
+
+  override def containsLazyRef: Boolean = headers.values.exists(_.containsLazyRef)
+
   override def resolve(resolver: DefinitionResolver): Response = {
     copy(
       schema = schema.map(_.resolve(resolver)),
@@ -17,4 +20,5 @@ case class Response(code: ResponseCode,
       }
     )
   }
+
 }

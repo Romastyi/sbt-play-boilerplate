@@ -13,6 +13,7 @@ trait DefinitionFactory[D <: Definition] {
 final case class OptionDefinition(override val name: String,
                                   base: Definition) extends Definition {
   override val baseDef: Definition = base.baseDef
+  override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(base = base.resolve(resolver))
   }
@@ -25,6 +26,7 @@ final case class ArrayDefinition(override val name: String,
                                  maxItems: Option[Int]
                                 ) extends Definition {
   override val baseDef: Definition = items.baseDef
+  override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(items = items.resolve(resolver))
   }
@@ -33,6 +35,7 @@ final case class ArrayDefinition(override val name: String,
 case class RefDefinition(override val name: String,
                          ref: Definition) extends Definition {
   override val baseDef: Definition = ref.baseDef
+  override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(ref = ref.resolve(resolver))
   }
@@ -40,6 +43,7 @@ case class RefDefinition(override val name: String,
 
 final case class LazyRefDefinition(ref: String) extends Definition {
   override val name: String = ""
+  override val containsLazyRef: Boolean = true
   override def resolve(resolver: DefinitionResolver): Definition = {
     resolver.resolveByRef(ref)
   }
@@ -49,6 +53,7 @@ final case class MapDefinition(override val name: String,
                                additionalProperties: Definition
                               ) extends Definition {
   override val baseDef: Definition = additionalProperties.baseDef
+  override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(additionalProperties = additionalProperties.resolve(resolver))
   }
@@ -79,11 +84,15 @@ final case class ObjectDefinition(properties: Map[String, Definition],
                                   override val readOnly: Boolean,
                                   override val allowEmptyValue: Boolean
                                  ) extends DefinitionImpl with ComplexDefinition with WithReadOnly {
+
+  override def containsLazyRef: Boolean = properties.values.exists(_.containsLazyRef)
+
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(
       properties = for ((name, prop) <- properties) yield name -> prop.resolve(resolver)
     )
   }
+
 }
 
 final case class ComplexObjectDefinition(interfaces: Seq[Definition],
@@ -103,6 +112,8 @@ final case class ComplexObjectDefinition(interfaces: Seq[Definition],
     }
   }
 
+  override def containsLazyRef: Boolean = interfaces.exists(_.containsLazyRef)
+
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(
       interfaces = interfaces.map(_.resolve(resolver))
@@ -118,9 +129,13 @@ final case class EnumDefinition(items: Iterable[String],
                                 override val readOnly: Boolean,
                                 override val allowEmptyValue: Boolean,
                                 override val default: Option[String]
-                               ) extends DefinitionImpl with ComplexDefinition with WithReadOnly with WithDefault[String]
+                               ) extends DefinitionImpl with ComplexDefinition with WithReadOnly with WithDefault[String] {
+  override val containsLazyRef: Boolean = false
+}
 
-sealed trait SimpleDefinition
+sealed trait SimpleDefinition { this: Definition =>
+  override val containsLazyRef: Boolean = false
+}
 
 final case class StringDefinition(override val name: String,
                                   override val title: Option[String],

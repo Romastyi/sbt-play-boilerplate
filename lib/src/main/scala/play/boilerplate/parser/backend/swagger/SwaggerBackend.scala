@@ -33,7 +33,11 @@ object SwaggerBackend
 
     val schema = initSchema(swagger)
 
-    val resolved = resolveLazyReferences(schema, schema)
+    var resolved = schema
+
+    while (resolved.containsLazyRef) {
+      resolved = resolveLazyReferences(resolved, resolved)
+    }
 
     resolved.copy(
       paths = parsePaths(swagger, resolved)(ParserContext(false))
@@ -43,7 +47,7 @@ object SwaggerBackend
 
   private def initSchema(swagger: Swagger): Schema = {
 
-    implicit val ctx = ParserContext.initial
+    implicit val ctx: ParserContext = ParserContext.initial
 
     val definitions = Option(swagger.getDefinitions)
       .map(_.asScala.toMap)

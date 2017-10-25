@@ -34,6 +34,12 @@ case class Schema(host: String,
     }
   }
 
+  override def containsLazyRef: Boolean = {
+    definitions.values.exists(_.containsLazyRef) ||
+    parameters.values.exists(_.containsLazyRef) ||
+    responses.values.exists(_.containsLazyRef)
+  }
+
   override def resolve(resolver: DefinitionResolver): Schema = {
     copy(
       definitions = markInterfaces(for ((name, model) <- definitions) yield {
