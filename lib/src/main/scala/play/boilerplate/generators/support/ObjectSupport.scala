@@ -203,7 +203,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def generateInterfaceDefs(interfaceName: Symbol, params: Seq[ObjectProperty])
                            (implicit ctx: GeneratorContext): TypeSupportDefs = {
 
-    val definition = TRAITDEF(interfaceName).withFlags(Flags.SEALED) := BLOCK(
+    val definition = TRAITDEF(interfaceName)/*.withFlags(Flags.SEALED)*/ := BLOCK(
       params.map(_.method)
     )
 

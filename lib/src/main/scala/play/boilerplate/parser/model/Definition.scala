@@ -112,11 +112,14 @@ final case class ComplexObjectDefinition(interfaces: Seq[Definition],
     }
   }
 
-  override def containsLazyRef: Boolean = interfaces.exists(_.containsLazyRef)
+  override def containsLazyRef: Boolean = {
+    interfaces.exists(_.containsLazyRef) || inlines.exists(_.containsLazyRef)
+  }
 
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(
-      interfaces = interfaces.map(_.resolve(resolver))
+      interfaces = interfaces.map(_.resolve(resolver)),
+      inlines = inlines.map(_.resolve(resolver))
     )
   }
 
