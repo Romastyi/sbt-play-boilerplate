@@ -4,7 +4,10 @@ import play.boilerplate.generators.GeneratorUtils._
 import treehugger.forest._
 import treehuggerDSL._
 
-case class TypeSupport(tpe: Type, fullQualified: Type, defs: Seq[TypeSupportDefs]) {
+case class TypeSupport(tpe: Type,
+                       fullQualified: Type,
+                       defs: Seq[TypeSupportDefs],
+                       constructor: Tree => Tree = identity) {
 
   def definitions: Seq[Tree] = filterNonEmptyTree(defs.map(_.definition))
 

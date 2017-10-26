@@ -17,21 +17,28 @@ trait DefinitionsSupport
     definition match {
       case OptionDefinition(_, base) =>
         val support = getTypeSupport(base, context)
-        support.copy(
-          tpe = OptionClass TYPE_OF support.tpe,
-          fullQualified = OptionClass TYPE_OF support.fullQualified
-        )
+        if (context.canBeOption) {
+          support.copy(
+            tpe = OptionClass TYPE_OF support.tpe,
+            fullQualified = OptionClass TYPE_OF support.fullQualified,
+            constructor = l => SOME(support.constructor(l))
+          )
+        } else {
+          support
+        }
       case ArrayDefinition(_, items, _, _, _) =>
         val support = getTypeSupport(items, context)
         support.copy(
           tpe = ListClass TYPE_OF support.tpe,
-          fullQualified = ListClass TYPE_OF support.fullQualified
+          fullQualified = ListClass TYPE_OF support.fullQualified,
+          constructor = l => LIST(support.constructor(l))
         )
       case MapDefinition(_, additionalProperties) =>
         val support = getTypeSupport(additionalProperties, context)
         support.copy(
           tpe = ImmutableMapClass TYPE_OF (StringClass, support.tpe),
-          fullQualified = ImmutableMapClass TYPE_OF (StringClass, support.fullQualified)
+          fullQualified = ImmutableMapClass TYPE_OF (StringClass, support.fullQualified),
+          constructor = l => MAKE_MAP(LIT("") INFIX (" -> ", support.constructor(l)))
         )
       case ref: RefDefinition =>
         getTypeSupportRef(ref)

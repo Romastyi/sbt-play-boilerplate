@@ -48,6 +48,7 @@ paths:
           required: false
           type: integer
           format: int32
+          default: -1
       responses:
         '200':
           description: pet response

@@ -34,7 +34,10 @@ trait RoutesCodeGenerator extends CodeGenerator {
   def generateMethodCall(path: Path, operation: Operation)(implicit ctx: GeneratorContext): String = {
 
     val ps = getMethodParameters(path, operation).map {
-      case (n, MethodParam(_, fullQualified, _, _)) => s"$n: ${treeToString(fullQualified.tpt)}"
+      case (n, MethodParam(_, fullQualified, _, _, defaultValue)) =>
+        s"$n: ${treeToString(fullQualified.tpt)}" + defaultValue.map(
+          literal => " ?= " + treeToString(literal)
+        ).getOrElse("")
     }
 
     val fullControllerClassName = composeName(ctx.settings.controllerPackageName, ctx.settings.controllerClassName)

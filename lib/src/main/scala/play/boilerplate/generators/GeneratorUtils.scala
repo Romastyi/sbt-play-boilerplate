@@ -1,6 +1,6 @@
 package play.boilerplate.generators
 
-import play.boilerplate.generators.support.{DefinitionsSupport, TypeSupport}
+import play.boilerplate.generators.support.{DefinitionContext, DefinitionsSupport, TypeSupport}
 import play.boilerplate.parser.model._
 
 object GeneratorUtils extends StringUtils with DefinitionsSupport {
@@ -34,7 +34,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     case MIME_TYPE_JSON => MimeTypeSupport(REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON)
   }
 
-  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree])
+  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree])
 
   def getBodyParameters(path: Path, operation: Operation)
                        (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
@@ -44,7 +44,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         val support = getTypeSupport(param.ref)
         val valDef = PARAM(paramName, support.tpe).empty
         val fullQualified = PARAM(paramName, support.fullQualified).empty
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil)
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil, None)
     }.toMap
   }
 
@@ -68,10 +68,14 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
       }
       .map { param =>
         val paramName = decapitalize(param.name)
-        val support = getTypeSupport(param.ref)
-        val valDef = PARAM(paramName, support.tpe).empty
+        val defaultValue = getParamDefaultValue(param)
+        val support = getTypeSupport(param.ref, DefinitionContext.inline.copy(canBeOption = defaultValue.isEmpty))
+        val valDef = defaultValue match {
+          case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
+          case None => PARAM(paramName, support.tpe).empty
+        }
         val fullQualified = PARAM(paramName, support.fullQualified).empty
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support))
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply))
       }
       .toMap
   }
@@ -84,6 +88,15 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         support.queryBindable
       case _ =>
         Nil
+    }
+  }
+
+  def getParamDefaultValue(param: Parameter): Option[Literal] = {
+    param.baseDef match {
+      case d: WithDefault[_] =>
+        d.default.map(LIT.apply)
+      case _ =>
+        None
     }
   }
 

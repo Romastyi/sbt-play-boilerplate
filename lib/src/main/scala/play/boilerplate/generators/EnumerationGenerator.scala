@@ -106,7 +106,8 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
     TypeSupport(
       tpe = enumerationValueType(enumClass),
       fullQualified = enumerationValueType(definitions.getClass(fullClassName)),
-      defs = generateEnumDefs(enumClass, items)
+      defs = generateEnumDefs(enumClass, items),
+      constructor = l => definitions.getClass(fullClassName) DOT "withName" APPLY l
     )
   }
 
