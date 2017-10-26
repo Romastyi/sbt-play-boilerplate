@@ -92,7 +92,8 @@ object PlayBoilerplatePlugin extends AutoPlugin {
   }
 
   private def generatorsCleanImpl(sourceManagedDir: File, destPackage: String): Unit = {
-    IO.delete(sourceManagedDir / GeneratorUtils.classNameToPath(destPackage, "", ""))
+    val files = sourceManagedDir / GeneratorUtils.classNameToPath(destPackage, "", "") ** ("*.scala" -- "routes*")
+    IO.deleteFilesEmptyDirs(files.get)
   }
 
   override val requires: Plugins = plugins.JvmPlugin
