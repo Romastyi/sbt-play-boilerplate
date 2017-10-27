@@ -10,7 +10,7 @@ class JsonCodeGenerator extends CodeGenerator {
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
-    val methods = schema.definitions.values
+    val methods: Iterable[Tree] = schema.definitions.values
       .flatMap { model =>
         GeneratorUtils.getTypeSupport(model.ref)(ctx.setInModel(true)).defs
       }
@@ -21,17 +21,18 @@ class JsonCodeGenerator extends CodeGenerator {
     if (methods.nonEmpty) {
 
       val imports = BLOCK(
+        IMPORT(ctx.settings.modelPackageName, "_"),
         IMPORT("play.api.libs.json", "_"),
         IMPORT("play.api.libs.functional.syntax", "_")
-      ) inPackage ctx.settings.modelPackageName
+      ) inPackage ctx.settings.jsonPackageName
 
-      val packageObj = PACKAGEOBJECTDEF(ctx.settings.jsonObjectName) := BLOCK(methods)
+      val objDef = OBJECTDEF(ctx.settings.jsonObjectName) := BLOCK(methods)
 
       SourceCodeFile(
         packageName = ctx.settings.jsonPackageName,
         className = ctx.settings.jsonObjectName,
         header = treeToString(imports),
-        impl = treeToString(packageObj)
+        impl = treeToString(objDef)
       ) :: Nil
 
     } else {

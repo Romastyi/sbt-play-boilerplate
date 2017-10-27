@@ -13,7 +13,7 @@ class ServerCodeGenerator extends CodeGenerator {
   def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
       IMPORT(ctx.settings.modelPackageName, "_"),
-      IMPORT(ctx.settings.jsonPackageName , "_"),
+      IMPORT(ctx.settings.jsonImportPrefix, "_"),
       IMPORT(ctx.settings.servicePackageName, ctx.settings.serviceClassName),
       IMPORT(ctx.settings.serviceClassName, "_"),
       IMPORT("play.api.mvc", "_"),

@@ -13,6 +13,7 @@ abstract class GeneratorSettings(val fileName: String,
   def modelPackageName: String
   def jsonPackageName: String
   def jsonObjectName: String
+  def jsonImportPrefix: String
 
   def servicePackageName: String
   def serviceClassName: String
@@ -43,8 +44,9 @@ case class DefaultGeneratorSettings(_fileName: String,
   extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
 
   override def modelPackageName: String = composeName(basePackageName, "model")
-  override val jsonPackageName: String = composeName(modelPackageName, "json" )
-  override val jsonObjectName: String = "json"
+  override def jsonPackageName: String = composeName(modelPackageName, "json" )
+  override def jsonObjectName: String = objectNameFromFileName(fileName, "Json")
+  override val jsonImportPrefix: String = composeName(jsonPackageName, jsonObjectName)
 
   override val servicePackageName: String = composeName(basePackageName, "service")
   override val serviceClassName: String = objectNameFromFileName(fileName, "Service")
