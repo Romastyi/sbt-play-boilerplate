@@ -1,0 +1,59 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: Inheritance support test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+definitions:
+  ErrorModel:
+    type: object
+    required:
+    - message
+    - code
+    properties:
+      message:
+        type: string
+      code:
+        type: integer
+        minimum: 100
+        maximum: 600
+  OtherModel:
+    type: object
+    required:
+    - extended
+    properties:
+      extended:
+        type: string
+  SimpleModel:
+    type: object
+    properties:
+      field:
+        type: string
+  ExtendedErrorModel:
+    allOf:
+    - $ref: '#/definitions/ErrorModel'
+    - $ref: '#/definitions/OtherModel'
+    - type: object
+      required:
+      - rootCause
+      properties:
+        rootCause:
+          type: string
+    - type: object
+      required:
+      - code2
+      properties:
+        code2:
+          type: integer
+          format: int32
+  ExtendedErrorModel2:
+    allOf:
+    - type: object
+      required:
+      - rootCause
+      properties:
+        rootCause:
+          type: string

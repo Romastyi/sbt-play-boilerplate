@@ -1,6 +1,8 @@
 package play.boilerplate.generators.security
 
 import SecurityProvider._
+import play.boilerplate.generators.injection.InjectionProvider.Dependency
+import play.boilerplate.parser.model.SecurityRequirement
 import treehugger.forest._
 import treehuggerDSL._
 
@@ -10,17 +12,19 @@ abstract class Play2AuthSecurityProvider(user: String,
                                          imports: Seq[String] = Nil)
   extends SecurityProvider {
 
-  override val controllerImports: Seq[Import] = {
+  override def controllerImports: Seq[Import] = {
     IMPORT("jp.t2v.lab.play2.auth", "AuthElement") +: imports.map(IMPORT(_))
   }
 
-  override val controllerParents: Seq[Type] = {
+  override def controllerParents: Seq[Type] = {
     Seq(TYPE_REF(authConfig), TYPE_REF("AuthElement"))
   }
 
-  override val controllerSelfTypes: Seq[Type] = Nil
+  override def controllerSelfTypes: Seq[Type] = Nil
 
-  override val serviceImports: Seq[Import] = imports.map(IMPORT(_))
+  override def controllerDependencies: Seq[Dependency] = Nil
+
+  override def serviceImports: Seq[Import] = imports.map(IMPORT(_))
 
   case class SecurityScope(s: String) {
     val scope: String = s.split(':').head
@@ -31,10 +35,10 @@ abstract class Play2AuthSecurityProvider(user: String,
 
   override def getActionSecurity(security: Seq[SecurityRequirement]): ActionSecurity = {
 
-    security.find(_.name == securitySchema) match {
+    security.find(_.schemaName == securitySchema) match {
       case Some(SecurityRequirement(_, scopes)) =>
 
-        val authority = parseAuthority(scopes.map(SecurityScope.apply)).map(
+        val authority = parseAuthority(scopes.toIndexedSeq.map(SecurityScope.apply)).map(
           authority => REF("AuthorityKey") INFIX "->" APPLY authority
         )
 

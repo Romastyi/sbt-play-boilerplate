@@ -1,0 +1,44 @@
+package play.boilerplate.generators
+
+import play.boilerplate.parser.model._
+
+class JsonCodeGenerator extends CodeGenerator {
+
+  import GeneratorUtils._
+  import treehugger.forest._
+  import treehuggerDSL._
+
+  override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
+
+    val methods: Iterable[Tree] = schema.definitions.values
+      .flatMap { model =>
+        GeneratorUtils.getTypeSupport(model.ref)(ctx.setInModel(true)).defs
+      }
+      .groupBy(_.symbol.nameString)
+      .mapValues(defs => filterNonEmptyTree(Seq(defs.head.jsonReads, defs.head.jsonWrites)))
+      .values.flatten
+
+    if (methods.nonEmpty) {
+
+      val imports = BLOCK(
+        IMPORT(ctx.settings.modelPackageName, "_"),
+        IMPORT("play.api.libs.json", "_"),
+        IMPORT("play.api.libs.functional.syntax", "_")
+      ) inPackage ctx.settings.jsonPackageName
+
+      val objDef = OBJECTDEF(ctx.settings.jsonObjectName) := BLOCK(methods)
+
+      SourceCodeFile(
+        packageName = ctx.settings.jsonPackageName,
+        className = ctx.settings.jsonObjectName,
+        header = treeToString(imports),
+        impl = treeToString(objDef)
+      ) :: Nil
+
+    } else {
+      Nil
+    }
+
+  }
+
+}

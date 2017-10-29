@@ -14,7 +14,8 @@ final class GuiceInjectionProvider extends DefaultInConstructor {
     val tree = super.classDefModifier(classDef, dependencies)
     if (dependencies.nonEmpty) {
       val className = classDef.name.toString()
-      tree.replaceFirst(s"$className\\s*\\(", className + " @Inject() (")
+      tree
+        .replaceFirst(s"$className\\s*\\(", className + " @Inject() (")
     } else {
       tree
     }
