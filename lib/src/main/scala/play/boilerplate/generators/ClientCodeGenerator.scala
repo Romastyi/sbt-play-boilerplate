@@ -23,6 +23,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT("play.api.mvc", "_"),
       IMPORT("QueryStringBindable", "_"),
       IMPORT("PathBindable", "_"),
+      IMPORT("play.boilerplate.utils", "ServiceLocator"),
       IMPORT("scala.concurrent", "Future")
     ) ++
       ctx.settings.securityProvider.controllerImports ++
@@ -31,7 +32,10 @@ class ClientCodeGenerator extends CodeGenerator {
   }
 
   def dependencies(implicit cxt: GeneratorContext): Seq[InjectionProvider.Dependency] = {
-    Seq(InjectionProvider.Dependency("WS", TYPE_REF("WSClient")))
+    Seq(
+      InjectionProvider.Dependency("WS", TYPE_REF("WSClient")),
+      InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator"))
+    )
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
@@ -49,15 +53,12 @@ class ClientCodeGenerator extends CodeGenerator {
 
       val classDef = CLASSDEF(ctx.settings.clientClassName)
         .withParents(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelper"))
-        .withParams(
-          PARAM("baseUrl", StringClass).empty,
-          PARAM("headers", TYPE_*(TYPE_TUPLE(StringClass, StringClass))).empty
-        )
+        .withParams(PARAM("headers", TYPE_*(TYPE_TUPLE(StringClass, StringClass))).empty)
         .withSelf("self") :=
         BLOCK {
-          cleanBaseUrlValDef +: filterNonEmptyTree(
+          filterNonEmptyTree(
             methods.flatMap(_.implicits).toIndexedSeq ++
-            methods.map(_.tree).toIndexedSeq
+              methods.map(_.tree).toIndexedSeq
           ) :+ generateParseResponseAsJson
         }
 
@@ -79,11 +80,6 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  def cleanBaseUrlValDef: ValDef = {
-    VAL("_cleanBaseUrl", StringClass).withFlags(Flags.PRIVATE) :=
-      REF("baseUrl") DOT "trim" DOT "replaceAll" APPLY (LIT("/+$"), LIT(""))
-  }
-
   def composeClientUrl(basePath: String, path: Path, operation: Operation): ValDef = {
 
     val parts = path.pathParts.collect {
@@ -91,7 +87,7 @@ class ClientCodeGenerator extends CodeGenerator {
       case ParamPart(name) => REF("_render_path_param") APPLY (LIT(name), REF(name))
     }.toSeq
 
-    val urlParts = (Seq(REF("{_cleanBaseUrl}"), LIT(basePath.dropWhile(_ == '/'))) ++ parts).foldLeft(List.empty[Tree]) { case (acc, term) =>
+    val urlParts = (Seq(REF("uri"), LIT(basePath.dropWhile(_ == '/'))) ++ parts).foldLeft(List.empty[Tree]) { case (acc, term) =>
       if (acc.isEmpty) acc :+ term else acc :+ LIT("/") :+ term
     }
 
@@ -156,14 +152,18 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
       .withFlags(Flags.OVERRIDE)
       .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values) :=
-      BLOCK(
-        urlValDef,
-        wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY {
-          LAMBDA(PARAM("resp").tree) ==> BLOCK(responses.tree)
-        } DOT "recoverWith" APPLY BLOCK {
-          CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
+      BLOCK {
+        REF("locator") DOT "doServiceCall" APPLY LIT(ctx.settings.serviceName) APPLY {
+          LAMBDA(PARAM("uri").tree) ==> BLOCK(
+            urlValDef,
+            wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY {
+              LAMBDA(PARAM("resp").tree) ==> BLOCK(responses.tree)
+            } DOT "recoverWith" APPLY BLOCK {
+              CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
+            }
+          )
         }
-      )
+      }
 
     val tree = methodTree.withDoc(
       s"""${operation.description.getOrElse("")}

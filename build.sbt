@@ -1,7 +1,7 @@
 lazy val common = Seq(
   organization := "com.github.romastyi",
   version := "0.0.1-SNAPSHOT",
-  crossScalaVersions := Seq("2.10.4"),
+  crossScalaVersions := Seq("2.10.4", "2.11.12", "2.12.4"),
   scalacOptions ++= Seq(
     "-target:jvm-1.7",
     "-feature",
@@ -33,6 +33,14 @@ lazy val plugin = project
     sbtPlugin := true
   )
   .dependsOn(lib)
+
+lazy val utils = project
+  .in(file("utils"))
+  .settings(common: _ *)
+  .settings(
+    name := """play-boilerplate-utils""",
+    libraryDependencies += "com.typesafe" % "config" % "1.3.2"
+  )
 
 lazy val root = project
   .in(file("."))
