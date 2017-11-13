@@ -1,9 +1,7 @@
 lazy val common = Seq(
   organization := "com.github.romastyi",
   version := "0.0.1-SNAPSHOT",
-  crossScalaVersions := Seq("2.10.4", "2.11.12", "2.12.4"),
   scalacOptions ++= Seq(
-    "-target:jvm-1.7",
     "-feature",
     "-deprecation",
     "-language:_",
@@ -18,6 +16,7 @@ lazy val lib = project
   .settings(common: _ *)
   .settings(
     name := """sbt-play-boilerplate-lib""",
+    crossScalaVersions := Seq("2.10.6"),
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.1",
       "io.swagger" % "swagger-parser" % "1.0.32",
@@ -30,6 +29,7 @@ lazy val plugin = project
   .settings(common: _ *)
   .settings(
     name := """sbt-play-boilerplate""",
+    crossScalaVersions := Seq("2.10.6"),
     sbtPlugin := true
   )
   .dependsOn(lib)
@@ -39,6 +39,7 @@ lazy val utils = project
   .settings(common: _ *)
   .settings(
     name := """play-boilerplate-utils""",
+    crossScalaVersions := Seq("2.11.12", "2.12.4"),
     libraryDependencies += "com.typesafe" % "config" % "1.3.2"
   )
 
@@ -47,7 +48,7 @@ lazy val root = project
   .settings(
     publish := {}
   )
-  .aggregate(lib, plugin)
+  .aggregate(lib, plugin, utils)
 
 publishArtifact := false
 
