@@ -15,6 +15,23 @@ trait CircuitBreakersPanel {
 
 object CircuitBreakersPanel {
 
+  val defaultConfig: Config = ConfigFactory.parseString(
+    """default {
+      |  # Possibility to disable a given circuit breaker.
+      |  enabled = on
+      |
+      |  # Number of failures before opening the circuit.
+      |  max-failures = 10
+      |
+      |  # Duration of time after which to consider a call a failure.
+      |  call-timeout = 10s
+      |
+      |  # Duration of time in open state after which to attempt to close
+      |  # the circuit, by first entering the half-open state.
+      |  reset-timeout = 15s
+      |}""".stripMargin
+  )
+
   object Without extends CircuitBreakersPanel {
     override def withCircuitBreaker[T](id: CircuitBreakerId)(block: => Future[T]): Future[T] = block
   }
@@ -24,25 +41,11 @@ object CircuitBreakersPanel {
     */
   abstract class FromConfig(config: Config) extends CircuitBreakersPanel {
 
-    private lazy val defaultBreakerConfig: Config = ConfigFactory.parseString(
-      """{
-        |  # Possibility to disable a given circuit breaker.
-        |  enabled = on
-        |
-        |  # Number of failures before opening the circuit.
-        |  max-failures = 10
-        |
-        |  # Duration of time after which to consider a call a failure.
-        |  call-timeout = 10s
-        |
-        |  # Duration of time in open state after which to attempt to close
-        |  # the circuit, by first entering the half-open state.
-        |  reset-timeout = 15s
-        |}"""
-    )
-
     private val breakersByServices = new ConcurrentHashMap[String, Option[CircuitBreaker]]
     private val breakersByOperations = new ConcurrentHashMap[String, Option[CircuitBreaker]]
+
+    val effectiveConfig: Config = Option(config).map(_.withFallback(defaultConfig)).getOrElse(defaultConfig)
+    val defaultBreakerConfig: Config = effectiveConfig.getConfig("default")
 
     def createCircuitBreaker(breakerConfig: CircuitBreakerConfig): CircuitBreaker
 
@@ -69,7 +72,7 @@ object CircuitBreakersPanel {
             ))
             Some(breaker)
           } else {
-            None
+            Some(CircuitBreaker.None)
           }
         } else {
           None

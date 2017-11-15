@@ -37,7 +37,7 @@ object ServiceLocator {
   def config(config: Config, circuitBreakers: CircuitBreakersPanel): ServiceLocator = {
     new ServiceLocator(circuitBreakers) {
       override def locate(name: String): Future[Option[URI]] = {
-        Future(Option(config.getString(s"$name.uri")).map(s => new URI(s))).recover {
+        Future(Option(config).map(_.getString(s"$name.uri")).map(s => new URI(s))).recover {
           case _: ConfigException.Missing => None
         }
       }
