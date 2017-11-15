@@ -1,13 +1,13 @@
 package play.boilerplate.utils
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 trait CircuitBreaker {
-  def withCircuitBreaker[T](block: => Future[T]): Future[T]
+  def withCircuitBreaker[T](block: => Future[T])(implicit ec: ExecutionContext): Future[T]
 }
 
 object CircuitBreaker {
   object None extends CircuitBreaker {
-    override def withCircuitBreaker[T](block: => Future[T]): Future[T] = block
+    override def withCircuitBreaker[T](block: => Future[T])(implicit ec: ExecutionContext): Future[T] = block
   }
 }

@@ -6,11 +6,13 @@ import java.util.function.{Function => JFunction}
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 trait CircuitBreakersPanel {
-  def withCircuitBreaker[T](id: CircuitBreakerId)(block: => Future[T]): Future[T]
+  def withCircuitBreaker[T](id: CircuitBreakerId)
+                           (block: => Future[T])
+                           (implicit ec: ExecutionContext): Future[T]
 }
 
 object CircuitBreakersPanel {
@@ -33,13 +35,15 @@ object CircuitBreakersPanel {
   )
 
   object Without extends CircuitBreakersPanel {
-    override def withCircuitBreaker[T](id: CircuitBreakerId)(block: => Future[T]): Future[T] = block
+    override def withCircuitBreaker[T](id: CircuitBreakerId)
+                                      (block: => Future[T])
+                                      (implicit ec: ExecutionContext): Future[T] = block
   }
 
   /**
     * Based on com.lightbend.lagom.internal.client.CircuitBreakersPanelInternal
     */
-  abstract class FromConfig(config: Config) extends CircuitBreakersPanel {
+  abstract class DefaultImpl(config: Config) extends CircuitBreakersPanel {
 
     private val breakersByServices = new ConcurrentHashMap[String, Option[CircuitBreaker]]
     private val breakersByOperations = new ConcurrentHashMap[String, Option[CircuitBreaker]]
@@ -47,9 +51,11 @@ object CircuitBreakersPanel {
     val effectiveConfig: Config = Option(config).map(_.withFallback(defaultConfig)).getOrElse(defaultConfig)
     val defaultBreakerConfig: Config = effectiveConfig.getConfig("default")
 
-    def createCircuitBreaker(breakerConfig: CircuitBreakerConfig): CircuitBreaker
+    def createCircuitBreaker(breakerConfig: CircuitBreakerConfig)(implicit ec: ExecutionContext): CircuitBreaker
 
-    override def withCircuitBreaker[T](id: CircuitBreakerId)(block: => Future[T]): Future[T] = {
+    final override def withCircuitBreaker[T](id: CircuitBreakerId)
+                                            (block: => Future[T])
+                                            (implicit ec: ExecutionContext): Future[T] = {
       breaker(id) match {
         case Some(circuitBreaker) =>
           circuitBreaker.withCircuitBreaker(block)
@@ -58,31 +64,33 @@ object CircuitBreakersPanel {
       }
     }
 
-    private def configCircuitBreaker(defaultIfAbsent: Boolean) = new JFunction[String, Option[CircuitBreaker]] {
-      override def apply(id: String): Option[CircuitBreaker] = {
-        if (config.hasPath(id) || defaultIfAbsent) {
-          val breakerConfig =
-            if (config.hasPath(id)) config.getConfig(id).withFallback(defaultBreakerConfig)
-            else defaultBreakerConfig
-          if (breakerConfig.getBoolean("enabled")) {
-            val breaker = createCircuitBreaker(CircuitBreakerConfig(
-              maxFailures = breakerConfig.getInt("max-failures"),
-              callTimeout = breakerConfig.getDuration("call-timeout", MILLISECONDS).millis,
-              resetTimeout = breakerConfig.getDuration("reset-timeout", MILLISECONDS).millis
-            ))
-            Some(breaker)
+    private def configCircuitBreaker(defaultIfAbsent: Boolean)(implicit ec: ExecutionContext) = {
+      new JFunction[String, Option[CircuitBreaker]] {
+        override def apply(id: String): Option[CircuitBreaker] = {
+          if (config.hasPath(id) || defaultIfAbsent) {
+            val breakerConfig =
+              if (config.hasPath(id)) config.getConfig(id).withFallback(defaultBreakerConfig)
+              else defaultBreakerConfig
+            if (breakerConfig.getBoolean("enabled")) {
+              val breaker = createCircuitBreaker(CircuitBreakerConfig(
+                maxFailures = breakerConfig.getInt("max-failures"),
+                callTimeout = breakerConfig.getDuration("call-timeout", MILLISECONDS).millis,
+                resetTimeout = breakerConfig.getDuration("reset-timeout", MILLISECONDS).millis
+              ))
+              Some(breaker)
+            } else {
+              Some(CircuitBreaker.None)
+            }
           } else {
-            Some(CircuitBreaker.None)
+            None
           }
-        } else {
-          None
         }
       }
     }
 
-    private def breaker(id: CircuitBreakerId): Option[CircuitBreaker] = {
-      breakersByOperations.computeIfAbsent(id.id, configCircuitBreaker(false)) orElse
-        breakersByServices.computeIfAbsent(id.serviceName, configCircuitBreaker(true))
+    private def breaker(id: CircuitBreakerId)(implicit ec: ExecutionContext): Option[CircuitBreaker] = {
+      breakersByOperations.computeIfAbsent(id.id, configCircuitBreaker(defaultIfAbsent = false)) orElse
+        breakersByServices.computeIfAbsent(id.serviceName, configCircuitBreaker(defaultIfAbsent = true))
     }
 
   }
