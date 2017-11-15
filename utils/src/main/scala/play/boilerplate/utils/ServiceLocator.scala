@@ -6,40 +6,48 @@ import com.typesafe.config.{Config, ConfigException}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait ServiceLocator {
+abstract class ServiceLocator(circuitBreakers: CircuitBreakersPanel) {
 
-  import ExecutionContext.Implicits.global
+  implicit def executor: ExecutionContext = ExecutionContext.global
 
   def locate(name: String): Future[Option[URI]]
 
-  def doServiceCall[T](name: String)(block: URI => Future[T]): Future[T] = {
-    for {
-      serviceOpt <- locate(name)
-      result <- serviceOpt match {
-        case Some(service) => block(service)
-        case None => Future.failed(ServiceLocator.ServiceNotFoundException(name))
-      }
-    } yield result
+  protected final def doServiceCallImpl[T](serviceName: String)(block: URI => Future[T]): Future[Option[T]] = {
+    locate(serviceName).flatMap {
+      case Some(uri) => block(uri).map(Some.apply)
+      case None => Future.successful(None)
+    }
+  }
+
+  final def doServiceCall[T](serviceName: String, operationId: String)(block: URI => Future[T]): Future[T] = {
+    doServiceCallImpl(serviceName) { uri =>
+      circuitBreakers.withCircuitBreaker(CircuitBreakerId(serviceName, operationId))(block(uri))
+    }.map {
+      case Some(result) => result
+      case None => throw ServiceLocator.ServiceNotFoundException(serviceName)
+    }
   }
 
 }
 
 object ServiceLocator {
 
-  import ExecutionContext.Implicits.global
-
   final case class ServiceNotFoundException(name: String) extends RuntimeException
 
-  def config(config: Config): ServiceLocator = new ServiceLocator {
-    override def locate(name: String): Future[Option[URI]] = {
-      Future(Option(config.getString(s"$name.uri")).map(s => new URI(s))).recover {
-        case _: ConfigException.Missing => None
+  def config(config: Config, circuitBreakers: CircuitBreakersPanel): ServiceLocator = {
+    new ServiceLocator(circuitBreakers) {
+      override def locate(name: String): Future[Option[URI]] = {
+        Future(Option(config.getString(s"$name.uri")).map(s => new URI(s))).recover {
+          case _: ConfigException.Missing => None
+        }
       }
     }
   }
 
-  def static(f: PartialFunction[String, URI]): ServiceLocator = new ServiceLocator {
-    override def locate(name: String): Future[Option[URI]] = Future(f.lift(name))
+  def static(f: PartialFunction[String, URI], circuitBreakers: CircuitBreakersPanel): ServiceLocator = {
+    new ServiceLocator(circuitBreakers) {
+      override def locate(name: String): Future[Option[URI]] = Future(f.lift(name))
+    }
   }
 
 }

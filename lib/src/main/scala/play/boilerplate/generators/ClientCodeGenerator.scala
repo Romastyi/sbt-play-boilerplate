@@ -153,7 +153,7 @@ class ClientCodeGenerator extends CodeGenerator {
       .withFlags(Flags.OVERRIDE)
       .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values) :=
       BLOCK {
-        REF("locator") DOT "doServiceCall" APPLY LIT(ctx.settings.serviceName) APPLY {
+        REF("locator") DOT "doServiceCall" APPLY(LIT(ctx.settings.serviceName), LIT(operation.operationId)) APPLY {
           LAMBDA(PARAM("uri").tree) ==> BLOCK(
             urlValDef,
             wsUrlWithHeaders DOT opType APPLY fullBodyParams.values DOT "map" APPLY {
