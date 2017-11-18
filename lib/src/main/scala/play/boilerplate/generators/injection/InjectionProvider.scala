@@ -14,7 +14,7 @@ trait InjectionProvider {
 
 object InjectionProvider {
 
-  case class Dependency(name: String, tpe: Type, isOverride: Boolean = false)
+  case class Dependency(name: String, tpe: Type, defaultValue: Option[Tree] = None, isOverride: Boolean = false)
 
   class DefaultInConstructor extends InjectionProvider {
 
@@ -25,11 +25,11 @@ object InjectionProvider {
       if (dependencies.nonEmpty) {
         val className = classDef.name.toString()
         val params = dependencies.map {
-          case Dependency(name, tpe, true) =>
-            s"override val $name: ${tpe.toString()}"
-          case Dependency(name, tpe, false) =>
-            s"$name: ${tpe.toString()}"
-        }.mkString("(", ", ", ")")
+          case Dependency(name, tpe, defaultValue, isOverride) =>
+            val valDef = s"$name: ${tpe.toString()}"
+            val valDefWithFlags = if (isOverride) s"override val " + valDef else valDef
+            defaultValue.fold(valDefWithFlags)(v => valDefWithFlags + " = " + treeToString(v))
+        }.mkString("(implicit ", ", ", ")")
         tree.replaceFirst(className, className + params)
       } else {
         tree
@@ -46,10 +46,10 @@ object InjectionProvider {
 
     override def classDefModifier(classDef: ClassDef, dependencies: Seq[Dependency]): String = {
       val values = dependencies.map {
-        case Dependency(name, tpe, true) =>
-          DEF(name, tpe).withFlags(Flags.OVERRIDE).tree
-        case Dependency(name, tpe, false) =>
-          DEF(name, tpe).tree
+        case Dependency(name, tpe, defaultValue, isOverride) =>
+          val methodDef = DEF(name, tpe)
+          val methodWithFlags = if (isOverride) methodDef.withFlags(Flags.OVERRIDE) else methodDef
+          defaultValue.fold(methodWithFlags.empty)(v => methodDef := v)
       }
       val tree = classDef.copy(
         mods = classDef.mods | Flags.ABSTRACT,

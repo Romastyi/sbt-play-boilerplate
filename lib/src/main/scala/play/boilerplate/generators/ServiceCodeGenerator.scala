@@ -66,12 +66,12 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
-    val securityParams = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParams
+    val securityParams = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParamsDef
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
-      .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams.values)
+      .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams)
       .empty
 
     val tree = methodTree.withDoc(

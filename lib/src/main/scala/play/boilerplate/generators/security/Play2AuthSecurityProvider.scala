@@ -42,15 +42,15 @@ abstract class Play2AuthSecurityProvider(user: String,
           authority => REF("AuthorityKey") INFIX "->" APPLY authority
         )
 
-        val userParam: ValDef = PARAM("user", TYPE_REF(user)).tree
-        val userValue: ValDef = VAL("user", TYPE_REF(user)) := (REF("loggedIn") APPLY REF("request"))
+        val userType: Type = TYPE_REF(user)
+        val userValue: ValDef = VAL("user", userType) := (REF("loggedIn") APPLY REF("request"))
 
         new ActionSecurity {
           override def actionMethod(parser: Tree): Tree = {
             REF("AsyncStack") APPLY (parser +: authority)
           }
-          override val securityParams: Map[String, ValDef] = {
-            Map("user" -> userParam)
+          override val securityParams: Map[String, Type] = {
+            Map("user" -> userType)
           }
           override val securityValues: Map[String, ValDef] = {
             Map("user" -> userValue)
