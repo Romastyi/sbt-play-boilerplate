@@ -13,6 +13,31 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       def apply(fileName: String, basePackageName: String, codeProvidedPackage: String): GeneratorSettings
     }
 
+    trait SchemasWatcher {
+      protected val filter: NameFilter = "*.yaml" | "*.json"
+      def schemas: Seq[File]
+      def ++(other: SchemasWatcher): SchemasWatcher = SourcesWatcher(this.schemas ++ other.schemas)
+    }
+
+    case class SourcesWatcher(sources: Seq[File]) extends SchemasWatcher {
+      override val schemas: Seq[File] = {
+        (for (entry <- sources if filter accept entry) yield entry).distinct
+      }
+    }
+
+    case class DirectoryWatcher(directory: File) extends SchemasWatcher {
+      override def schemas: Seq[File] = (directory * filter).get
+    }
+
+    case class ClasspathJarsWatcher(dependencies: Classpath, toDir: File, jarFilter: NameFilter = "*.jar") extends SchemasWatcher {
+      override def schemas: Seq[File] = {
+        (for {
+          entry <- dependencies if jarFilter.accept(entry.data)
+          schema <- IO.unzip(entry.data, toDir, filter)
+        } yield schema).distinct
+      }
+    }
+
     val generators: SettingKey[Seq[CodeGenerator]] = settingKey("generators")
     val generatorSettings: SettingKey[GenSettings] = settingKey("generatorSettings")
     val generatorSourceDir: SettingKey[File] = settingKey("generatorSourceDir")
@@ -37,18 +62,14 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val generateService: SettingKey[Boolean] = settingKey("generateService")
     val generateServiceCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateServiceCodeGenerator")
 
+    val generatorsSources: TaskKey[Seq[SchemasWatcher]] = taskKey("generatorWatchers")
     val generatorsCodeGen: TaskKey[GeneratedFiles] = taskKey("generatorsCodeGen")
     val generatorsClean: TaskKey[Unit] = taskKey("generatorClean")
 
   }
 
-  private def collectSwaggerFiles(sourceDir: File): Set[File] = {
-    if (sourceDir.exists() && sourceDir.isDirectory) {
-      sourceDir.listFiles().filter(x => x.getName.endsWith(".json") || x.getName.endsWith(".yaml")).toSet
-    } else {
-      println(s"Provided swagger source dir $sourceDir doesn't exists")
-      Set.empty
-    }
+  def collectSchemas(watchers: Seq[Keys.SchemasWatcher]): Seq[File] = {
+    watchers.reduceLeftOption(_ ++ _).map(_.schemas).getOrElse(Nil)
   }
 
   case class GeneratedFiles(sources: Set[File], resources: Set[File]) {
@@ -100,7 +121,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
   override def trigger: PluginTrigger = noTrigger
 
   override val projectSettings: Seq[Def.Setting[_]] = Seq(
-    watchSources ++= collectSwaggerFiles(Keys.generatorSourceDir.value).toSeq,
+    watchSources ++= collectSchemas(Keys.generatorsSources.value),
     sourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.sources.toSeq),
     resourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.resources.toSeq),
     Keys.generators := {
@@ -147,7 +168,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.generateServiceCodeGenerator := new ServiceCodeGenerator(),
     Keys.generatorsCodeGen := {
       val cachedFiles = FileFunction.cached(
-        Keys.generatorSourceDir.value / ".sbt-play-boilerplate",
+        (sourceManaged in Compile).value / ".sbt-play-boilerplate",
         FilesInfo.lastModified,
         FilesInfo.hash
       ) { files =>
@@ -161,7 +182,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
           Keys.generatorProvidedPackage.value
         )
       }
-      val files = cachedFiles(collectSwaggerFiles(Keys.generatorSourceDir.value))
+      val files = cachedFiles(collectSchemas(Keys.generatorsSources.value).toSet)
       GeneratedFiles(
         sources = files.flatMap(
           file => file.relativeTo((sourceManaged in Compile).value).map(_ => file)
@@ -170,6 +191,9 @@ object PlayBoilerplatePlugin extends AutoPlugin {
           file => file.relativeTo((resourceDirectory in Compile).value).map(_ => file)
         )
       )
+    },
+    Keys.generatorsSources := {
+      Seq(Keys.DirectoryWatcher(Keys.generatorSourceDir.value))
     },
     Keys.generatorsClean := {
       generatorsCleanImpl((sourceManaged in Compile).value, Keys.generatorDestPackage.value)

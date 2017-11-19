@@ -73,7 +73,7 @@ paths:
           description: Pet to add to the store
           required: true
           schema:
-            $ref: '#/definitions/newPet'
+            $ref: '#/definitions/NewPet'
       responses:
         '200':
           description: pet response
@@ -192,7 +192,7 @@ definitions:
         maxItems: 2
         items:
           $ref: '#/definitions/PetTag'
-  newPet:
+  NewPet:
     required:
       - name
     properties:

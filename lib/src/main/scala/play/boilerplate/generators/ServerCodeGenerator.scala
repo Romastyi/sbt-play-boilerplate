@@ -155,11 +155,12 @@ class ServerCodeGenerator extends CodeGenerator {
               support.deserialize(tpe)
             }
           }
-          val valDef = VAL(bp.name) :=
+          val valName = decapitalize(bp.name)
+          val valDef = VAL(valName) :=
             INFIX_CHAIN("orElse", resolvers) INFIX "getOrElse" APPLY BLOCK {
               THROW(IllegalArgumentExceptionClass, "Invalid body format")
             }
-          bp.name -> valDef
+          valName -> valDef
       }.toMap
     }
 
