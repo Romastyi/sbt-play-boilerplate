@@ -13,7 +13,7 @@ abstract class Play2AuthSecurityProvider(user: String,
   extends SecurityProvider {
 
   override def controllerImports: Seq[Import] = {
-    IMPORT("jp.t2v.lab.play2.auth", "AuthElement") +: imports.map(IMPORT(_))
+    IMPORT("jp.t2v.lab.play2.auth", "AuthElement") +: serviceImports
   }
 
   override def controllerParents: Seq[Type] = {
@@ -24,7 +24,7 @@ abstract class Play2AuthSecurityProvider(user: String,
 
   override def controllerDependencies: Seq[Dependency] = Nil
 
-  override def serviceImports: Seq[Import] = imports.map(IMPORT(_))
+  override def serviceImports: Seq[Import] = imports.map(IMPORT(_, "_"))
 
   case class SecurityScope(s: String) {
     val scope: String = s.split(':').head

@@ -163,7 +163,7 @@ class ClientCodeGenerator extends CodeGenerator {
       LIT(operation.operationId) +:
       (REF("ws") DOT "url" APPLY REF("url")) +:
       actionSecurity.securityParams.keys.map(
-        v => PARAM(v) := SOME(REF(v))
+        v => REF(v) := SOME(REF(v))
       ).toIndexedSeq
     )
     val responses = generateResponses(REF("response"), operation)
