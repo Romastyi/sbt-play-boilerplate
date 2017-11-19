@@ -26,7 +26,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT("play.boilerplate.utils", "ServiceLocator"),
       IMPORT("scala.concurrent", "Future")
     ) ++
-      ctx.settings.securityProvider.controllerImports ++
+      ctx.settings.securityProvider.serviceImports ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
