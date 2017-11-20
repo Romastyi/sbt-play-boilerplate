@@ -49,3 +49,15 @@ trait RoutesCodeGenerator extends CodeGenerator {
   def generateFullClassName(className: String): String
 
 }
+
+object DynamicRoutesCodeGenerator extends RoutesCodeGenerator {
+  override def generateFullClassName(className: String): String = "@" + className
+}
+
+object InjectedRoutesCodeGenerator extends RoutesCodeGenerator {
+  override def generateFullClassName(className: String): String = className
+}
+
+final case class SingletonRoutesCodeGenerator(implSuffix: String = "Impl") extends RoutesCodeGenerator {
+  override def generateFullClassName(className: String): String = className + implSuffix
+}
