@@ -24,7 +24,7 @@ abstract class Play2AuthSecurityProvider(user: String,
 
   override def controllerDependencies: Seq[Dependency] = Nil
 
-  override def serviceImports: Seq[Import] = imports.map(IMPORT(_, "_"))
+  override def serviceImports: Seq[Import] = imports.map(IMPORT(_))
 
   case class SecurityScope(s: String) {
     val scope: String = s.split(':').head
