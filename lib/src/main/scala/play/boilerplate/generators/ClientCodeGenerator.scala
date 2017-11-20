@@ -23,7 +23,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT("play.api.mvc", "_"),
       IMPORT("QueryStringBindable", "_"),
       IMPORT("PathBindable", "_"),
-      IMPORT("play.boilerplate.utils", "ServiceLocator"),
+      IMPORT("play.boilerplate.api.client.dsl", "ServiceLocator"),
       IMPORT("scala.concurrent", "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++

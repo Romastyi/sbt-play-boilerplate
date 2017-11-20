@@ -34,11 +34,11 @@ lazy val plugin = project
   )
   .dependsOn(lib)
 
-lazy val utils = project
-  .in(file("utils"))
+lazy val api = project
+  .in(file("api"))
   .settings(common: _ *)
   .settings(
-    name := """play-boilerplate-utils""",
+    name := """play-boilerplate-api""",
     crossScalaVersions := Seq("2.11.12", "2.12.4"),
     libraryDependencies += "com.typesafe" % "config" % "1.3.2"
   )
@@ -48,7 +48,7 @@ lazy val root = project
   .settings(
     publish := {}
   )
-  .aggregate(lib, plugin, utils)
+  .aggregate(lib, plugin, api)
 
 publishArtifact := false
 

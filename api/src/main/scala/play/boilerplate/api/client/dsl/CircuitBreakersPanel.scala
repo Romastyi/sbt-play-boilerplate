@@ -1,4 +1,4 @@
-package play.boilerplate.utils
+package play.boilerplate.api.client.dsl
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit.MILLISECONDS
