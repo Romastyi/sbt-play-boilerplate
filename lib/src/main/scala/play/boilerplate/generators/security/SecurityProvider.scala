@@ -65,4 +65,23 @@ object SecurityProvider {
     getOperationSecurity(operation).map(provider.getActionSecurity).getOrElse(WithoutSecurity)
   }
 
+  case class SecurityScope(s: String) {
+    val scope: String = s.split(':').head
+    val values: Seq[String] = for (i <- s.split(':').tail; v <- i.split(',')) yield v
+  }
+
+  abstract class DefaultSecurity(securitySchema: String) extends SecurityProvider {
+
+    def composeActionSecurity(scopes: Seq[SecurityScope]): ActionSecurity
+
+    override def getActionSecurity(security: Seq[SecurityRequirement]): ActionSecurity = {
+      security.find(_.schemaName == securitySchema) match {
+        case Some(SecurityRequirement(_, scopes)) =>
+          composeActionSecurity(scopes.toIndexedSeq.map(SecurityScope.apply))
+        case None =>
+          WithoutSecurity
+      }
+    }
+  }
+
 }

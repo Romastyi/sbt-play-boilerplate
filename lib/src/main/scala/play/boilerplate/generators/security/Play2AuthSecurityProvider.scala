@@ -2,7 +2,6 @@ package play.boilerplate.generators.security
 
 import SecurityProvider._
 import play.boilerplate.generators.injection.InjectionProvider.Dependency
-import play.boilerplate.parser.model.SecurityRequirement
 import treehugger.forest._
 import treehuggerDSL._
 
@@ -10,7 +9,7 @@ abstract class Play2AuthSecurityProvider(user: String,
                                          authConfig: String,
                                          securitySchema: String,
                                          imports: Seq[String] = Nil)
-  extends SecurityProvider {
+  extends DefaultSecurity(securitySchema) {
 
   override def controllerImports: Seq[Import] = {
     IMPORT("jp.t2v.lab.play2.auth", "AuthElement") +: serviceImports
@@ -26,39 +25,27 @@ abstract class Play2AuthSecurityProvider(user: String,
 
   override def serviceImports: Seq[Import] = imports.map(IMPORT(_))
 
-  case class SecurityScope(s: String) {
-    val scope: String = s.split(':').head
-    val values: Seq[String] = for (i <- s.split(':').tail; v <- i.split(',')) yield v
-  }
-
   def parseAuthority(scopes: Seq[SecurityScope]): Seq[Tree]
 
-  override def getActionSecurity(security: Seq[SecurityRequirement]): ActionSecurity = {
+  override def composeActionSecurity(scopes: Seq[SecurityScope]): ActionSecurity = {
 
-    security.find(_.schemaName == securitySchema) match {
-      case Some(SecurityRequirement(_, scopes)) =>
+    val authority = parseAuthority(scopes).map(
+      authority => REF("AuthorityKey") INFIX "->" APPLY authority
+    )
 
-        val authority = parseAuthority(scopes.toIndexedSeq.map(SecurityScope.apply)).map(
-          authority => REF("AuthorityKey") INFIX "->" APPLY authority
-        )
+    val userType: Type = TYPE_REF(user)
+    val userValue: ValDef = VAL("user", userType) := (REF("loggedIn") APPLY REF("request"))
 
-        val userType: Type = TYPE_REF(user)
-        val userValue: ValDef = VAL("user", userType) := (REF("loggedIn") APPLY REF("request"))
-
-        new ActionSecurity {
-          override def actionMethod(parser: Tree): Tree = {
-            REF("AsyncStack") APPLY (parser +: authority)
-          }
-          override val securityParams: Map[String, Type] = {
-            Map("user" -> userType)
-          }
-          override val securityValues: Map[String, ValDef] = {
-            Map("user" -> userValue)
-          }
-        }
-
-      case None =>
-        WithoutSecurity
+    new ActionSecurity {
+      override def actionMethod(parser: Tree): Tree = {
+        REF("AsyncStack") APPLY (parser +: authority)
+      }
+      override val securityParams: Map[String, Type] = {
+        Map("user" -> userType)
+      }
+      override val securityValues: Map[String, ValDef] = {
+        Map("user" -> userValue)
+      }
     }
 
   }
