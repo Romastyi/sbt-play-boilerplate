@@ -20,13 +20,13 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       case param: swagger.BodyParameter =>
         BodyParameterFactory.build(parseModel(schema, getParamName(parameter), param.getSchema))
       case param: swagger.HeaderParameter =>
-        parseTypedParameter(schema, param, HeaderParameterFactory)
+        parseTypedParameter(schema, ASP(param), HeaderParameterFactory)
       case param: swagger.PathParameter =>
-        parseTypedParameter(schema, param, PathParameterFactory)
+        parseTypedParameter(schema, ASP(param), PathParameterFactory)
       case param: swagger.QueryParameter =>
-        parseTypedParameter(schema, param, QueryParameterFactory)
+        parseTypedParameter(schema, ASP(param), QueryParameterFactory)
       case param: swagger.FormParameter =>
-        parseTypedParameter(schema, param, FormParameterFactory)
+        parseTypedParameter(schema, ASP(param), FormParameterFactory)
       case param: swagger.RefParameter =>
         RefParameterFactory.build(findReferenceDef(schema, param.get$ref()))
       case param =>
@@ -41,116 +41,84 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     }
   }
 
-  object TypedParameter {
-    def unapply(arg: SwaggerParameter): Option[AbstractSerializableParameter[_]] = {
-      arg match {
-        case param: AbstractSerializableParameter[_] =>
-          Some(param)
-        case _ =>
-          None
-      }
-    }
-  }
+  private case class ASP[T <: AbstractSerializableParameter[T]](underlying: AbstractSerializableParameter[T]) {
 
-  object OptionParameter {
-    def unapply(arg: SwaggerParameter): Option[AbstractSerializableParameter[_]] = {
-      arg match {
-        case TypedParameter(param) if Option(param.getRequired).forall(_ == false) =>
-          Some(param)
-        case _ =>
-          None
-      }
-    }
-  }
+    def getName: String = Option(underlying.getName).getOrElse(getParamName(underlying))
 
-  object EnumParameter {
-    def unapply(arg: SwaggerParameter): Option[(AbstractSerializableParameter[_], Iterable[String])] = {
-      arg match {
-        case TypedParameter(param) if Option(param.getEnum).isDefined =>
-          Some((param, param.getEnum.asScala))
-        case _ =>
-          None
-      }
-    }
-  }
+    def isOptional: Boolean = Option(underlying.getRequired).forall(_ == false)
 
-  object ArrayParameter {
-    def unapply(arg: SwaggerParameter): Option[(AbstractSerializableParameter[_], SwaggerProperty)] = {
-      arg match {
-        case TypedParameter(param) if param.getType == ArrayProperty.TYPE =>
-          val items = Option(param.getItems).getOrElse {
-            throw ParserException(s"Array items property is not specified for parameter.")
-          }
-          Some((param, items))
-        case _ =>
-          None
-      }
+    def isArray: Boolean = underlying.getType == ArrayProperty.TYPE
+
+    def getItems: SwaggerProperty = Option(underlying.getItems).getOrElse {
+      throw ParserException(s"Array items property is not specified for parameter.")
     }
+
+    def isEnum: Boolean = Option(underlying.getEnum).isDefined
+
+    def getEnum: Iterable[String] = underlying.getEnum.asScala
+
+    def toProperty: SwaggerProperty = {
+
+      import io.swagger.models.properties.PropertyBuilder.PropertyId._
+
+      val args = Map(
+        ENUM -> underlying.getEnum,
+        PATTERN -> underlying.getPattern,
+        MIN_ITEMS -> underlying.getMinItems,
+        MAX_ITEMS -> underlying.getMaxItems,
+        MIN_LENGTH -> underlying.getMinLength,
+        MAX_LENGTH -> underlying.getMaxLength,
+        MINIMUM -> underlying.getMinimum,
+        MAXIMUM -> underlying.getMaximum,
+        MULTIPLE_OF -> underlying.getMultipleOf,
+        VENDOR_EXTENSIONS -> underlying.getVendorExtensions
+      ).asJava
+
+      val property = PropertyBuilder.build(underlying.getType, underlying.getFormat, args)
+      property.setName(underlying.getName)
+      property.setRequired(underlying.getRequired)
+      property.setDescription(underlying.getDescription)
+      Option(underlying.getDefault).foreach(d => property.setDefault(d.toString))
+      property.setExample(underlying.getExample)
+      property.setAllowEmptyValue(underlying.getAllowEmptyValue)
+
+      property
+
+    }
+
   }
 
   private def parseTypedParameter(schema: Schema,
-                                  parameter: AbstractSerializableParameter[_],
+                                  parameter: ASP[_],
                                   factory: DefinitionFactory[Parameter],
                                   canBeOption: Boolean = true)
                                  (implicit ctx: ParserContext): Parameter = {
-    parameter match {
-      case OptionParameter(param) if canBeOption =>
-        factory.build(OptionDefinition(
-          name = Option(param.getName).getOrElse(getParamName(parameter)),
-          base = parseTypedParameter(schema, param, factory, canBeOption = false)
-        ))
-      case ArrayParameter(param, prop) =>
-        val name = Option(param.getName).getOrElse(getParamName(parameter))
-        factory.build(ArrayDefinition(
-          name = name,
-          items = getPropertyDef(schema, name, prop, canBeOption = false),
-          uniqueItems = Option(param.isUniqueItems).exists(_ == true),
-          minItems = Option(param.getMinItems).map(Integer2int),
-          maxItems = Option(param.getMaxItems).map(Integer2int)
-        ))
-      case EnumParameter(param, items) =>
-        factory.build(EnumDefinition(
-          items = items,
-          name = Option(param.getName).getOrElse(getParamName(parameter)),
-          title = None,
-          description = Option(param.getDescription),
-          readOnly = Option(param.isReadOnly).exists(_ == true),
-          allowEmptyValue = Option(param.getAllowEmptyValue).exists(_ == true),
-          default = None
-        ))
-      case param =>
-        val name = Option(param.getName).getOrElse(getParamName(parameter))
-        getPropertyFactoryDef(schema, name, param2Prop(param), factory, canBeOption)
+    if (parameter.isOptional && canBeOption) {
+      factory.build(OptionDefinition(
+        name = parameter.getName,
+        base = parseTypedParameter(schema, parameter, factory, canBeOption = false)
+      ))
+    } else if (parameter.isArray) {
+      factory.build(ArrayDefinition(
+        name = parameter.getName,
+        items = getPropertyDef(schema, parameter.getName, parameter.getItems, canBeOption = false),
+        uniqueItems = Option(parameter.underlying.isUniqueItems).exists(_ == true),
+        minItems = Option(parameter.underlying.getMinItems).map(Integer2int),
+        maxItems = Option(parameter.underlying.getMaxItems).map(Integer2int)
+      ))
+    } else if (parameter.isEnum) {
+      factory.build(EnumDefinition(
+        items = parameter.getEnum,
+        name = parameter.getName,
+        title = None,
+        description = Option(parameter.underlying.getDescription),
+        readOnly = Option(parameter.underlying.isReadOnly).exists(_ == true),
+        allowEmptyValue = Option(parameter.underlying.getAllowEmptyValue).exists(_ == true),
+        default = None
+      ))
+    } else {
+      getPropertyFactoryDef(schema, parameter.getName, parameter.toProperty, factory, canBeOption)
     }
-  }
-
-  private def param2Prop(parameter: AbstractSerializableParameter[_]): SwaggerProperty = {
-
-    import io.swagger.models.properties.PropertyBuilder.PropertyId._
-
-    val args = Map(
-      ENUM -> parameter.getEnum,
-      PATTERN -> parameter.getPattern,
-      MIN_ITEMS -> parameter.getMinItems,
-      MAX_ITEMS -> parameter.getMaxItems,
-      MIN_LENGTH -> parameter.getMinLength,
-      MAX_LENGTH -> parameter.getMaxLength,
-      MINIMUM -> parameter.getMinimum,
-      MAXIMUM -> parameter.getMaximum,
-      MULTIPLE_OF -> parameter.getMultipleOf,
-      VENDOR_EXTENSIONS -> parameter.getVendorExtensions
-    ).asJava
-
-    val property = PropertyBuilder.build(parameter.getType, parameter.getFormat, args)
-    property.setName(parameter.getName)
-    property.setRequired(parameter.getRequired)
-    property.setDescription(parameter.getDescription)
-    Option(parameter.getDefault).foreach(d => property.setDefault(d.toString))
-    property.setExample(parameter.getExample)
-    property.setAllowEmptyValue(parameter.getAllowEmptyValue)
-
-    property
-
   }
 
 }

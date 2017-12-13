@@ -6,7 +6,7 @@ import play.boilerplate.parser.model.SecurityRequirement
 import treehugger.forest._
 import treehuggerDSL._
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 trait SecurityProvider {
 
@@ -55,9 +55,9 @@ object SecurityProvider {
   def getOperationSecurity(operation: SwaggerOperation): Option[Seq[SecurityRequirement]] = {
     Option(operation.getSecurity).map { security =>
       for {
-        auth <- security
-        (name, scopes) <- auth
-      } yield SecurityRequirement(name, scopes.toIndexedSeq)
+        auth <- security.asScala
+        (name, scopes) <- auth.asScala
+      } yield SecurityRequirement(name, scopes.asScala.toIndexedSeq)
     }
   }
 
