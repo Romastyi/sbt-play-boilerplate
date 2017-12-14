@@ -3,7 +3,7 @@ import xerial.sbt.Sonatype.sonatypeSettings
 
 lazy val common = Seq(
   organization := "com.github.romastyi",
-  version := "0.0.1-SNAPSHOT",
+  version := "0.0.2-SNAPSHOT",
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -11,7 +11,7 @@ lazy val common = Seq(
     "-unchecked",
     "-Xfatal-warnings"
   ),
-  resolvers += Resolver.sonatypeRepo("releases")
+  resolvers += Opts.resolver.sonatypeReleases
 ) ++ sonatypePublish
 
 lazy val sbtCommon = common ++ Seq(
@@ -26,12 +26,12 @@ lazy val sbtCommon = common ++ Seq(
 )
 
 lazy val libsCommon = common ++ Seq(
-  crossScalaVersions := List("2.11.12", "2.12.4")
+  crossScalaVersions := List("2.10.6", "2.11.12", "2.12.4")
 )
 
 lazy val lib = project
   .in(file("lib"))
-  .settings(sbtCommon: _ *)
+  .settings(libsCommon: _ *)
   .settings(
     name := """sbt-play-boilerplate-lib""",
     libraryDependencies ++= Seq(
@@ -69,10 +69,11 @@ publishArtifact := false
 
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
   publishMavenStyle := true,
+  publishTo := Some(Opts.resolver.sonatypeSnapshots).filter(_ => isSnapshot.value) orElse Some(Opts.resolver.sonatypeStaging),
   pomIncludeRepository := { _ =>
     false
   },
-  credentials += Credentials(Path.userHome / ".sbt" / "nexus.credentials"),
+  credentials += Credentials(Path.userHome / ".sbt" / "sonatype.credentials"),
   pomExtra := {
     <url>https://github.com/Romastyi/sbt-play-boilerplate</url>
       <licenses>
@@ -103,5 +104,10 @@ lazy val sonatypePublish = sonatypeSettings ++ Seq(
           <url>https://github.com/Romastyi/</url>
         </developer>
       </developers>
+      <scm>
+        <url>https://github.com/romastyi/sbt-play-boilerplate/tree/master</url>
+        <connection>scm:git:git://github.com/romastyi/sbt-play-boilerplate.git</connection>
+        <developerConnection>scm:git:git://github.com/romastyi/sbt-play-boilerplate.git</developerConnection>
+      </scm>
   }
 )
