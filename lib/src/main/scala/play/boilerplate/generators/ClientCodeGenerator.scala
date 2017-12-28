@@ -23,7 +23,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT("play.api.mvc", "_"),
       IMPORT("QueryStringBindable", "_"),
       IMPORT("PathBindable", "_"),
-      IMPORT("play.boilerplate.api.client.dsl", "ServiceLocator"),
+      IMPORT("play.boilerplate.api.client.dsl", "Compat", "ServiceLocator"),
       IMPORT("scala.concurrent", "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
@@ -386,7 +386,7 @@ class ClientCodeGenerator extends CodeGenerator {
   }
 
   def generateRequestHandler(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
-    val WSRequestClass = RootClass.newClass("WSRequest")
+    val WSRequestClass = RootClass.newClass("Compat.WSRequest")
     val securityParams = schema.paths.flatMap(_.operations.values)
       .foldLeft(Map.empty[String, Type]) { case (acc, op) =>
         acc ++ ctx.settings.securityProvider.getActionSecurity(op.security.toIndexedSeq).securityParams

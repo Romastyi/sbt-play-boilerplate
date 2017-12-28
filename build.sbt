@@ -1,6 +1,11 @@
 import sbt.Keys.crossSbtVersions
 import xerial.sbt.Sonatype.sonatypeSettings
 
+def sonatypeRepo(isSnapshot: Boolean): MavenRepository = {
+  if (isSnapshot) Opts.resolver.sonatypeSnapshots
+  else Opts.resolver.sonatypeStaging
+}
+
 lazy val common = Seq(
   organization := "com.github.romastyi",
   version := "0.0.2-SNAPSHOT",
@@ -11,7 +16,7 @@ lazy val common = Seq(
     "-unchecked",
     "-Xfatal-warnings"
   ),
-  resolvers += Opts.resolver.sonatypeReleases
+  resolvers += sonatypeRepo(isSnapshot.value)
 ) ++ sonatypePublish
 
 lazy val sbtCommon = common ++ Seq(
@@ -25,15 +30,12 @@ lazy val sbtCommon = common ++ Seq(
   }
 )
 
-lazy val libsCommon = common ++ Seq(
-  crossScalaVersions := List("2.10.6", "2.11.12", "2.12.4")
-)
-
 lazy val lib = project
   .in(file("lib"))
-  .settings(libsCommon: _ *)
+  .settings(common: _ *)
   .settings(
     name := """sbt-play-boilerplate-lib""",
+    crossScalaVersions := List("2.10.6", "2.12.4"),
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.3",
       "io.swagger" % "swagger-parser" % "1.0.32",
@@ -50,26 +52,38 @@ lazy val plugin = project
   )
   .dependsOn(lib)
 
-lazy val api = project
-  .in(file("api"))
-  .settings(libsCommon: _ *)
-  .settings(
-    name := """play-boilerplate-api""",
-    libraryDependencies += "com.typesafe" % "config" % "1.3.2" % "provided"
-  )
+def apiProject(suffix: String, playVersion: String): Project = {
+  Project(s"api-$suffix", file(s"api-$suffix"))
+    .settings(common: _ *)
+    .settings(
+      name := s"""play-boilerplate-api-$suffix""",
+      scalaVersion := "2.11.12",
+      libraryDependencies ++= Seq(
+        "com.typesafe.play" %% "play" % playVersion % "provided",
+        "com.typesafe.play" %% "play-ws" % playVersion % "provided"
+      ),
+      unmanagedSourceDirectories in Compile += {
+        baseDirectory.value / ".." / "api" / "src" / "main" / "scala"
+      }
+    )
+}
+
+lazy val `api-play23` = apiProject("play23", "2.3.10")
+lazy val `api-play24` = apiProject("play24", "2.4.11")
+lazy val `api-play25` = apiProject("play25", "2.5.18")
 
 lazy val root = project
   .in(file("."))
   .settings(
     skip in publish := true
   )
-  .aggregate(lib, plugin, api)
+  .aggregate(lib, plugin, `api-play23`, `api-play24`, `api-play25`)
 
 publishArtifact := false
 
 lazy val sonatypePublish = sonatypeSettings ++ Seq(
   publishMavenStyle := true,
-  publishTo := Some(Opts.resolver.sonatypeSnapshots).filter(_ => isSnapshot.value) orElse Some(Opts.resolver.sonatypeStaging),
+  publishTo := Some(sonatypeRepo(isSnapshot.value)),
   pomIncludeRepository := { _ =>
     false
   },
