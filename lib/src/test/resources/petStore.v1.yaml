@@ -42,7 +42,14 @@ paths:
 #            enum:
 #              - young
 #              - mature
-        - name: limit
+        - name: pager.drop
+          in: query
+          description: number of results to skip from the beginning
+          required: false
+          type: integer
+          format: int32
+          default: -1
+        - name: pager.limit
           in: query
           description: maximum number of results to return
           required: false

@@ -68,7 +68,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
       }
       .map { param =>
         val paramName = decapitalize(param.name)
-        val defaultValue = getParamDefaultValue(param)
+        val defaultValue = getDefaultValue(param)
         val support = getTypeSupport(param.ref, DefinitionContext.inline.copy(canBeOption = defaultValue.isEmpty))
         val valDef = defaultValue match {
           case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
@@ -91,8 +91,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
   }
 
-  def getParamDefaultValue(param: Parameter): Option[Literal] = {
-    param.baseDef match {
+  def getDefaultValue(definition: Definition): Option[Literal] = {
+    definition.baseDef match {
       case d: WithDefault[_] =>
         d.default.map(LIT.apply)
       case _ =>

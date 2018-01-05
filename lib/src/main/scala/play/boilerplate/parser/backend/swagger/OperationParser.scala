@@ -29,7 +29,7 @@ trait OperationParser { this: ParameterParser with ResponseParser =>
       operationId = Option(operation.getOperationId).filter(_.nonEmpty).getOrElse {
         throw ParserException(s"Attribute 'operationId' id not specified for path '$pathUrl' and method '${httpMethod.toString.toLowerCase()}'.")
       },
-      parameters = Option(operation.getParameters).map(_.asScala).getOrElse(Nil).map(parseParameter(schema, _)),
+      parameters = findObjectQueryParameters(Option(operation.getParameters).map(_.asScala).getOrElse(Nil).map(parseParameter(schema, _))),
       schemes    = Option(operation.getSchemes).map(_.asScala.map(_.toValue)).getOrElse(schema.schemes),
       consumes   = Option(operation.getConsumes).map(_.asScala).getOrElse(schema.consumes),
       produces   = Option(operation.getProduces).map(_.asScala).getOrElse(schema.produces),

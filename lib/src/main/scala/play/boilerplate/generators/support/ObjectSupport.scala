@@ -8,6 +8,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
   import GeneratorUtils._
   import treehugger.forest._
   import treehuggerDSL._
+  import definitions._
 
   def composeClassName(objName: String): String = objName.capitalize
 
@@ -165,9 +166,14 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
   }
 
-  case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean, constraints: Seq[Constraint]) {
+  case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean, defaultValue: Option[Literal], constraints: Seq[Constraint]) {
     def method: DefDef = DEF(name, support.tpe).empty
-    def param : ValDef = PARAM(name, support.tpe).empty
+    def param : ValDef = defaultValue match {
+      case Some(default) =>
+        PARAM(name, support.tpe) := support.constructor(default)
+      case None =>
+        PARAM(name, support.tpe).empty
+    }
     def json  : ObjectPropertyJson = ObjectPropertyJson(name, reads, writes)
     def reads : Enumerator = {
       val readsConstraints = filterNonEmptyTree(constraints.map(getReadsConstraint(_, noOptType)))
@@ -196,7 +202,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
         case OptionDefinition(_, base) => (getTypeSupport(base).tpe, true)
         case _ => (support.tpe, false)
       }
-      ObjectProperty(name, support, noOptType, isOpt, collectPropertyConstraints(prop))
+      ObjectProperty(name, support, noOptType, isOpt, getDefaultValue(prop), collectPropertyConstraints(prop))
     }
   }
 
@@ -234,7 +240,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
       definition = objectDef,
       jsonReads  = reads,
       jsonWrites = writes,
-      queryBindable = EmptyTree,
+      queryBindable = generateObjectQueryBindable(objectClass, params),
       pathBindable  = EmptyTree
     )
 
@@ -290,6 +296,33 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
 
     modelWrites
+
+  }
+
+  def generateObjectQueryBindable(objectClass: Symbol, properties: Seq[ObjectProperty])
+                                 (implicit ctx: GeneratorContext): Tree = {
+
+    val caseObject = properties.isEmpty
+    val modelName  = objectClass.nameString
+    val modelType  = if (caseObject) TYPE_SINGLETON(TYPE_REF(modelName)) else TYPE_REF(modelName)
+    val queryBindableType = definitions.getClass("QueryStringBindable") TYPE_OF modelType
+
+    val ExceptionClass = definitions.getClass("Exception")
+
+    if (caseObject) {
+      val bindable = REF("QueryStringBindable") DOT "Parsing" APPLYTYPE modelType APPLY(
+        LAMBDA(PARAM(WILDCARD).tree) ==> REF(modelName),
+        LAMBDA(PARAM(WILDCARD).tree) ==> LIT(""),
+        LAMBDA(PARAM("key", StringClass).tree, PARAM("e", ExceptionClass).tree) ==>
+          LIT(s"Cannot parse parameter %s as ${modelType.toString()}: %s") DOT "format"
+          APPLY(REF("key"), REF("e") DOT "getMessage")
+      )
+      OBJECTDEF(s"${modelName}QueryBindable").withParents(bindable).withFlags(Flags.IMPLICIT).tree
+    } else {
+      VAL(s"${modelName}QueryBindable", queryBindableType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+        definitions.getClass("play.boilerplate.api.common.Binders") DOT "queryStringStrict"
+      }
+    }
 
   }
 

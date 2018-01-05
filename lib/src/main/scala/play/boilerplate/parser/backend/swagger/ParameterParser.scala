@@ -121,4 +121,43 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     }
   }
 
+  // TODO Nested object query parameters like 'a.b.c'
+  def findObjectQueryParameters(parameters: Iterable[Parameter]): Iterable[Parameter] = {
+
+    val groupedParams = parameters.foldLeft(Map.empty[String, ObjectDefinition]) {
+      case (acc, param: QueryParameter) =>
+        val parts = param.name.split('.')
+        if (parts.length > 1) {
+          val objectName = parts.head
+          val objectDef = acc.getOrElse(objectName, ObjectDefinition(
+            properties = Map.empty,
+            name = objectName,
+            title = None,
+            description = None,
+            readOnly = false,
+            allowEmptyValue = false
+          ))
+          val propertyName = parts.tail.mkString
+          val property = param.ref.modifyName(_ => propertyName)
+          acc + (objectName -> objectDef.addProperty(propertyName, property))
+        } else {
+          acc
+        }
+      case (acc, _) =>
+        acc
+    }
+
+    val otherParams = parameters.filterNot {
+      case (param: QueryParameter) =>
+        param.name.split('.').length > 1
+      case _ =>
+        false
+    }
+
+    groupedParams.map { case (objectName, objectDef) =>
+      new QueryParameter(objectName, objectDef)
+    } ++ otherParams
+
+  }
+
 }
