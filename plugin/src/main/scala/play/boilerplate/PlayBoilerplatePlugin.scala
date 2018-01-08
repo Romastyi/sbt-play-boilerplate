@@ -68,6 +68,23 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
   }
 
+  object Imports {
+
+    import play.boilerplate.core.PluginVersion
+
+    def component(id: String): ModuleID = PluginVersion.organization %% s"play-boilerplate-$id" % PluginVersion.current
+
+    def api(PlayVersion: String): ModuleID = {
+      CrossVersion partialVersion PlayVersion match {
+        case Some((2, minor)) if minor >= 3 && minor <= 6 =>
+          component(s"api-play2$minor")
+        case None =>
+          component("api-play26")
+      }
+    }
+
+  }
+
   def collectSchemas(watchers: Seq[Keys.SchemasWatcher]): Seq[File] = {
     watchers.reduceLeftOption(_ ++ _).map(_.schemas).getOrElse(Nil)
   }

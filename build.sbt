@@ -1,9 +1,39 @@
-import sbt.Keys.crossSbtVersions
+import sbt.Keys.{crossSbtVersions, organization}
 import xerial.sbt.Sonatype.sonatypeSettings
 
 def sonatypeRepo(isSnapshot: Boolean): MavenRepository = {
   if (isSnapshot) Opts.resolver.sonatypeSnapshots
   else Opts.resolver.sonatypeStaging
+}
+
+def PluginVersion(organization: String,
+                  version: String,
+                  scalaVersion: String,
+                  sbtVersion: String,
+                  dir: File): Seq[File] = {
+  val file = dir / "PluginVersion.scala"
+  val scalaSource =
+    """|package play.boilerplate.core
+       |
+       |object PluginVersion {
+       |  val organization = "%s"
+       |  val current = "%s"
+       |  val scalaVersion = "%s"
+       |  val sbtVersion = "%s"
+       |}
+       |""".stripMargin
+      .format(
+        organization,
+        version,
+        scalaVersion,
+        sbtVersion
+      )
+
+  if (!file.exists() || IO.read(file) != scalaSource) {
+    IO.write(file, scalaSource)
+  }
+
+  Seq(file)
 }
 
 lazy val common = Seq(
@@ -48,7 +78,14 @@ lazy val plugin = project
   .settings(sbtCommon: _ *)
   .settings(
     name := """sbt-play-boilerplate""",
-    sbtPlugin := true
+    sbtPlugin := true,
+    sourceGenerators in Compile += Def.task(PluginVersion(
+      organization.value,
+      version.value,
+      scalaVersion.value,
+      (sbtVersion in pluginCrossBuild).value,
+      (sourceManaged in Compile).value)
+    ).taskValue
   )
   .dependsOn(lib)
 
@@ -71,7 +108,7 @@ def apiProject(suffix: String, playVersion: String): Project = {
 lazy val `api-play23` = apiProject("play23", "2.3.10")
 lazy val `api-play24` = apiProject("play24", "2.4.11")
 lazy val `api-play25` = apiProject("play25", "2.5.18")
-lazy val `api-play26` = apiProject("play26", "2.6.10")
+lazy val `api-play26` = apiProject("play26", "2.6.7")
   .settings(crossScalaVersions := List("2.11.12", "2.12.4"))
 
 lazy val root = project
@@ -79,7 +116,7 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(lib, plugin, `api-play23`, `api-play24`, `api-play25`)
+  .aggregate(lib, plugin, `api-play23`, `api-play24`, `api-play25`, `api-play26`)
 
 publishArtifact := false
 
