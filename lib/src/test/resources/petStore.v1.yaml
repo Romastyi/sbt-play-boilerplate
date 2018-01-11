@@ -12,7 +12,7 @@ info:
     name: MIT
     url: http://opensource.org/licenses/MIT
 host: petstore.swagger.wordnik.com
-basePath: /api
+basePath: /
 schemes:
   - http
 consumes:

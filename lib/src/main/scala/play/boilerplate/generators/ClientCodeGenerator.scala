@@ -91,12 +91,14 @@ class ClientCodeGenerator extends CodeGenerator {
 
   def composeClientUrl(basePath: String, path: Path, operation: Operation): ValDef = {
 
+    val basePathParts = Seq(basePath.dropWhile(_ == '/')).filterNot(_.isEmpty).map(LIT.apply)
+
     val parts = path.pathParts.collect {
       case StaticPart(str) => LIT(str)
       case ParamPart(name) => REF("_render_path_param") APPLY (LIT(name), REF(name))
     }.toSeq
 
-    val urlParts = (Seq(REF("uri"), LIT(basePath.dropWhile(_ == '/'))) ++ parts).foldLeft(List.empty[Tree]) { case (acc, term) =>
+    val urlParts = (REF("uri") +: (basePathParts ++ parts)).foldLeft(List.empty[Tree]) { case (acc, term) =>
       if (acc.isEmpty) acc :+ term else acc :+ LIT("/") :+ term
     }
 
