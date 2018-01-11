@@ -12,17 +12,17 @@ class ServerCodeGenerator extends CodeGenerator {
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
-      IMPORT(ctx.settings.modelPackageName, "_"),
-      IMPORT(ctx.settings.jsonImportPrefix, "_"),
-      IMPORT(ctx.settings.servicePackageName, ctx.settings.serviceClassName),
-      IMPORT(ctx.settings.serviceClassName, "_"),
-      IMPORT("play.api.mvc", "_"),
-      IMPORT("play.api.libs.json", "_"),
-      IMPORT("play.api.libs.concurrent.Execution.Implicits", "_")
+      IMPORT(REF(ctx.settings.modelPackageName), "_"),
+      IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
+      IMPORT(REF(ctx.settings.servicePackageName), ctx.settings.serviceClassName),
+      IMPORT(REF(ctx.settings.serviceClassName), "_"),
+      IMPORT(REF("play.api.mvc"), "_"),
+      IMPORT(REF("play.api.libs.json"), "_"),
+      IMPORT(REF("play.api.libs.concurrent.Execution.Implicits"), "_")
     ) ++
       ctx.settings.securityProvider.controllerImports ++
       ctx.settings.injectionProvider.imports ++
-      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
@@ -49,7 +49,7 @@ class ServerCodeGenerator extends CodeGenerator {
         val objDef = OBJECTDEF(ctx.settings.controllerClassName) := BLOCK {
           companionItems
         }
-        (objDef, IMPORT(ctx.settings.controllerClassName, "_"))
+        (objDef, IMPORT(REF(ctx.settings.controllerClassName), "_"))
       } else {
         (EmptyTree, EmptyTree)
       }

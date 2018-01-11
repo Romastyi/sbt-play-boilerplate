@@ -37,7 +37,7 @@ object LoggerProvider {
       VAL("logger") := REF("Logger") APPLY (THIS DOT "getClass" DOT "getName")
     )
 
-    override def imports: Seq[Import] = IMPORT("play.api", "Logger") :: Nil
+    override def imports: Seq[Import] = IMPORT(REF("play.api"), "Logger") :: Nil
 
     override def parents: Seq[Type] = Nil
 

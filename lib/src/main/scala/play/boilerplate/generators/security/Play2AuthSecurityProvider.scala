@@ -12,7 +12,7 @@ abstract class Play2AuthSecurityProvider(user: String,
   extends DefaultSecurity(securitySchema) {
 
   override def controllerImports: Seq[Import] = {
-    IMPORT("jp.t2v.lab.play2.auth", "AuthElement") +: serviceImports
+    IMPORT(REF("jp.t2v.lab.play2.auth"), "AuthElement") +: serviceImports
   }
 
   override def controllerParents: Seq[Type] = {
@@ -23,7 +23,7 @@ abstract class Play2AuthSecurityProvider(user: String,
 
   override def controllerDependencies: Seq[Dependency] = Nil
 
-  override def serviceImports: Seq[Import] = imports.map(IMPORT(_))
+  override def serviceImports: Seq[Import] = imports.map(pkg => IMPORT(REF(pkg)))
 
   def parseAuthority(scopes: Seq[SecurityScope]): Seq[Tree]
 

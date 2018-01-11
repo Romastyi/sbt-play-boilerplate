@@ -7,7 +7,7 @@ import treehuggerDSL._
 final class GuiceInjectionProvider extends DefaultInConstructor {
 
   override val imports: Seq[Import] = {
-    Seq(IMPORT("javax.inject", "_"))
+    Seq(IMPORT(REF("javax.inject"), "_"))
   }
 
   override def classDefModifier(classDef: ClassDef, dependencies: Seq[Dependency]): String = {

@@ -11,12 +11,12 @@ class ServiceCodeGenerator extends CodeGenerator {
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Tree] = {
     Seq(
-      IMPORT(ctx.settings.modelPackageName, "_"),
-      IMPORT("scala.concurrent", "Future")
+      IMPORT(REF(ctx.settings.modelPackageName), "_"),
+      IMPORT(REF("scala.concurrent"), "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
       ctx.settings.loggerProvider.imports ++
-      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
@@ -36,7 +36,7 @@ class ServiceCodeGenerator extends CodeGenerator {
         .withParents(ctx.settings.loggerProvider.parents)
         .withSelf("self", ctx.settings.loggerProvider.selfTypes: _ *) :=
         BLOCK {
-          IMPORT(ctx.settings.serviceClassName, "_") +: filterNonEmptyTree(
+          IMPORT(REF(ctx.settings.serviceClassName), "_") +: filterNonEmptyTree(
             ctx.settings.loggerProvider.loggerDefs ++
             methods.map(_.tree).toIndexedSeq :+
             generateOrErrorMethod

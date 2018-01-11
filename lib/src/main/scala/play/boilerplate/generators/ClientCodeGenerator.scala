@@ -12,24 +12,24 @@ class ClientCodeGenerator extends CodeGenerator {
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
-      IMPORT(ctx.settings.modelPackageName, "_"),
-      IMPORT(ctx.settings.jsonImportPrefix, "_"),
-      IMPORT(ctx.settings.servicePackageName, ctx.settings.serviceClassName),
-      IMPORT(ctx.settings.serviceClassName, "_"),
-      IMPORT("play.api.http.HeaderNames", "_"),
-      IMPORT("play.api.libs.ws", "_"),
-      IMPORT("play.api.libs.json", "_"),
-      IMPORT("play.api.libs.concurrent.Execution.Implicits", "_"),
-      IMPORT("play.api.mvc", "_"),
-      IMPORT("QueryStringBindable", "_"),
-      IMPORT("PathBindable", "_"),
-      IMPORT("play.boilerplate.api.client.dsl", "Compat", "ServiceLocator"),
-      IMPORT("scala.concurrent", "Future")
+      IMPORT(REF(ctx.settings.modelPackageName), "_"),
+      IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
+      IMPORT(REF(ctx.settings.servicePackageName), ctx.settings.serviceClassName),
+      IMPORT(REF(ctx.settings.serviceClassName), "_"),
+      IMPORT(REF("play.api.http.HeaderNames"), "_"),
+      IMPORT(REF("play.api.libs.ws"), "_"),
+      IMPORT(REF("play.api.libs.json"), "_"),
+      IMPORT(REF("play.api.libs.concurrent.Execution.Implicits"), "_"),
+      IMPORT(REF("play.api.mvc"), "_"),
+      IMPORT(REF("QueryStringBindable"), "_"),
+      IMPORT(REF("PathBindable"), "_"),
+      IMPORT(REF("play.boilerplate.api.client.dsl"), "Compat", "ServiceLocator"),
+      IMPORT(REF("scala.concurrent"), "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
-      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(IMPORT(_, "_"))
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   def innerClassMember(member: String)(implicit ctx: GeneratorContext): Tree = {
@@ -278,7 +278,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
   final def generateRenderUrlParams: Seq[Tree] = {
 
-    val imports = IMPORT("scala.language", "implicitConversions")
+    val imports = IMPORT(REF("scala.language"), "implicitConversions")
 
     val wrapper = RootClass.newClass("QueryValueWrapper")
     val wrapperDef = TRAITDEF(wrapper).withFlags(Flags.SEALED).empty
@@ -434,8 +434,8 @@ class ClientCodeGenerator extends CodeGenerator {
 
     if (helpers.nonEmpty) {
       val imports = BLOCK(
-        IMPORT("play.api.libs.json", "_"),
-        IMPORT("play.api.mvc", "_")
+        IMPORT(REF("play.api.libs.json"), "_"),
+        IMPORT(REF("play.api.mvc"), "_")
       ) inPackage ctx.settings.clientPackageName
       val objectTree = TRAITDEF("ClientHelper") := BLOCK(helpers)
       SourceCodeFile(

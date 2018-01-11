@@ -147,7 +147,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   def generateAcceptMatcher: Tree = {
     val tpe = (OptionClass APPLYTYPE StringClass.toType).tpe
     BLOCK(
-      IMPORT("play.api.mvc", "_"),
+      IMPORT(REF("play.api.mvc"), "_"),
       CASECLASSDEF("AcceptMatcher") withParams PARAM("mimeType", StringClass.toType).tree := BLOCK {
         DEF("unapply", tpe) withParams PARAM("arg", TYPE_REF("RequestHeader")).tree := BLOCK {
           IF((REF("arg") DOT "acceptedTypes" DOT "nonEmpty") AND (REF("arg") DOT "accepts" APPLY REF("mimeType"))) THEN BLOCK {

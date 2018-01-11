@@ -14,7 +14,7 @@ abstract class SilhouetteSecurityProvider(securitySchema: String) extends Defaul
   def userType: Type
 
   override def controllerImports: Seq[Import] = Seq(
-    IMPORT("com.mohiva.play.silhouette.api", "Silhouette")
+    IMPORT(REF("com.mohiva.play.silhouette.api"), "Silhouette")
   )
   override def controllerParents: Seq[Type] = Nil
   override def controllerSelfTypes: Seq[Type] = Nil
