@@ -38,9 +38,9 @@ class ClientCodeGenerator extends CodeGenerator {
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
     Seq(
-      InjectionProvider.Dependency("ws", TYPE_REF("WSClient")),
-      InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator")),
-      InjectionProvider.Dependency("handler", TYPE_REF(innerClassMember("RequestHandler")), Some(innerClassMember("DefaultHandler")))
+      InjectionProvider.Dependency("handler", TYPE_REF(innerClassMember("RequestHandler")), Some(innerClassMember("DefaultHandler"))),
+      InjectionProvider.Dependency("ws", TYPE_REF("WSClient"), isImplicit = true),
+      InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator"), isImplicit = true)
     )
   }
 
@@ -180,8 +180,8 @@ class ClientCodeGenerator extends CodeGenerator {
             VAL("f") := FOR(
               VALFROM("request") := handleRequest,
               VALFROM("response") := wsRequestWithHeaderParams DOT opType APPLY fullBodyParams.values,
-              VAL("result") := responses.tree,
-              VAL("_") := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("result"))
+              VAL("_") := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("response")),
+              VAL("result") := responses.tree
             ) YIELD REF("result"),
             REF("f") DOT "recoverWith" APPLY BLOCK {
               CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
@@ -389,6 +389,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
   def generateRequestHandler(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
     val WSRequestClass = RootClass.newClass("Compat.WSRequest")
+    val WSResponseClass = RootClass.newClass("Compat.WSResponse")
     val securityParams = schema.paths.flatMap(_.operations.values)
       .foldLeft(Map.empty[String, Type]) { case (acc, op) =>
         acc ++ ctx.settings.securityProvider.getActionSecurity(op.security.toIndexedSeq).securityParams
@@ -398,7 +399,7 @@ class ClientCodeGenerator extends CodeGenerator {
     }.toIndexedSeq
     val operationIdParam = PARAM("operationId", StringClass).empty
     val requestParam: ValDef = PARAM("request", WSRequestClass).empty
-    val responseParam: ValDef = PARAM("response", AnyRefClass).empty
+    val responseParam: ValDef = PARAM("response", WSResponseClass).empty
     val causeParam: ValDef = PARAM("cause", RootClass.newClass("Throwable")).empty
     val handleRequestDef = DEF("handleRequest", FUTURE(WSRequestClass))
       .withParams(operationIdParam +: requestParam +: securityParamsDef)
