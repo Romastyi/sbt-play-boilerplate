@@ -41,7 +41,9 @@ object InjectionProvider {
             val paramDef = defaultValue.fold(valDefWithFlags)(v => valDefWithFlags + " = " + treeToString(v))
             if (isImplicit) (p, i :+ paramDef) else (p :+ paramDef, i)
         }
-        val paramsList = params.mkString("(", ", ", ")") + implicitParams.mkString("(implicit ", ", ", ")")
+        val paramsList = params.mkString("(", ", ", ")") + {
+          if (implicitParams.nonEmpty) implicitParams.mkString("(implicit ", ", ", ")") else ""
+        }
         tree.replaceFirst(className, className + paramsList)
       } else {
         tree

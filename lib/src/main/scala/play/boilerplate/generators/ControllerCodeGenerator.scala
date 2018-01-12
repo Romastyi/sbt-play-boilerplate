@@ -2,13 +2,13 @@ package play.boilerplate.generators
 
 import play.boilerplate.generators.injection.InjectionProvider
 import play.boilerplate.parser.model._
+import treehugger.forest._
+import definitions._
+import treehuggerDSL._
 
-class ServerCodeGenerator extends CodeGenerator {
+class ControllerCodeGenerator extends CodeGenerator {
 
   import GeneratorUtils._
-  import treehugger.forest._
-  import definitions._
-  import treehuggerDSL._
 
   def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
@@ -29,6 +29,8 @@ class ServerCodeGenerator extends CodeGenerator {
     Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName))) ++
       ctx.settings.securityProvider.controllerDependencies
   }
+
+  def baseControllerType: Type = TYPE_REF("Controller")
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
@@ -54,7 +56,7 @@ class ServerCodeGenerator extends CodeGenerator {
         (EmptyTree, EmptyTree)
       }
 
-      val parents = Seq(TYPE_REF("Controller"), TYPE_REF("ControllerHelper")) ++
+      val parents = Seq(baseControllerType, TYPE_REF("ControllerHelper")) ++
         ctx.settings.securityProvider.controllerParents
 
       val classDef = CLASSDEF(ctx.settings.controllerClassName)
@@ -267,4 +269,8 @@ class ServerCodeGenerator extends CodeGenerator {
 
   }
 
+}
+
+object InjectedControllerCodeGenerator extends ControllerCodeGenerator {
+  override def baseControllerType: Type = TYPE_REF("InjectedController")
 }

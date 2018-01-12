@@ -4,14 +4,16 @@ import InjectionProvider._
 import treehugger.forest._
 import treehuggerDSL._
 
-final class GuiceInjectionProvider extends DefaultInConstructor {
+object GuiceInjectionProvider extends DefaultInConstructor {
 
   override val imports: Seq[Import] = {
     Seq(IMPORT(REF("javax.inject"), "_"))
   }
 
   override def classDefModifier(classDef: ClassDef, dependencies: Seq[Dependency]): String = {
-    val tree = super.classDefModifier(classDef, dependencies)
+    val tree = super.classDefModifier(classDef, dependencies.map(
+      _.copy(defaultValue = None, isImplicit = false)
+    ))
     if (dependencies.nonEmpty) {
       val className = classDef.name.toString()
       tree

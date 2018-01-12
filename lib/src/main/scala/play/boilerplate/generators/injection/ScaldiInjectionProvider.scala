@@ -4,7 +4,7 @@ import InjectionProvider._
 import treehugger.forest._
 import treehuggerDSL._
 
-final class ScaldiInjectionProvider extends InjectionProvider {
+object ScaldiInjectionProvider extends InjectionProvider {
 
   override val imports: Seq[Import] = {
     Seq(IMPORT(REF("scaldi"), "Injectable", "Injector"))

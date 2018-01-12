@@ -1,6 +1,10 @@
 package play.boilerplate
 
 import play.boilerplate.generators._
+import play.boilerplate.generators.injection._
+import play.boilerplate.generators.logger.LoggerProvider
+import play.boilerplate.generators.security.SecurityProvider
+import play.boilerplate.generators.support.CustomTypeSupport
 import play.boilerplate.parser.backend.swagger.SwaggerBackend
 import sbt.Keys._
 import sbt.{Def, _}
@@ -44,27 +48,39 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val generatorDestPackage: SettingKey[String] = settingKey("generatorDestPackage")
     val generatorProvidedPackage: SettingKey[String] = settingKey("generatorProvidedPackage")
 
-    val generateJson: SettingKey[Boolean] = settingKey("generateJson")
-    val generateJsonCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateJsonCodeGenerator")
+    val enumGenerator: SettingKey[EnumerationGenerator] = settingKey("enumGenerator")
+    val securityProvider: SettingKey[SecurityProvider] = settingKey("securityProvider")
+    val injectionProvider: SettingKey[InjectionProvider] = settingKey("injectionProvider")
+    val loggerProvider: SettingKey[LoggerProvider] = settingKey("loggerProvider")
+    val customTypeSupport: SettingKey[CustomTypeSupport] = settingKey("customTypeSupport")
 
-    val generateModel: SettingKey[Boolean] = settingKey("generateModel")
-    val generateModelCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateModelCodeGenerator")
-
-    val generateClient: SettingKey[Boolean] = settingKey("generateClient")
-    val generateClientCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateClientCodeGenerator")
-
-    val generateServer: SettingKey[Boolean] = settingKey("generateServer")
-    val generateServerCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateServerCodeGenerator")
-
-    val generateRoutes: SettingKey[Boolean] = settingKey("generateRoutes")
-    val generateRoutesCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateRoutesCodeGenerator")
-
-    val generateService: SettingKey[Boolean] = settingKey("generateService")
-    val generateServiceCodeGenerator: SettingKey[CodeGenerator] = settingKey("generateServiceCodeGenerator")
-
-    val generatorsSources: TaskKey[Seq[SchemasWatcher]] = taskKey("generatorWatchers")
+    val generatorsSources: TaskKey[Seq[SchemasWatcher]] = taskKey("generatorsSources")
     val generatorsCodeGen: TaskKey[GeneratedFiles] = taskKey("generatorsCodeGen")
     val generatorsClean: TaskKey[Unit] = taskKey("generatorClean")
+
+  }
+
+  object Generators {
+
+    val json: CodeGenerator = new JsonCodeGenerator()
+
+    val model: CodeGenerator = new ModelCodeGenerator()
+
+    val service: CodeGenerator = new ServiceCodeGenerator()
+
+    val client: CodeGenerator = new ClientCodeGenerator()
+
+    val controller: CodeGenerator = new ControllerCodeGenerator()
+
+    val injectedController: CodeGenerator = InjectedControllerCodeGenerator
+
+    val dynamicRoutes: CodeGenerator = DynamicRoutesCodeGenerator
+
+    val injectedRoutes: CodeGenerator = InjectedRoutesCodeGenerator
+
+    def staticRoutes(implemntationSuffix: String): CodeGenerator = {
+      SingletonRoutesCodeGenerator(implemntationSuffix)
+    }
 
   }
 
@@ -141,48 +157,32 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     watchSources ++= collectSchemas(Keys.generatorsSources.value),
     sourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.sources.toSeq),
     resourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.resources.toSeq),
-    Keys.generators := {
-
-      val jsonCodeGenerators = Seq(Keys.generateJsonCodeGenerator.value)
-        .filter(_ => Keys.generateJson.value)
-      val modelCodeGenerators = Seq(Keys.generateModelCodeGenerator.value)
-        .filter(_ => Keys.generateModel.value)
-      val clientCodeGenerators = Seq(Keys.generateClientCodeGenerator.value)
-        .filter(_ => Keys.generateClient.value)
-      val serverCodeGenerators = Seq(Keys.generateServerCodeGenerator.value)
-        .filter(_ => Keys.generateServer.value)
-      val serviceCodeGenerators = Seq(Keys.generateServiceCodeGenerator.value)
-        .filter(_ => Keys.generateService.value)
-      val routesCodeGenerators = Seq(Keys.generateRoutesCodeGenerator.value)
-        .filter(_ => Keys.generateRoutes.value)
-
-      jsonCodeGenerators ++
-      modelCodeGenerators ++
-      clientCodeGenerators ++
-      serverCodeGenerators ++
-      serviceCodeGenerators ++
-      routesCodeGenerators
-
-    },
+    // Default generators
+    Keys.generators := Seq(Generators.json, Generators.model),
+    // Generators code-gen settings
+    Keys.enumGenerator     := VanillaEnumerations,
+    Keys.securityProvider  := SecurityProvider.default,
+    Keys.injectionProvider := InjectionProvider.defaultInConstructor,
+    Keys.loggerProvider    := LoggerProvider.defaultPlayLogger,
+    Keys.customTypeSupport := CustomTypeSupport.empty,
     Keys.generatorSettings := new Keys.GenSettings {
-      def apply(fileName: String, basePackageName: String, codeProvidedPackage: String): GeneratorSettings =
-        DefaultGeneratorSettings(fileName, basePackageName, codeProvidedPackage)
+      def apply(fileName: String, basePackageName: String, codeProvidedPackage: String) =
+        DefaultGeneratorSettings(
+          fileName,
+          basePackageName,
+          codeProvidedPackage,
+          enumGenerator = Keys.enumGenerator.value,
+          securityProvider = Keys.securityProvider.value,
+          injectionProvider = Keys.injectionProvider.value,
+          loggerProvider = Keys.loggerProvider.value,
+          customTypeSupport = Keys.customTypeSupport.value
+        )
     },
+    // Generation sources and others
     Keys.generatorSourceDir := (sourceDirectory in Compile).value / "swagger",
     Keys.generatorDestPackage := "test.api",
     Keys.generatorProvidedPackage := "",
-    Keys.generateJson := true,
-    Keys.generateJsonCodeGenerator := new JsonCodeGenerator(),
-    Keys.generateModel := true,
-    Keys.generateModelCodeGenerator := new ModelCodeGenerator(),
-    Keys.generateClient := false,
-    Keys.generateClientCodeGenerator := new ClientCodeGenerator(),
-    Keys.generateServer := false,
-    Keys.generateServerCodeGenerator := new ServerCodeGenerator(),
-    Keys.generateRoutes := false,
-    Keys.generateRoutesCodeGenerator := DynamicRoutesCodeGenerator,
-    Keys.generateService := false,
-    Keys.generateServiceCodeGenerator := new ServiceCodeGenerator(),
+    // Generation tasks
     Keys.generatorsCodeGen := {
       val cachedFiles = FileFunction.cached(
         (sourceManaged in Compile).value / ".sbt-play-boilerplate",
@@ -216,5 +216,33 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       generatorsCleanImpl((sourceManaged in Compile).value, Keys.generatorDestPackage.value)
     }
   )
+
+  def ApiProject(name: String, dir: File)(PlayVersion: String): Project = Project(name, dir)
+    .settings(
+      Keys.generators := Seq(Generators.json, Generators.model, Generators.service, Generators.client),
+      unmanagedResourceDirectories in Compile += Keys.generatorSourceDir.value,
+      exportJars := true,
+      libraryDependencies ++= Seq(
+        "com.typesafe.play" %% "play-ws" % PlayVersion,
+        Imports.api(PlayVersion)
+      )
+    )
+    .enablePlugins(PlayBoilerplatePlugin)
+
+  def ImplProject(name: String, dir: File, api: Project)(PlayVersion: String): Project = Project(name, dir)
+    .settings(
+      Keys.generators := Seq(Generators.controller, Generators.injectedRoutes),
+      Keys.injectionProvider := GuiceInjectionProvider,
+      Keys.generatorsSources += {
+        val dependencies = (exportedProducts in Compile in api).value
+        val toDirectory = (sourceManaged in Compile).value
+        Keys.ClasspathJarsWatcher(dependencies, toDirectory)
+      },
+      libraryDependencies ++= Seq(
+        "com.typesafe.play" %% "play" % PlayVersion
+      )
+    )
+    .enablePlugins(PlayBoilerplatePlugin)
+    .dependsOn(api)
 
 }
