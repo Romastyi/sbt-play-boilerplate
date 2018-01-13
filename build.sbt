@@ -106,9 +106,10 @@ def apiProject(suffix: String, playVersion: String): Project = {
 }
 
 lazy val `api-play23` = apiProject("play23", "2.3.10")
+  .settings(libraryDependencies += "org.scaldi" %% "scaldi-play-23" % "0.5.6" % "provided")
 lazy val `api-play24` = apiProject("play24", "2.4.11")
 lazy val `api-play25` = apiProject("play25", "2.5.18")
-lazy val `api-play26` = apiProject("play26", "2.6.7")
+lazy val `api-play26` = apiProject("play26", "2.6.7" )
   .settings(crossScalaVersions := List("2.11.12", "2.12.4"))
 
 lazy val root = project
