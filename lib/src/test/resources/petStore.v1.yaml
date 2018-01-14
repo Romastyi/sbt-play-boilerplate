@@ -17,6 +17,7 @@ schemes:
   - http
 consumes:
   - application/json
+  - text/plain
 produces:
   - application/json
 paths:
@@ -27,8 +28,8 @@ paths:
       produces:
         - application/json
         - application/xml
+        - text/plain
         - text/xml
-        - text/html
       parameters:
 #        - $ref: '#/parameters/tags'
         - name: tags
@@ -63,6 +64,10 @@ paths:
             type: array
             items:
               $ref: '#/definitions/pet'
+        400:
+          description:
+          schema:
+            type: string
         default:
           description: unexpected error
           schema:
@@ -109,7 +114,6 @@ paths:
         - application/json
         - application/xml
         - text/xml
-        - text/html
       responses:
         '200':
           description: pet response
@@ -137,7 +141,6 @@ paths:
         - application/json
         - application/xml
         - text/xml
-        - text/html
       parameters:
         - name: tag
           in: path

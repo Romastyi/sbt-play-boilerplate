@@ -13,6 +13,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final def FUTURE(tpe: Type)  : Type = TYPE_REF("Future") TYPE_OF tpe
 
   final val MIME_TYPE_JSON = "application/json"
+  final val MIME_TYPE_TEXT = "text/plain"
 
   final val ACTION_ANYCONTENT: Type = TYPE_REF("Action") TYPE_OF "AnyContent"
   final val ACTION_EMPTY     : Type = TYPE_REF("Action") TYPE_OF UnitClass
@@ -21,17 +22,20 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final val PARSER_EMPTY     : Tree = REF("parse") DOT "empty"
 
   final val REQUEST_AS_JSON: Tree = REF("request") DOT "body" DOT "asJson"
+  final val REQUEST_AS_TEXT: Tree = REF("request") DOT "body" DOT "asText"
   final val REQUEST_EMPTY  : Tree = SOME(UNIT)
 
-  final def JSON_TO_TYPE(tpe: Type): Tree = WILDCARD DOT "as" APPLYTYPE tpe
-  final def TYPE_TO_JSON(tpe: Type): Tree = REF("Json") DOT "toJson" APPLYTYPE tpe
+  final def JSON_TO_TYPE(tpe: Type)(ident: Ident): Tree = ident DOT "as" APPLYTYPE tpe
+  final def TYPE_TO_JSON(tpe: Type)(ident: Ident): Tree = REF("Json") DOT "toJson" APPLYTYPE tpe APPLY ident
 
-  case class MimeTypeSupport(requestBody: Tree,
-                             deserialize: Type => Tree,
-                             serialize: Type => Tree)
+  case class MimeTypeSupport(mimeType: String,
+                             requestBody: Tree,
+                             deserialize: Type => Ident => Tree,
+                             serialize: Type => Ident => Tree)
 
   def getMimeTypeSupport: PartialFunction[String, MimeTypeSupport] = {
-    case MIME_TYPE_JSON => MimeTypeSupport(REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON)
+    case MIME_TYPE_JSON => MimeTypeSupport(MIME_TYPE_JSON, REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON)
+    case MIME_TYPE_TEXT => MimeTypeSupport(MIME_TYPE_TEXT, REQUEST_AS_TEXT, tpe => ident => tpe APPLY ident, _ => ident => ident DOT "toString()")
   }
 
   case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree])

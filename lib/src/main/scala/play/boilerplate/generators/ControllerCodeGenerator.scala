@@ -90,8 +90,8 @@ class ControllerCodeGenerator extends CodeGenerator {
 
     val methodName = operation.operationId
 
-    val supportedProduces = operation.produces.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
-    val bodyValues = generateValuesFromBody(operation.parameters, supportedProduces)
+    val supportedConsumes = operation.consumes.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
+    val bodyValues = generateValuesFromBody(operation.parameters, supportedConsumes)
     val methodParams = getMethodParameters(path, operation)
 
     val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
@@ -153,9 +153,9 @@ class ControllerCodeGenerator extends CodeGenerator {
         case bp: BodyParameter =>
           val tpe = getTypeSupport(bp.ref).tpe
           val resolvers = produces.map { support =>
-            support.requestBody INFIX "map" APPLY BLOCK {
-              support.deserialize(tpe)
-            }
+            support.requestBody INFIX "map" APPLY BLOCK(
+              LAMBDA(PARAM("body").tree) ==> support.deserialize(tpe)(REF("body"))
+            )
           }
           val valName = decapitalize(bp.name)
           val valDef = VAL(valName) :=
@@ -170,7 +170,9 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   final def generateAnswer(operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
-    val responseConsumes = operation.consumes.filterNot(_ == MIME_TYPE_JSON)
+    val supportedProduces = operation.produces.filterNot(_ == MIME_TYPE_JSON).flatMap(
+      mimeType => getMimeTypeSupport.lift(mimeType)
+    )
 
     val cases = for ((code, response) <- operation.responses) yield {
       val className = getResponseClassName(operation.operationId, code)
@@ -186,13 +188,13 @@ class ControllerCodeGenerator extends CodeGenerator {
       val bodySupport = response.schema.map(body => getTypeSupport(body))
       val tree = (bodySupport.map(_.tpe), Some(IntClass).filter(_ => code == DefaultResponse)) match {
         case (Some(body), Some(_)) =>
-          val default = status APPLY (TYPE_TO_JSON(body) APPLY REF("answer"))
+          val default = status APPLY TYPE_TO_JSON(body)(REF("answer"))
           CASE(REF(className) UNAPPLY (ID("answer"), ID("status"))) ==>
-            generateResponse(status, body, responseConsumes, default)
+            generateResponse(status, body, supportedProduces, default)
         case (Some(body), None) =>
-          val default = status APPLY (TYPE_TO_JSON(body) APPLY REF("answer"))
+          val default = status APPLY TYPE_TO_JSON(body)(REF("answer"))
           CASE(REF(className) UNAPPLY ID("answer")) ==>
-            generateResponse(status, body, responseConsumes, default)
+            generateResponse(status, body, supportedProduces, default)
         case (None, Some(_)) =>
           val default = status
           CASE(REF(className) UNAPPLY ID("status")) ==>
@@ -222,21 +224,18 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
-  private def generateResponse(status: Tree, tpe: Type, consumes: Iterable[String], default: Tree): Tree = {
+  private def generateResponse(status: Tree, tpe: Type, produces: Iterable[MimeTypeSupport], default: Tree): Tree = {
 
-    if (consumes.isEmpty) {
+    if (produces.isEmpty) {
       default
     } else {
-      val matchers = consumes.zipWithIndex.map { case (mimeType, idx) =>
-        val matcherDef = VAL(s"m$idx") := (REF("AcceptMatcher") APPLY LIT(mimeType))
-        mimeType -> matcherDef
+      val matchers = produces.zipWithIndex.map { case (support, idx) =>
+        val matcherDef = VAL(s"m$idx") := (REF("AcceptMatcher") APPLY LIT(support.mimeType))
+        support -> matcherDef
       }.toMap
-      val cases = matchers.map { case (mimeType, matcher) =>
+      val cases = matchers.map { case (support, matcher) =>
         CASE(REF(matcher.name) UNAPPLY WILDCARD) ==> {
-          val support = getMimeTypeSupport.applyOrElse(mimeType, {
-            throw new RuntimeException(s"Unsupported response mime-type ($mimeType).")
-          })
-          status APPLY (support.serialize(tpe) APPLY REF("answer"))
+          status APPLY support.serialize(tpe)(REF("answer"))
         }
       }.toSeq :+ {
         CASE(WILDCARD) ==> default
