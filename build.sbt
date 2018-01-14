@@ -89,6 +89,15 @@ lazy val plugin = project
   )
   .dependsOn(lib)
 
+lazy val `api-core` = Project("api-core", file("api-core"))
+  .settings(common: _ *)
+  .settings(
+    name := """play-boilerplate-api-core""",
+    scalaVersion := "2.11.12",
+    crossScalaVersions := List("2.11.12", "2.12.4"),
+    libraryDependencies += "com.typesafe" % "config" % "1.2.0" % "provided"
+  )
+
 def apiProject(suffix: String, playVersion: String): Project = {
   Project(s"api-$suffix", file(s"api-$suffix"))
     .settings(common: _ *)
@@ -103,6 +112,7 @@ def apiProject(suffix: String, playVersion: String): Project = {
         baseDirectory.value / ".." / "api" / "src" / "main" / "scala"
       }
     )
+    .dependsOn(`api-core`)
 }
 
 lazy val `api-play23` = apiProject("play23", "2.3.10")
@@ -117,7 +127,7 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(lib, plugin, `api-play23`, `api-play24`, `api-play25`, `api-play26`)
+  .aggregate(lib, plugin, `api-core`, `api-play23`, `api-play24`, `api-play25`, `api-play26`)
 
 publishArtifact := false
 
