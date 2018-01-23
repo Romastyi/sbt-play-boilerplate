@@ -152,7 +152,7 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val responses = for ((code, response) <- operation.responses.toSeq) yield {
       val className = getResponseClassName(operation.operationId, code)
-      val bodyType = response.schema.map(
+      val bodyType = response.content.map(
         body => getTypeSupport(body)(ctx.addCurrentPath(operation.operationId, "body"))
       )
       val params = bodyType.map(body => PARAM("body", body.tpe).tree).toSeq ++ {

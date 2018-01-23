@@ -5,13 +5,12 @@ case class Schema(host: String,
                   version: Option[String],
                   description: Option[String],
                   schemes: Iterable[String],
-                  consumes: Iterable[String],
-                  produces: Iterable[String],
                   paths: Iterable[Path],
                   security: Iterable[SecurityRequirement],
                   securitySchemas: Map[String, SecuritySchema],
                   definitions: Map[String, Model],
                   parameters: Map[String, Parameter],
+                  requestBodies: Map[String, Request],
                   responses: Map[ResponseCode, Response]
                  ) extends WithResolve[Schema] {
 
@@ -37,20 +36,16 @@ case class Schema(host: String,
   override def containsLazyRef: Boolean = {
     definitions.values.exists(_.containsLazyRef) ||
     parameters.values.exists(_.containsLazyRef) ||
+    requestBodies.values.exists(_.containsLazyRef) ||
     responses.values.exists(_.containsLazyRef)
   }
 
   override def resolve(resolver: DefinitionResolver): Schema = {
     copy(
-      definitions = markInterfaces(for ((name, model) <- definitions) yield {
-        name -> model.resolve(resolver)
-      }),
-      parameters = for ((name, param) <- parameters) yield {
-        name -> param.resolve(resolver)
-      },
-      responses = for ((code, resp) <- responses) yield {
-        code -> resp.resolve(resolver)
-      }
+      definitions   = markInterfaces(definitions.mapValues(_.resolve(resolver))),
+      parameters    = parameters.mapValues(_.resolve(resolver)),
+      requestBodies = requestBodies.mapValues(_.resolve(resolver)),
+      responses     = responses.mapValues(_.resolve(resolver))
     )
   }
 
@@ -65,14 +60,13 @@ object Schema {
       version  = None,
       description = None,
       schemes  = Nil,
-      consumes = Nil,
-      produces = Nil,
       paths    = Nil,
       security = Nil,
       securitySchemas = Map.empty,
-      definitions = Map.empty,
-      parameters  = Map.empty,
-      responses   = Map.empty
+      definitions     = Map.empty,
+      parameters      = Map.empty,
+      requestBodies   = Map.empty,
+      responses       = Map.empty
     )
   }
 

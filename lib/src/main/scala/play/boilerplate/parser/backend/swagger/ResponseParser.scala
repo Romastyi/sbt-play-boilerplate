@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 
 trait ResponseParser { this: PropertyParser =>
 
-  protected def parseResponse(schema: Schema, code: String, response: SwaggerResponse)
+  protected def parseResponse(schema: Schema, code: String, produces: Iterable[String], response: SwaggerResponse)
                              (implicit ctx: ParserContext): (ResponseCode, Response) = {
 
     val statusRx = """(\d+)""".r
@@ -26,11 +26,14 @@ trait ResponseParser { this: PropertyParser =>
         name -> getPropertyDef(schema, name, prop)
       }
 
+    val schemaDef = Option(response.getSchema).map { model =>
+      getPropertyDef(schema, code, model, canBeOption = false)
+    }
+
     respCode -> Response(
       code = respCode,
-      schema = Option(response.getSchema).map { model =>
-        getPropertyDef(schema, code, model, canBeOption = false)
-      },
+      description = Option(response.getDescription),
+      content = (produces zip schemaDef).toMap,
       headers = headers
     )
 

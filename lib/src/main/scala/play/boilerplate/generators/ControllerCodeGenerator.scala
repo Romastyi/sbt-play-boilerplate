@@ -90,13 +90,12 @@ class ControllerCodeGenerator extends CodeGenerator {
 
     val methodName = operation.operationId
 
-    val supportedConsumes = operation.consumes.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
-    val bodyValues = generateValuesFromBody(operation.parameters, supportedConsumes)
+    val bodyValues = generateValuesFromBody(operation.requestBody.map(_.content).getOrElse(Map.empty))
     val methodParams = getMethodParameters(path, operation)
 
     val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
 
-    val (actionType, parser) = if (operation.consumes.isEmpty || bodyValues.isEmpty) {
+    val (actionType, parser) = if (bodyValues.isEmpty) {
       (ACTION_EMPTY, PARSER_EMPTY)
     } else {
       (ACTION_ANYCONTENT, PARSER_ANYCONTENT)
@@ -143,12 +142,17 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
-  final def generateValuesFromBody(parameters: Iterable[Parameter], produces: Iterable[MimeTypeSupport])
+  final def generateValuesFromBody(requestContent: Map[String, Definition])
                                   (implicit ctx: GeneratorContext): Map[String, ValDef] = {
 
-    if (produces.isEmpty) {
+    val supportedConsumes = requestContent.keys.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
+
+    if (supportedConsumes.isEmpty) {
       Map.empty
     } else {
+      // TODO AST for request bodies
+
+/*
       parameters.collect {
         case bp: BodyParameter =>
           val tpe = getTypeSupport(bp.ref).tpe
@@ -164,6 +168,7 @@ class ControllerCodeGenerator extends CodeGenerator {
             }
           valName -> valDef
       }.toMap
+*/
     }
 
   }
@@ -185,7 +190,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       }.getOrElse {
         REF("Status") APPLY REF("status")
       }
-      val bodySupport = response.schema.map(body => getTypeSupport(body))
+      val bodySupport = response.content.map(body => getTypeSupport(body))
       val tree = (bodySupport.map(_.tpe), Some(IntClass).filter(_ => code == DefaultResponse)) match {
         case (Some(body), Some(_)) =>
           val default = status APPLY TYPE_TO_JSON(body)(REF("answer"))

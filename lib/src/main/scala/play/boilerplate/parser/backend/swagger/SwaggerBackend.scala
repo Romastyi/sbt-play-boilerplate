@@ -2,6 +2,7 @@ package play.boilerplate.parser.backend.swagger
 
 import io.swagger.models.Swagger
 import io.swagger.parser.SwaggerParser
+import play.boilerplate.generators.GeneratorUtils
 import play.boilerplate.parser.backend.{ParserBackend, ParserException}
 import play.boilerplate.parser.model._
 
@@ -31,7 +32,7 @@ object SwaggerBackend
 
   private def parseSwagger(swagger: Swagger): Schema = {
 
-    val schema = initSchema(swagger)
+    val (schema, ctx) = initSchema(swagger)
 
     var resolved = schema
 
@@ -40,14 +41,17 @@ object SwaggerBackend
     }
 
     resolved.copy(
-      paths = parsePaths(swagger, resolved)(ParserContext(false))
+      paths = parsePaths(swagger, resolved)(ctx.copy(refCanBeLazy = false))
     )
 
   }
 
-  private def initSchema(swagger: Swagger): Schema = {
+  private def initSchema(swagger: Swagger): (Schema, ParserContext) = {
 
     implicit val ctx: ParserContext = ParserContext.initial
+
+    val consumes = Option(swagger.getConsumes).map(_.asScala).getOrElse(GeneratorUtils.MIME_TYPE_JSON :: Nil)
+    val produces = Option(swagger.getProduces).map(_.asScala).getOrElse(GeneratorUtils.MIME_TYPE_JSON :: Nil)
 
     val definitions = Option(swagger.getDefinitions)
       .map(_.asScala.toMap)
@@ -68,7 +72,7 @@ object SwaggerBackend
       .map(_.asScala.toMap)
       .getOrElse(Map.empty)
       .flatMap { case (code, response) =>
-        Option(response).map(parseResponse(Schema.empty, code, _))
+        Option(response).map(parseResponse(Schema.empty, code, produces, _))
       }
 
     val securitySchemas = Option(swagger.getSecurityDefinitions)
@@ -78,21 +82,22 @@ object SwaggerBackend
         Option(schema).map(name -> parseSecuritySchema(name, _))
       }
 
-    Schema(
+    val result = Schema(
       host     = Option(swagger.getHost).getOrElse("localhost"),
       basePath = Option(swagger.getBasePath).getOrElse("/"),
       version  = Option(swagger.getInfo).flatMap(i => Option(i.getVersion)),
       description = Option(swagger.getInfo).flatMap(i => Option(i.getDescription)),
       schemes  = Option(swagger.getSchemes).map(_.asScala).getOrElse(Nil).map(_.toValue),
-      consumes = Option(swagger.getConsumes).map(_.asScala).getOrElse(Nil),
-      produces = Option(swagger.getProduces).map(_.asScala).getOrElse(Nil),
       paths    = Nil,
       security = parseSecurityRequirement(swagger),
       securitySchemas = securitySchemas,
       definitions = definitions,
       parameters  = parameters,
+      requestBodies = Map.empty,
       responses   = responses
     )
+
+    (result, ctx.copy(consumes = consumes, produces = produces))
 
   }
 

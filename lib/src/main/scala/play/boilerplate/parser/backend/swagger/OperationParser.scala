@@ -24,21 +24,37 @@ trait OperationParser { this: ParameterParser with ResponseParser =>
                              operation: SwaggerOperation)
                             (implicit ctx: ParserContext): Operation = {
 
+    val operationId = Option(operation.getOperationId).filter(_.nonEmpty).getOrElse {
+      throw ParserException(s"Attribute 'operationId' id not specified for path '$pathUrl' and method '${httpMethod.toString.toLowerCase()}'.")
+    }
+    val schemes  = Option(operation.getSchemes).map(_.asScala.map(_.toValue)).getOrElse(schema.schemes)
+    val consumes = Option(operation.getConsumes).map(_.asScala).getOrElse(ctx.consumes)
+    val produces = Option(operation.getProduces).map(_.asScala).getOrElse(ctx.produces)
+    val parameters = findObjectQueryParameters(Option(operation.getParameters).map(_.asScala).getOrElse(Nil).map(parseParameter(schema, _)))
+    val (body, others) = parameters.partition {
+      case _: BodyParameter => true
+      case _ => false
+    }
+    val requestBody = body.headOption.map { parameter =>
+      Request(
+        description = None,
+        content = (consumes zip Seq(parameter.ref)).toMap
+      )
+    }
+    val responses = Option(operation.getResponses).map(_.asScala.toMap.flatMap {
+      case (code, response) => Option(response).map(parseResponse(schema, code, produces, _))
+    }).getOrElse(schema.responses)
+
     Operation(
-      httpMethod = httpMethod,
-      operationId = Option(operation.getOperationId).filter(_.nonEmpty).getOrElse {
-        throw ParserException(s"Attribute 'operationId' id not specified for path '$pathUrl' and method '${httpMethod.toString.toLowerCase()}'.")
-      },
-      parameters = findObjectQueryParameters(Option(operation.getParameters).map(_.asScala).getOrElse(Nil).map(parseParameter(schema, _))),
-      schemes    = Option(operation.getSchemes).map(_.asScala.map(_.toValue)).getOrElse(schema.schemes),
-      consumes   = Option(operation.getConsumes).map(_.asScala).getOrElse(schema.consumes),
-      produces   = Option(operation.getProduces).map(_.asScala).getOrElse(schema.produces),
-      responses  = Option(operation.getResponses).map(_.asScala.toMap.flatMap {
-        case (code, response) => Option(response).map(parseResponse(schema, code, _))
-      }).getOrElse(schema.responses),
+      httpMethod  = httpMethod,
+      operationId = operationId,
+      parameters  = others,
+      schemes     = schemes,
+      requestBody = requestBody,
+      responses   = responses,
       description = Option(operation.getDescription),
       security    = parseSecurityRequirement(operation),
-      deprecated = Option(operation.isDeprecated).exists(_ == true)
+      deprecated  = Option(operation.isDeprecated).exists(_ == true)
     )
 
   }

@@ -154,7 +154,7 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val opType = operation.httpMethod.toString.toLowerCase
-    val wsRequestWithAccept = REF("request") DOT "withHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT("application/json")))
+    val wsRequestWithAccept = REF("request") DOT "withHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT(GeneratorUtils.MIME_TYPE_JSON)))
     val wsRequestWithHeaderParams = if (headerParams.isEmpty) {
       wsRequestWithAccept
     } else {
@@ -211,7 +211,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val cases = for ((code, response) <- responses) yield {
       val className = getResponseClassName(operation.operationId, code)
-      val bodySupport = response.schema.map(body => getTypeSupport(body))
+      val bodySupport = response.content.map(body => getTypeSupport(body))
       val bodyParam = bodySupport.map { body =>
         REF("parseResponseAsJson") APPLYTYPE body.tpe APPLY responseVal
       }

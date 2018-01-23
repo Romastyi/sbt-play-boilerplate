@@ -32,7 +32,7 @@ trait ReferenceParser { self =>
 
   class LazyReferencesResolver(schema: Schema) extends DefinitionResolver {
     override def resolveByRef(ref: String): Definition = {
-      self.findReferenceDef(schema, ref)(ParserContext(false))
+      self.findReferenceDef(schema, ref)(ParserContext(refCanBeLazy = false, consumes = Nil, produces = Nil))
     }
   }
 
