@@ -29,6 +29,7 @@ trait CustomTypeSupport {
 object CustomTypeSupport {
 
   import treehugger.forest._
+  import definitions._
   import treehuggerDSL._
 
   type ComplexTypeSupport = PartialFunction[(ComplexDefinition, DefinitionContext), TypeSupport]
@@ -57,24 +58,24 @@ object CustomTypeSupport {
 
   def jodaLocalDateSupport: CustomTypeSupport = simple { _ => {
     case _: DateDefinition =>
-      val LocalDateClass = definitions.getClass("org.joda.time.LocalDate")
+      val LocalDateClass = RootClass.newClass("org.joda.time.LocalDate")
       TypeSupport(LocalDateClass, LocalDateClass, Nil)
   }}
 
   def jodaDateTimeSupport(pattern: String = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"): CustomTypeSupport = simple { _ => {
     case _: DateTimeDefinition =>
-      val DateTimeClass  = definitions.getClass("org.joda.time.DateTime")
+      val DateTimeClass = RootClass.newClass("org.joda.time.DateTime")
       val defs = TypeSupportDefs(
         symbol = DateTimeClass,
         definition = EmptyTree,
         jsonReads  = {
-          val readsType = definitions.getClass("Reads") TYPE_OF DateTimeClass
+          val readsType = RootClass.newClass("Reads") TYPE_OF DateTimeClass
           VAL(DateTimeClass.nameString + "Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
             REF("Reads") DOT "jodaDateReads" APPLY LIT(pattern)
           }
         },
         jsonWrites = {
-          val writesType = definitions.getClass("Writes") TYPE_OF DateTimeClass
+          val writesType = RootClass.newClass("Writes") TYPE_OF DateTimeClass
           VAL(DateTimeClass.nameString + "Writes", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
             REF("Writes") DOT "jodaDateWrites" APPLY LIT(pattern)
           }
@@ -88,8 +89,8 @@ object CustomTypeSupport {
   def emptyObjectAsJsObject: CustomTypeSupport = complex { _ => {
     case (obj: ObjectDefinition, _) if obj.properties.isEmpty =>
       TypeSupport(
-        tpe = definitions.getClass("play.api.libs.json.JsObject"),
-        fullQualified = definitions.getClass("play.api.libs.json.JsObject"),
+        tpe = RootClass.newClass("play.api.libs.json.JsObject"),
+        fullQualified = RootClass.newClass("play.api.libs.json.JsObject"),
         defs = Nil
       )
   }}

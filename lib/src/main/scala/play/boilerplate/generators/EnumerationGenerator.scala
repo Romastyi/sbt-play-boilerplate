@@ -20,7 +20,7 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
   def generateEnumReads(enumClass: Symbol): ValDef = {
 
     val enumValueType = enumerationValueType(enumClass)
-    val readsType = definitions.getClass("Reads") TYPE_OF enumValueType
+    val readsType = RootClass.newClass("Reads") TYPE_OF enumValueType
 
     VAL(s"${enumClass.nameString}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
       ANONDEF(readsType) := BLOCK (
@@ -54,7 +54,7 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
   def generateEnumWrites(enumClass: Symbol): ValDef = {
 
     val enumValueType = enumerationValueType(enumClass)
-    val writesType = definitions.getClass("Writes") TYPE_OF enumValueType
+    val writesType = RootClass.newClass("Writes") TYPE_OF enumValueType
 
     VAL(s"${enumClass.nameString}Writes", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
       ANONDEF(writesType) :=
@@ -75,7 +75,7 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
   def generateEnumBindable(enumClass: Symbol, baseClassName: String, classSuffix: String): Tree = {
 
     val enumValue = enumerationValueType(enumClass)
-    val ExceptionClass = definitions.getClass("Exception")
+    val ExceptionClass = RootClass.newClass("Exception")
 
     val bindable = (TYPE_REF(baseClassName) DOT "Parsing") APPLYTYPE enumValue APPLY(
       enumClass DOT "withName",
@@ -102,12 +102,12 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
 
   override def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport = {
     val enumClassName = fullClassName.split('.').last
-    val enumClass = definitions.getClass(enumClassName)
+    val enumClass = RootClass.newClass(enumClassName)
     TypeSupport(
       tpe = enumerationValueType(enumClass),
-      fullQualified = enumerationValueType(definitions.getClass(fullClassName)),
+      fullQualified = enumerationValueType(RootClass.newClass(fullClassName)),
       defs = generateEnumDefs(enumClass, items),
-      constructor = l => definitions.getClass(fullClassName) DOT "withName" APPLY l
+      constructor = l => RootClass.newClass(fullClassName) DOT "withName" APPLY l
     )
   }
 
@@ -116,7 +116,7 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
 object VanillaEnumerations extends CommonEnumerations {
 
   override def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
-    val EnumerationClass = definitions.getClass("Enumeration")
+    val EnumerationClass = RootClass.newClass("Enumeration")
     OBJECTDEF(enumClass) withParents EnumerationClass := BLOCK {
       items.map { item =>
         VAL(item.capitalize) := REF("Value") APPLY LIT(item)
@@ -129,7 +129,7 @@ object VanillaEnumerations extends CommonEnumerations {
 object SealedTraitEnumerations extends CommonEnumerations {
 
   override def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
-    val NoSuchElementExceptionClass = definitions.getClass("NoSuchElementException")
+    val NoSuchElementExceptionClass = RootClass.newClass("NoSuchElementException")
     val valueTpe = TYPE_REF("Value")
     val traitDef: Tree = TRAITDEF("Value").withFlags(Flags.SEALED) withParents orderedType(valueTpe) := BLOCK(
       DEF("id", IntClass).empty,

@@ -54,7 +54,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val interfaces = complex.interfaces.map(
       _.baseDef match {
         case obj: ObjectDefinition =>
-          val symbol = definitions.getClass(composeInterfaceName(obj.name))
+          val symbol = RootClass.newClass(composeInterfaceName(obj.name))
           val params = generateClassParams(obj.properties)(ctx.addCurrentPath(composeClassName(obj.name)))
           (symbol, params)
         case other =>
@@ -91,15 +91,15 @@ trait ObjectSupport { this: DefinitionsSupport =>
                      context: DefinitionContext)
                     (implicit ctx: GeneratorContext): TypeSupport = {
     val objectClassName = fullClassName.split('.').last
-    val objectClass = definitions.getClass(objectClassName)
+    val objectClass = RootClass.newClass(objectClassName)
     TypeSupport(
       tpe = objectClass,
-      fullQualified = definitions.getClass(fullClassName),
+      fullQualified = RootClass.newClass(fullClassName),
       defs = if (context.withoutDefinition) {
         Nil
       } else {
         val interface = if (ctx.needInterface) {
-          Some(generateInterfaceDefs(definitions.getClass(composeInterfaceName(objectClassName)), params))
+          Some(generateInterfaceDefs(RootClass.newClass(composeInterfaceName(objectClassName)), params))
         } else {
           None
         }
@@ -271,7 +271,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
                          (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
-    val readsType  = definitions.getClass("Reads") TYPE_OF modelType
+    val readsType  = RootClass.newClass("Reads") TYPE_OF modelType
 
     val modelReads = VAL(s"${modelName}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
       if (caseObject) {
@@ -288,7 +288,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
                           (implicit ctx: GeneratorContext): Tree = {
 
-    val writesType = definitions.getClass("Writes") TYPE_OF modelType
+    val writesType = RootClass.newClass("Writes") TYPE_OF modelType
 
     val modelWrites = VAL(s"${modelName}Writes", writesType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
       ANONDEF(writesType) :=
@@ -305,9 +305,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val caseObject = properties.isEmpty
     val modelName  = objectClass.nameString
     val modelType  = if (caseObject) TYPE_SINGLETON(TYPE_REF(modelName)) else TYPE_REF(modelName)
-    val queryBindableType = definitions.getClass("QueryStringBindable") TYPE_OF modelType
+    val queryBindableType = RootClass.newClass("QueryStringBindable") TYPE_OF modelType
 
-    val ExceptionClass = definitions.getClass("Exception")
+    val ExceptionClass = RootClass.newClass("Exception")
 
     if (caseObject) {
       val bindable = REF("QueryStringBindable") DOT "Parsing" APPLYTYPE modelType APPLY(
@@ -320,7 +320,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
       OBJECTDEF(s"${modelName}QueryBindable").withParents(bindable).withFlags(Flags.IMPLICIT).tree
     } else {
       VAL(s"${modelName}QueryBindable", queryBindableType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
-        definitions.getClass("play.boilerplate.api.common.Binders") DOT "queryStringStrict"
+        RootClass.newClass("play.boilerplate.api.common.Binders") DOT "queryStringStrict"
       }
     }
 

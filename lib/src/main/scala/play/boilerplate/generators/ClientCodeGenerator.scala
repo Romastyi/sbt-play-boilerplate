@@ -142,7 +142,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)
 
-    val RuntimeExceptionClass = definitions.getClass("java.lang.RuntimeException")
+    val RuntimeExceptionClass = RootClass.newClass("java.lang.RuntimeException")
 
     val ERROR = BLOCK(
       REF("handler") DOT "onError" APPLY(LIT(operation.operationId), REF("cause")),
@@ -242,9 +242,9 @@ class ClientCodeGenerator extends CodeGenerator {
 
   final def generateParseResponseAsJson(implicit ctx: GeneratorContext): Tree = {
 
-    val TryClass = definitions.getClass("scala.util.Try")
-    val JsonParseExceptionClass = definitions.getClass("com.fasterxml.jackson.core.JsonParseException")
-    val JsResultExceptionClass  = definitions.getClass("JsResultException")
+    val TryClass = RootClass.newClass("scala.util.Try")
+    val JsonParseExceptionClass = RootClass.newClass("com.fasterxml.jackson.core.JsonParseException")
+    val JsResultExceptionClass  = RootClass.newClass("JsResultException")
     val A = RootClass.newAliasType("A")
 
     DEF("parseResponseAsJson", A)
@@ -340,7 +340,7 @@ class ClientCodeGenerator extends CodeGenerator {
   }
 
   final def generateErrors: Seq[Tree] = {
-    val NoStackTraceClass = definitions.getClass("scala.util.control.NoStackTrace")
+    val NoStackTraceClass = RootClass.newClass("scala.util.control.NoStackTrace")
     val JsonParsingError = CASECLASSDEF("JsonParsingError")
       .withParams(PARAM("error", StringClass).tree, PARAM("body", StringClass).tree)
       .withParents(ThrowableClass, NoStackTraceClass) :=

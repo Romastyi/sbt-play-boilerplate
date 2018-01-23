@@ -8,10 +8,10 @@ trait BaseTypesSupport {
   import definitions._
   import treehuggerDSL._
 
-  private lazy val OffsetDateTimeClass = definitions.getClass("java.time.OffsetDateTime")
-  private lazy val LocalDateClass      = definitions.getClass("java.time.LocalDate")
-  private lazy val UUIDClass           = definitions.getClass("java.util.UUID")
-  private lazy val FileClass           = definitions.getClass("java.io.File")
+  private lazy val OffsetDateTimeClass = RootClass.newClass("java.time.OffsetDateTime")
+  private lazy val LocalDateClass      = RootClass.newClass("java.time.LocalDate")
+  private lazy val UUIDClass           = RootClass.newClass("java.util.UUID")
+  private lazy val FileClass           = RootClass.newClass("java.io.File")
 
   def getSimpleTypeSupport(definition: SimpleDefinition): TypeSupport = {
     definition match {
