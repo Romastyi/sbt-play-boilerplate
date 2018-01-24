@@ -70,13 +70,13 @@ object CustomTypeSupport {
         definition = EmptyTree,
         jsonReads  = {
           val readsType = RootClass.newClass("Reads") TYPE_OF DateTimeClass
-          VAL(DateTimeClass.nameString + "Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+          VAL("DateTimeReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
             REF("Reads") DOT "jodaDateReads" APPLY LIT(pattern)
           }
         },
         jsonWrites = {
           val writesType = RootClass.newClass("Writes") TYPE_OF DateTimeClass
-          VAL(DateTimeClass.nameString + "Writes", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+          VAL("DateTimeWrites", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
             REF("Writes") DOT "jodaDateWrites" APPLY LIT(pattern)
           }
         },
