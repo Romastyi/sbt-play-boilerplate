@@ -167,6 +167,10 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
 
   def doRoutesUrl(basePath: String, path: Iterable[PathPart], operation: Operation): String = {
+
+    val p1 = if (basePath.startsWith("/")) basePath else "/" + basePath
+    val p2 = if (p1.endsWith("/")) p1.dropRight(1) else p1
+
     val parts = path.collect {
       case StaticPart(str) =>
         str
@@ -179,7 +183,9 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
           case _ => ":" + name
         }
     }.toSeq
-    cleanDuplicateSlash((basePath +: parts).mkString("/"))
+
+    cleanDuplicateSlash((p2 +: parts).mkString("/"))
+
   }
 
 }

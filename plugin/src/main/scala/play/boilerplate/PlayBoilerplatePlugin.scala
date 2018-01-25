@@ -74,12 +74,16 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
     val injectedController: CodeGenerator = InjectedControllerCodeGenerator
 
-    val dynamicRoutes: CodeGenerator = DynamicRoutesCodeGenerator
+    def dynamicRoutes(prefix: String = "/"): CodeGenerator = DynamicRoutesCodeGenerator(prefix)
 
-    val injectedRoutes: CodeGenerator = InjectedRoutesCodeGenerator
+    val defaultDynamicRoutes: CodeGenerator = dynamicRoutes()
 
-    def staticRoutes(implemntationSuffix: String): CodeGenerator = {
-      SingletonRoutesCodeGenerator(implemntationSuffix)
+    def injectedRoutes(prefix: String = "/"): CodeGenerator = InjectedRoutesCodeGenerator(prefix)
+
+    val defaultInjectedRoutes: CodeGenerator = injectedRoutes()
+
+    def staticRoutes(implSuffix: String, prefix: String = "/"): CodeGenerator = {
+      SingletonRoutesCodeGenerator(implSuffix, prefix)
     }
 
   }
@@ -241,7 +245,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
   def ImplProject(name: String, dir: File, api: Project)(PlayVersion: String): Project = Project(name, dir)
     .settings(
-      Keys.generators := Seq(Generators.controller, Generators.injectedRoutes),
+      Keys.generators := Seq(Generators.controller, Generators.defaultInjectedRoutes),
       Keys.injectionProvider := GuiceInjectionProvider,
       Keys.generatorsSources += {
         val dependencies = (exportedProducts in Compile in api).value

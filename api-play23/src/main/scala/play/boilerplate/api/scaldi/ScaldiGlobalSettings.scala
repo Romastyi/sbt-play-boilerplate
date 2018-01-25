@@ -6,6 +6,8 @@ package play.boilerplate.api.scaldi
  */
 
 import play.api.Application
+import play.api.mvc.{Handler, RequestHeader}
+import play.boilerplate.api.server.dsl.InjectedRoutes
 import scaldi.{Injector, LifecycleManager, NilInjector}
 import scaldi.play.ScaldiSupport
 
@@ -34,6 +36,21 @@ trait ScaldiGlobalSettings extends ScaldiSupport {
     loadedInjector.foreach(_.destroy())
     loadedInjector = None
     super.onStop(app)
+  }
+
+  // Routes injection support
+  private lazy val routes: Seq[InjectedRoutes] = injectAllOfType[InjectedRoutes]
+
+  protected def handlerFor(request: RequestHeader): Option[Handler] = {
+    if (routes.isEmpty) {
+      None
+    } else {
+      routes.map(_.routes.routes).reduceLeft(_ orElse _).lift(request)
+    }
+  }
+
+  override def onRouteRequest(request: RequestHeader): Option[Handler] = {
+    super.onRouteRequest(request) orElse handlerFor(request)
   }
 
 }

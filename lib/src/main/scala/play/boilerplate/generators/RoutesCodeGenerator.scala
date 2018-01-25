@@ -2,17 +2,19 @@ package play.boilerplate.generators
 
 import play.boilerplate.parser.model._
 
-trait RoutesCodeGenerator extends CodeGenerator {
+abstract class RoutesCodeGenerator(prefix: String) extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
+    val defaultPrefix = prefix + schema.basePath
+
     val routes = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield composeRoutes(schema.basePath, path, operation)
+    } yield composeRoutes(defaultPrefix, path, operation)
 
     ResourceFile(
       fileName = ctx.settings.routesFileName,
@@ -50,14 +52,14 @@ trait RoutesCodeGenerator extends CodeGenerator {
 
 }
 
-object DynamicRoutesCodeGenerator extends RoutesCodeGenerator {
+final case class DynamicRoutesCodeGenerator(prefix: String = "/") extends RoutesCodeGenerator(prefix) {
   override def generateFullClassName(className: String): String = "@" + className
 }
 
-object InjectedRoutesCodeGenerator extends RoutesCodeGenerator {
+final case class InjectedRoutesCodeGenerator(prefix: String = "/") extends RoutesCodeGenerator(prefix) {
   override def generateFullClassName(className: String): String = className
 }
 
-final case class SingletonRoutesCodeGenerator(implSuffix: String = "Impl") extends RoutesCodeGenerator {
+final case class SingletonRoutesCodeGenerator(implSuffix: String = "Impl", prefix: String = "/") extends RoutesCodeGenerator(prefix) {
   override def generateFullClassName(className: String): String = className + implSuffix
 }
