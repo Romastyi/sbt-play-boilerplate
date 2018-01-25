@@ -19,12 +19,11 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.api.http.HeaderNames"), "_"),
       IMPORT(REF("play.api.libs.ws"), "_"),
       IMPORT(REF("play.api.libs.json"), "_"),
-      IMPORT(REF("play.api.libs.concurrent.Execution.Implicits"), "_"),
       IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("QueryStringBindable"), "_"),
       IMPORT(REF("PathBindable"), "_"),
       IMPORT(REF("play.boilerplate.api.client.dsl"), "Compat", "ServiceLocator"),
-      IMPORT(REF("scala.concurrent"), "Future")
+      IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
       ctx.settings.injectionProvider.imports ++
@@ -40,7 +39,8 @@ class ClientCodeGenerator extends CodeGenerator {
     Seq(
       InjectionProvider.Dependency("handler", TYPE_REF(innerClassMember("RequestHandler")), Some(innerClassMember("DefaultHandler"))),
       InjectionProvider.Dependency("ws", TYPE_REF("WSClient"), isImplicit = true),
-      InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator"), isImplicit = true)
+      InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator"), isImplicit = true),
+      InjectionProvider.Dependency("ec", TYPE_REF("ExecutionContext"), isImplicit = true)
     )
   }
 

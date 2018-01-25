@@ -20,9 +20,14 @@ trait ScaldiGlobalSettings extends ScaldiSupport {
     throw new IllegalStateException("No injector found. Is application running?")
   }
 
+  private def createInjector(currentApplication: Application): Injector with LifecycleManager = {
+    ScaldiBuilder.loadModules(currentApplication.configuration, currentApplication.classloader) ::
+      new ScaldiPlayModule(currentApplication)
+  }
+
   override def onStart(app: Application): Unit = {
     super.onStart(app)
-    loadedInjector = Some(ScaldiBuilder.loadModules(app.configuration, app.classloader))
+    loadedInjector = Some(createInjector(app))
   }
 
   override def onStop(app: Application): Unit = {

@@ -18,7 +18,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       IMPORT(REF(ctx.settings.serviceClassName), "_"),
       IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("play.api.libs.json"), "_"),
-      IMPORT(REF("play.api.libs.concurrent.Execution.Implicits"), "_")
+      IMPORT(REF("scala.concurrent"), "ExecutionContext")
     ) ++
       ctx.settings.securityProvider.controllerImports ++
       ctx.settings.injectionProvider.imports ++
@@ -26,7 +26,10 @@ class ControllerCodeGenerator extends CodeGenerator {
   }
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
-    Seq(InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName))) ++
+    Seq(
+      InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName)),
+      InjectionProvider.Dependency("ec", TYPE_REF("ExecutionContext"), isImplicit = true)
+    ) ++
       ctx.settings.securityProvider.controllerDependencies
   }
 

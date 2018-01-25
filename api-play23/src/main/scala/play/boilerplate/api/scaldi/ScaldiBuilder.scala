@@ -34,12 +34,12 @@ object ScaldiBuilder {
     val includes = configuration.getStringSeq("play.modules.enabled").getOrElse(Seq.empty)
     val excludes = configuration.getStringSeq("play.modules.disabled").getOrElse(Seq.empty)
 
-    val moduleClassNames = includes.toSet -- excludes
+    val moduleClassNames = includes.filterNot(excludes.contains)
 
     moduleClassNames.map { className =>
       constructModule(configuration, className,
         () => classLoader.loadClass(className).asInstanceOf[Class[Any]])
-    }.toSeq
+    }
 
   }
 

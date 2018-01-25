@@ -11,13 +11,10 @@ object GuiceInjectionProvider extends DefaultInConstructor {
   }
 
   override def classDefModifier(classDef: ClassDef, dependencies: Seq[Dependency]): String = {
-    val tree = super.classDefModifier(classDef, dependencies.map(
-      _.copy(defaultValue = None, isImplicit = false)
-    ))
+    val tree = super.classDefModifier(classDef, dependencies)
     if (dependencies.nonEmpty) {
       val className = classDef.name.toString()
-      tree
-        .replaceFirst(s"$className\\s*\\(", className + " @Inject() (")
+      tree.replaceFirst(s"$className\\s*\\(", className + " @Inject() (")
     } else {
       tree
     }
