@@ -12,7 +12,7 @@ Moreover, you can do it directly within an `sbt` project.
 ## Compatibility
 
 This code generator is designed specifically for [Swagger 2.0 specification](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md). Moreover, it relies on [Play! Framework](http://www.playframework.com) for Json marshalling/unmarshalling, server- and client-side code.
-Generated server- and client-side code is compatible with 2.5.x, 2.4.x, 2.3.x _Play! Framework_ versions. 
+Generated server- and client-side code is compatible with 2.6.x, 2.5.x, 2.4.x, 2.3.x _Play! Framework_ versions. 
 
 ## Install
 
