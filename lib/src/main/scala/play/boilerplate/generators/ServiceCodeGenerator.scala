@@ -92,7 +92,7 @@ class ServiceCodeGenerator extends CodeGenerator {
     val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
     val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
 
-    val methodTree = DEF("onError", FUTURE(StringClass))
+    val methodTree = DEF("onError", FUTURE(TYPE_REF(UnexpectedResult)))
       .withParams(operationId, cause) :=
       BLOCK(
         VAL("message") := INFIX_CHAIN("+",
@@ -100,7 +100,7 @@ class ServiceCodeGenerator extends CodeGenerator {
           REF("cause") DOT "getMessage"
         ),
         ctx.settings.loggerProvider.error(REF("message"), REF("cause")),
-        REF("Future") DOT "successful" APPLY REF("message")
+        REF("Future") DOT "successful" APPLY (REF(UnexpectedResult) APPLY (REF("body") := REF("message")))
       )
 
     methodTree.withDoc(
@@ -119,23 +119,18 @@ class ServiceCodeGenerator extends CodeGenerator {
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
     } yield generateOperationResults(operation, models)
 
-    val traits = operationResults.filterNot(_.withDefault).map(_.traitName)
+    val traits = operationResults.map(_.traitName)
 
-    val UnexpectedResultDef = if (traits.nonEmpty) {
-      Some(CASECLASSDEF(UnexpectedResult)
-        .withParams(
-          PARAM("body", StringClass) := LIT(""),
-          PARAM("status", IntClass) := LIT(200)
-        )
-        .withParents(traits)
-        .withFlags(Flags.FINAL)
-        .empty
+    val UnexpectedResultDef = CASECLASSDEF(UnexpectedResult)
+      .withParams(
+        PARAM("body", StringClass) := LIT(""),
+        PARAM("status", IntClass) := LIT(500)
       )
-    } else {
-      None
-    }
+      .withParents(traits)
+      .withFlags(Flags.FINAL)
+      .empty
 
-    operationResults.flatMap(_.tree) ++ UnexpectedResultDef
+    operationResults.flatMap(_.tree) ++ Seq(UnexpectedResultDef)
 
   }
 

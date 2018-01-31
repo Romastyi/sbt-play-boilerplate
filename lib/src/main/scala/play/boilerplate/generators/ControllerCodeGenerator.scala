@@ -110,15 +110,14 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val answerMethod = generateAnswer(operation)
-    val ANSWER = methodCall INFIX "collect" APPLY answerMethod.tree
 
-    val ERROR =
-      REF("service") DOT "onError" APPLY (LIT(methodName), REF("cause")) INFIX "map" APPLY BLOCK {
-        LAMBDA(PARAM("errAnswer").tree) ==> REF("InternalServerError") APPLY REF("errAnswer")
-      }
+    val ERROR = REF("service") DOT "onError" APPLY (LIT(methodName), REF("cause"))
 
-    val ANSWER_WITH_EXCEPTION_HANDLE = ANSWER INFIX "recoverWith" APPLY BLOCK {
+    val ANSWER_WITH_EXCEPTION_HANDLE = methodCall INFIX "recoverWith" APPLY BLOCK {
       CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
+    } INFIX "collect" APPLY answerMethod.tree INFIX "recover" APPLY BLOCK {
+      CASE(REF("cause") withType RootClass.newClass("Throwable")) ==>
+        REF("InternalServerError") APPLY (REF("cause") DOT "getMessage")
     }
 
     val methodValues =
@@ -210,17 +209,11 @@ class ControllerCodeGenerator extends CodeGenerator {
       Method(tree, bodySupport.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
 
-    val UnexpectedResultCase = if (operation.responses.keySet(DefaultResponse)) {
-      None
-    } else {
-      Some(
-        CASE(REF(UnexpectedResult) UNAPPLY(ID("answer"), ID("status"))) ==>
-          REF("Status") APPLY REF("status") APPLY REF("answer")
-      )
-    }
+    val UnexpectedResultCase = CASE(REF(UnexpectedResult) UNAPPLY(ID("answer"), ID("status"))) ==>
+      REF("Status") APPLY REF("status") APPLY REF("answer")
 
     val tree = BLOCK {
-      cases.map(_.tree) ++ UnexpectedResultCase
+      cases.map(_.tree) ++ Seq(UnexpectedResultCase)
     }
 
     Method(tree, cases.flatMap(_.implicits))

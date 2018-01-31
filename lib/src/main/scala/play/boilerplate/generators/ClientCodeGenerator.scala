@@ -142,13 +142,9 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)
 
-    val RuntimeExceptionClass = RootClass.newClass("java.lang.RuntimeException")
-
     val ERROR = BLOCK(
       REF("handler") DOT "onError" APPLY(LIT(operation.operationId), REF("cause")),
-      REF("self") DOT "onError" APPLY (LIT(operation.operationId), REF("cause")) INFIX "map" APPLY BLOCK {
-        LAMBDA(PARAM("errAnswer").tree) ==> THROW(NEW(RuntimeExceptionClass, REF("errAnswer"), REF("cause")))
-      }
+      REF("self") DOT "onError" APPLY (LIT(operation.operationId), REF("cause"))
     )
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
