@@ -5,6 +5,7 @@ sbt "project lib" "+ publishSigned"
 sbt "project plugin" "^ publishSigned"
 
 sbt "project api-core"   "+ publishSigned" \
+    "project api-consul" "+ publishSigned" \
     "project api-play23" "+ publishSigned" \
     "project api-play24" "+ publishSigned" \
     "project api-play25" "+ publishSigned" \

@@ -98,6 +98,16 @@ lazy val `api-core` = Project("api-core", file("api-core"))
     libraryDependencies += "com.typesafe" % "config" % "1.2.0" % "provided"
   )
 
+lazy val `api-consul` = Project("api-consul", file("api-consul"))
+  .settings(common: _ *)
+  .settings(
+    name := """play-boilerplate-api-consul""",
+    scalaVersion := "2.11.12",
+    crossScalaVersions := List("2.11.12", "2.12.4"),
+    libraryDependencies += "com.ecwid.consul" % "consul-api" % "1.2.4"
+  )
+  .dependsOn(`api-core`)
+
 def apiProject(suffix: String, playVersion: String): Project = {
   Project(s"api-$suffix", file(s"api-$suffix"))
     .settings(common: _ *)
