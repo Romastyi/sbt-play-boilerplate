@@ -1,4 +1,4 @@
-package play.boilerplate.api.scaldi
+package play.boilerplate.api.server.scaldi
 
 import akka.actor.ActorSystem
 import play.api.Application
@@ -10,7 +10,7 @@ import scaldi.Module
 import scala.concurrent.ExecutionContext
 
 class ScaldiPlayModule(app: Application, errorHandler: HttpErrorHandler) extends Module {
-  bind [ActorSystem] identifiedBy 'playActorSystem to Akka.system(app)
+  bind [ActorSystem] identifiedBy 'playActorSystem to Akka.system(app) destroyWith (_.shutdown())
   bind [ExecutionContext] identifiedBy 'playExecutionContext to Implicits.defaultContext
   bind [HttpErrorHandler] identifiedBy 'errorHandler to errorHandler
 }

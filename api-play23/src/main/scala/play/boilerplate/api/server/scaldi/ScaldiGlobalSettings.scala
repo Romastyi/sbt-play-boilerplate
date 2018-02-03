@@ -1,4 +1,4 @@
-package play.boilerplate.api.scaldi
+package play.boilerplate.api.server.scaldi
 
 /**
  * Created by romastyi on 17.01.16.
@@ -9,8 +9,8 @@ import play.api.Application
 import play.api.http.Status._
 import play.api.mvc.{Handler, RequestHeader, Result}
 import play.boilerplate.api.server.dsl.{HttpErrorHandler, InjectedRoutes}
-import scaldi.{Injector, LifecycleManager, NilInjector}
 import scaldi.play.ScaldiSupport
+import scaldi.{Injector, LifecycleManager, NilInjector}
 
 import scala.concurrent.Future
 
@@ -60,23 +60,16 @@ trait ScaldiGlobalSettings extends ScaldiSupport {
   // HttpErrorHandler
   private var httpErrorHandler: Option[HttpErrorHandler] = None
 
-  private val defaultHttpErrorHandler = {
-    val onBadRequest: (RequestHeader, String) => Future[Result] = super.onBadRequest
-    val onError: (RequestHeader, Throwable) => Future[Result] = super.onError
-    new HttpErrorHandler {
-      override def onClientError(request: RequestHeader, statusCode: Int, message: String): Future[Result] = {
-        onBadRequest(request, message)
-      }
-      override def onServerError(request: RequestHeader, exception: Throwable): Future[Result] = {
-        onError(request, exception)
-      }
-    }
-  }
+  private val defaultHttpErrorHandler = HttpErrorHandler.defaultHttpErrorHandler(this)
 
   def errorHandler: HttpErrorHandler = httpErrorHandler.getOrElse(defaultHttpErrorHandler)
 
   override def onBadRequest(request: RequestHeader, error: String): Future[Result] = {
     errorHandler.onClientError(request, BAD_REQUEST, error)
+  }
+
+  override def onHandlerNotFound(request: RequestHeader): Future[Result] = {
+    errorHandler.onClientError(request, NOT_FOUND)
   }
 
   override def onError(request: RequestHeader, ex: Throwable): Future[Result] = {

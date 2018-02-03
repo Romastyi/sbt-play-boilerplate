@@ -18,7 +18,7 @@ Generated server- and client-side code is compatible with 2.6.x, 2.5.x, 2.4.x, 2
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.0.2-SNAPSHOT")`
+`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.1.1-SNAPSHOT")`
 
 Enable it in your `build.sbt` like this:
 

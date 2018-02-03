@@ -1,7 +1,9 @@
 package play.boilerplate.api.server.dsl
 
-import play.api.{Configuration, PlayException}
-import play.api.mvc.{RequestHeader, Result}
+import play.api.{Configuration, GlobalSettings, PlayException}
+import play.api.http.Status._
+import play.api.mvc.Results._
+import play.api.mvc.{RequestHeader, Result, Results}
 
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -33,6 +35,25 @@ trait HttpErrorHandler {
 }
 
 object HttpErrorHandler {
+
+  private [server] def defaultHttpErrorHandler(global: GlobalSettings): HttpErrorHandler = {
+    new HttpErrorHandler {
+      override def onClientError(request: RequestHeader, statusCode: Int, message: String): Future[Result] = {
+        statusCode match {
+          case BAD_REQUEST => global.onBadRequest(request, message)
+          case FORBIDDEN => Future.successful(Forbidden(views.html.defaultpages.unauthorized()))
+          case NOT_FOUND => global.onHandlerNotFound(request)
+          case clientError if statusCode >= 400 && statusCode < 500 =>
+            Future.successful(Results.Status(clientError)(views.html.defaultpages.badRequest(request, message)))
+          case _ =>
+            throw new IllegalArgumentException(s"onClientError invoked with non client error status code $statusCode: $message")
+        }
+      }
+      override def onServerError(request: RequestHeader, exception: Throwable): Future[Result] = {
+        global.onError(request, exception)
+      }
+    }
+  }
 
   def loadFromConfiguration(configuration: Configuration, classloader: ClassLoader): Option[HttpErrorHandler] = {
 

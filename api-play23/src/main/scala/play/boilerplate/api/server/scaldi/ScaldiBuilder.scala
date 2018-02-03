@@ -1,4 +1,4 @@
-package play.boilerplate.api.scaldi
+package play.boilerplate.api.server.scaldi
 
 import java.lang.reflect.Constructor
 
