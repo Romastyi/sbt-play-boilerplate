@@ -1,6 +1,6 @@
 package play.boilerplate.api.server.dsl
 
-import play.api.{Configuration, GlobalSettings, PlayException}
+import play.api.{Configuration, PlayException}
 import play.api.http.Status._
 import play.api.mvc.Results._
 import play.api.mvc.{RequestHeader, Result, Results}
