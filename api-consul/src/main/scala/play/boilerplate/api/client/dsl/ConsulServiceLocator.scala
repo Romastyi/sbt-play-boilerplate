@@ -9,7 +9,7 @@ import java.util.concurrent.ThreadLocalRandom
 
 import com.ecwid.consul.v1.catalog.model.CatalogService
 import com.ecwid.consul.v1.{ConsulClient, QueryParams}
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.{Map, TrieMap}
@@ -82,8 +82,25 @@ final class ConsulServiceLocator(client: ConsulClient, config: ConsulConfig)
 
 object ConsulServiceLocator {
 
+  val defaultConfig: Config = ConfigFactory.parseString(
+    """consul {
+      |  # hostname or IP-address for the Consul agent
+      |  agent-hostname = localhost
+      |
+      |  # port for the Consul agent
+      |  agent-port = 8500
+      |
+      |  # for example: http or https
+      |  uri-scheme = http
+      |
+      |  # valid routing policies: first, random, round-robin
+      |  routing-policy = round-robin
+      |}""".stripMargin
+  )
+
   def instance(config: Config)(implicit cb: CircuitBreakersPanel): ServiceLocator = {
-    val consulConfig = ConsulConfig.fromConfig(config)
+    val efficientConfig = Option(config).map(_.withFallback(defaultConfig)).getOrElse(defaultConfig)
+    val consulConfig = ConsulConfig.fromConfig(efficientConfig)
     val consulClient = new ConsulClient(consulConfig.agentHostname, consulConfig.agentPort)
     new ConsulServiceLocator(consulClient, consulConfig)
   }

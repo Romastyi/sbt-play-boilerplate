@@ -95,7 +95,7 @@ lazy val `api-core` = Project("api-core", file("api-core"))
     name := """play-boilerplate-api-core""",
     scalaVersion := "2.11.12",
     crossScalaVersions := List("2.11.12", "2.12.4"),
-    libraryDependencies += "com.typesafe" % "config" % "1.2.0" % "provided"
+    libraryDependencies += "com.typesafe" % "config" % "1.3.1"
   )
 
 lazy val `api-consul` = Project("api-consul", file("api-consul"))
