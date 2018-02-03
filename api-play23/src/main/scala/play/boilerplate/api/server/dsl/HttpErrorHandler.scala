@@ -36,7 +36,11 @@ trait HttpErrorHandler {
 
 object HttpErrorHandler {
 
-  private [server] def defaultHttpErrorHandler(global: GlobalSettings): HttpErrorHandler = {
+  private [server] case class GlobalHandlers(onBadRequest: (RequestHeader, String) => Future[Result],
+                                             onHandlerNotFound: RequestHeader => Future[Result],
+                                             onError: (RequestHeader, Throwable) => Future[Result])
+
+  private [server] def defaultHttpErrorHandler(global: GlobalHandlers): HttpErrorHandler = {
     new HttpErrorHandler {
       override def onClientError(request: RequestHeader, statusCode: Int, message: String): Future[Result] = {
         statusCode match {

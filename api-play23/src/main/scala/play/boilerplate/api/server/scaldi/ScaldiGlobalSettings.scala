@@ -60,7 +60,11 @@ trait ScaldiGlobalSettings extends ScaldiSupport {
   // HttpErrorHandler
   private var httpErrorHandler: Option[HttpErrorHandler] = None
 
-  private val defaultHttpErrorHandler = HttpErrorHandler.defaultHttpErrorHandler(this)
+  private val defaultHttpErrorHandler = HttpErrorHandler.defaultHttpErrorHandler(HttpErrorHandler.GlobalHandlers(
+    onBadRequest = super.onBadRequest,
+    onHandlerNotFound = super.onHandlerNotFound,
+    onError = super.onError
+  ))
 
   def errorHandler: HttpErrorHandler = httpErrorHandler.getOrElse(defaultHttpErrorHandler)
 
