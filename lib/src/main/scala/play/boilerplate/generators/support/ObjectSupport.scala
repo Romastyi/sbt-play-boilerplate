@@ -123,12 +123,12 @@ trait ObjectSupport { this: DefinitionsSupport =>
     property match {
       case OptionDefinition(_, base) =>
         collectPropertyConstraints(base)
-      case ArrayDefinition(_, items, _, minItems, maxItems) =>
+      case ArrayDefinition(_, _, items, _, minItems, maxItems) =>
         val list = ListConstraint(collectPropertyConstraints(items), getTypeSupport(items).tpe)
         list +: (minItems.map(MaxLength).toList ++ maxItems.map(MinLength).toList)
       case RefDefinition(_, ref) =>
         collectPropertyConstraints(ref)
-      case MapDefinition(_, additionalProperties) =>
+      case MapDefinition(_, _, additionalProperties) =>
         MapConstraint(collectPropertyConstraints(additionalProperties), getTypeSupport(additionalProperties).tpe) :: Nil
       case _: EmailDefinition =>
         Email :: Nil

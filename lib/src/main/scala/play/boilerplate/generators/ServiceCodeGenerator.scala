@@ -66,7 +66,8 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
-    val securityParams = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq).securityParamsDef
+    val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
+    val securityParams = actionSecurity.securityParamsDef
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
@@ -74,10 +75,13 @@ class ServiceCodeGenerator extends CodeGenerator {
       .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams)
       .empty
 
+    val paramDocs = (bodyParams.values ++ methodParams.values).map(_.doc) ++
+      actionSecurity.securityDocs.map { case (param, description) =>
+        DocTag.Param(param, description)
+      }
     val tree = methodTree.withDoc(
-      s"""${operation.description.getOrElse("")}
-         |
-         """.stripMargin
+      Seq(operation.description.getOrElse("") + "\n "),
+      paramDocs.toIndexedSeq: _ *
     )
 
     val additionalDef = bodyParams.values.flatMap(_.additionalDef) ++
@@ -104,7 +108,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       )
 
     methodTree.withDoc(
-      "Error handler",
+      "Error handler\n ",
       DocTag.Param("operationId", "Operation where error was occurred"),
       DocTag.Param("cause"      , "An occurred error")
     )

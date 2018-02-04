@@ -14,11 +14,12 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
 
     import io.swagger.models.{parameters => swagger}
 
-    Option(parameter).getOrElse {
+    val out = Option(parameter).getOrElse {
       throw ParserException("Trying to resolve null parameter.")
     } match {
       case param: swagger.BodyParameter =>
-        BodyParameterFactory.build(parseModel(schema, getParamName(parameter), param.getSchema))
+        val body = parseModel(schema, getParamName(parameter), param.getSchema)
+        BodyParameterFactory.build(body, Option(param.getName))
       case param: swagger.HeaderParameter =>
         parseTypedParameter(schema, ASP(param), HeaderParameterFactory)
       case param: swagger.PathParameter =>
@@ -32,6 +33,8 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       case param =>
         throw ParserException(s"Unsupported parameter type (${param.getClass.getName}).")
     }
+
+    out.withDesc(Option(parameter.getDescription))
 
   }
 
@@ -97,15 +100,16 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       factory.build(OptionDefinition(
         name = parameter.getName,
         base = parseTypedParameter(schema, parameter, factory, canBeOption = false)
-      ))
+      ), Option(parameter.underlying.getName))
     } else if (parameter.isArray) {
       factory.build(ArrayDefinition(
         name = parameter.getName,
+        description = Option(parameter.underlying.getDescription),
         items = getPropertyDef(schema, parameter.getName, parameter.getItems, canBeOption = false),
         uniqueItems = Option(parameter.underlying.isUniqueItems).exists(_ == true),
         minItems = Option(parameter.underlying.getMinItems).map(Integer2int),
         maxItems = Option(parameter.underlying.getMaxItems).map(Integer2int)
-      ))
+      ), Option(parameter.underlying.getName))
     } else if (parameter.isEnum) {
       factory.build(EnumDefinition(
         items = parameter.getEnum,
@@ -115,7 +119,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         readOnly = Option(parameter.underlying.isReadOnly).exists(_ == true),
         allowEmptyValue = Option(parameter.underlying.getAllowEmptyValue).exists(_ == true),
         default = None
-      ))
+      ), Option(parameter.underlying.getName))
     } else {
       getPropertyFactoryDef(schema, parameter.getName, parameter.toProperty, factory, canBeOption)
     }
@@ -155,7 +159,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     }
 
     groupedParams.map { case (objectName, objectDef) =>
-      new QueryParameter(objectName, objectDef)
+      new QueryParameter(objectName, None, objectDef)
     } ++ otherParams
 
   }

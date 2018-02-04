@@ -3,17 +3,19 @@ package play.boilerplate.parser.model
 sealed trait Definition extends WithResolve[Definition] {
   def name: String
   def baseDef: Definition = this
+  def description: Option[String]
   def modifyName(f: String => String): Definition
   override def resolve(resolver: DefinitionResolver): Definition = this
 }
 
 trait DefinitionFactory[D <: Definition] {
-  def build(definition: Definition): D
+  def build(definition: Definition, name: Option[String] = None): D
 }
 
 final case class OptionDefinition(override val name: String,
                                   base: Definition) extends Definition {
   override val baseDef: Definition = base.baseDef
+  override val description: Option[String] = base.description orElse baseDef.description
   override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def modifyName(f: String => String): Definition = {
     copy(name = f(name), base = base.modifyName(f))
@@ -24,6 +26,7 @@ final case class OptionDefinition(override val name: String,
 }
 
 final case class ArrayDefinition(override val name: String,
+                                 override val description: Option[String],
                                  items: Definition,
                                  uniqueItems: Boolean,
                                  minItems: Option[Int],
@@ -42,6 +45,7 @@ final case class ArrayDefinition(override val name: String,
 case class RefDefinition(override val name: String,
                          ref: Definition) extends Definition {
   override val baseDef: Definition = ref.baseDef
+  override def description: Option[String] = ref.description
   override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def modifyName(f: String => String): Definition = {
     copy(name = f(name), ref = ref.modifyName(f))
@@ -53,6 +57,7 @@ case class RefDefinition(override val name: String,
 
 final case class LazyRefDefinition(ref: String) extends Definition {
   override val name: String = ""
+  override val description: Option[String] = None
   override val containsLazyRef: Boolean = true
   override def modifyName(f: String => String): Definition = this
   override def resolve(resolver: DefinitionResolver): Definition = {
@@ -61,6 +66,7 @@ final case class LazyRefDefinition(ref: String) extends Definition {
 }
 
 final case class MapDefinition(override val name: String,
+                               override val description: Option[String],
                                additionalProperties: Definition
                               ) extends Definition {
   override val baseDef: Definition = additionalProperties.baseDef
@@ -79,7 +85,6 @@ sealed trait DefinitionImpl extends Definition {
   //def required: Boolean
   //def position: Int <-- Property
   def title: Option[String]
-  def description: Option[String]
   //def example: Object
   //def externalDocs: ExternalDocs <-- Model
   //def reference: String <-- Model

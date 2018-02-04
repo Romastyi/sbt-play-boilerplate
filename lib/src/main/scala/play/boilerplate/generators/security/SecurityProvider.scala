@@ -32,6 +32,7 @@ object SecurityProvider {
     def actionMethod(parser: Tree): Tree
     def securityValues: Map[String, ValDef]
     def securityParams: Map[String, Type]
+    def securityDocs: Map[String, String]
     def securityParamsDef: Iterable[ValDef] = securityParams.map {
       case (name, tpe) => PARAM(name, tpe).empty
     }
@@ -41,6 +42,7 @@ object SecurityProvider {
     override def actionMethod(parser: Tree): Tree = REF("Action.async") APPLY parser
     override val securityValues: Map[String, ValDef] = Map.empty
     override val securityParams: Map[String, Type] = Map.empty
+    override val securityDocs: Map[String, String] = Map.empty
   }
 
   def default: SecurityProvider = new SecurityProvider {

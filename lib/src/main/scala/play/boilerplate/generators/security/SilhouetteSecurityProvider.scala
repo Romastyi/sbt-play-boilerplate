@@ -27,17 +27,20 @@ abstract class SilhouetteSecurityProvider(securitySchema: String) extends Defaul
   override def composeActionSecurity(scopes: Seq[SecurityScope]): ActionSecurity = {
 
     val authority = parseAuthority(scopes)
-    val userValue: ValDef = VAL("user", userType) := REF("request") DOT "identity"
+    val userValue: ValDef = VAL("logged", userType) := REF("request") DOT "identity"
 
     new ActionSecurity {
       override def actionMethod(parser: Tree): Tree = {
         REF("silhouette") DOT "SecuredAction" APPLY authority DOT "async" APPLY parser
       }
       override val securityParams: Map[String, Type] = {
-        Map("user" -> userType)
+        Map("logged" -> userType)
       }
       override val securityValues: Map[String, ValDef] = {
-        Map("user" -> userValue)
+        Map("logged" -> userValue)
+      }
+      override val securityDocs: Map[String, String] = {
+        Map("logged" -> "Current logged user")
       }
     }
 

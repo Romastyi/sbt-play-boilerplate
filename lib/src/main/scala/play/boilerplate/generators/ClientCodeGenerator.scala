@@ -190,10 +190,13 @@ class ClientCodeGenerator extends CodeGenerator {
         }
       }
 
+    val paramDocs = (bodyParams.values ++ methodParams.values).map(_.doc) ++
+      actionSecurity.securityDocs.map { case (param, description) =>
+        DocTag.Param(param, description)
+      }
     val tree = methodTree.withDoc(
-      s"""${operation.description.getOrElse("")}
-         |
-         """.stripMargin
+      Seq(operation.description.getOrElse("") + "\n "),
+      paramDocs.toIndexedSeq: _ *
     )
 
     val implicits = methodParams.values.flatMap(_.implicits).toSeq
@@ -337,7 +340,7 @@ class ClientCodeGenerator extends CodeGenerator {
       )
 
     methodTree.withDoc(
-      "Error handler",
+      "Error handler\n ",
       DocTag.Param("operationId", "Operation where error was occurred"),
       DocTag.Param("cause"      , "An occurred error")
     )

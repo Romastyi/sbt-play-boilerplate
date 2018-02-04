@@ -38,7 +38,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     case MIME_TYPE_TEXT => MimeTypeSupport(MIME_TYPE_TEXT, REQUEST_AS_TEXT, tpe => ident => tpe APPLY ident, _ => ident => ident DOT "toString()")
   }
 
-  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree])
+  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], doc: DocElement)
 
   def getBodyParameters(path: Path, operation: Operation)
                        (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
@@ -48,7 +48,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         val support = getTypeSupport(param.ref)
         val valDef = PARAM(paramName, support.tpe).empty
         val fullQualified = PARAM(paramName, support.fullQualified).empty
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil, None)
+        val doc = DocTag.Param(paramName, param.description.getOrElse(""))
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil, None, doc)
     }.toMap
   }
 
@@ -79,7 +80,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
           case None => PARAM(paramName, support.tpe).empty
         }
         val fullQualified = PARAM(paramName, support.fullQualified).empty
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply))
+        val doc = DocTag.Param(paramName, param.description.getOrElse(""))
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), doc)
       }
       .toMap
   }

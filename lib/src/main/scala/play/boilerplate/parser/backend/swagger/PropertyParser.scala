@@ -195,6 +195,7 @@ trait PropertyParser { this: ReferenceParser =>
         }
         MapDefinition(
           name = name,
+          description = Option(prop.getDescription),
           additionalProperties = getPropertyDef(schema, name, additionalProperties, canBeOption = false)
         )
       case prop: ArrayProperty =>
@@ -204,6 +205,7 @@ trait PropertyParser { this: ReferenceParser =>
         }
         ArrayDefinition(
           name = name,
+          description = Option(prop.getDescription),
           items = getPropertyDef(schema, name, items, canBeOption = false),
           uniqueItems = Option(prop.getUniqueItems).exists(_ == true),
           minItems = Option(prop.getMinItems).map(Integer2int),

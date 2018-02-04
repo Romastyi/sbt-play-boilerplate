@@ -26,14 +26,14 @@ trait DefinitionsSupport
         } else {
           support
         }
-      case ArrayDefinition(_, items, _, _, _) =>
+      case ArrayDefinition(_, _, items, _, _, _) =>
         val support = getTypeSupport(items, context)
         support.copy(
           tpe = ListClass TYPE_OF support.tpe,
           fullQualified = ListClass TYPE_OF support.fullQualified,
           constructor = l => LIST(support.constructor(l))
         )
-      case MapDefinition(_, additionalProperties) =>
+      case MapDefinition(_, _, additionalProperties) =>
         val support = getTypeSupport(additionalProperties, context)
         support.copy(
           tpe = ImmutableMapClass TYPE_OF (StringClass, support.tpe),

@@ -5,7 +5,7 @@ import play.boilerplate.generators.injection.InjectionProvider.Dependency
 import treehugger.forest._
 import treehuggerDSL._
 
-abstract class Play2AuthSecurityProvider(user: String,
+abstract class Play2AuthSecurityProvider(userModel: String,
                                          authConfig: String,
                                          securitySchema: String,
                                          imports: Seq[String] = Nil)
@@ -33,18 +33,21 @@ abstract class Play2AuthSecurityProvider(user: String,
       authority => REF("AuthorityKey") INFIX "->" APPLY authority
     )
 
-    val userType: Type = TYPE_REF(user)
-    val userValue: ValDef = VAL("user", userType) := (REF("loggedIn") APPLY REF("request"))
+    val userType: Type = TYPE_REF(userModel)
+    val userValue: ValDef = VAL("logged", userType) := (REF("loggedIn") APPLY REF("request"))
 
     new ActionSecurity {
       override def actionMethod(parser: Tree): Tree = {
         REF("AsyncStack") APPLY (parser +: authority)
       }
       override val securityParams: Map[String, Type] = {
-        Map("user" -> userType)
+        Map("logged" -> userType)
       }
       override val securityValues: Map[String, ValDef] = {
-        Map("user" -> userValue)
+        Map("logged" -> userValue)
+      }
+      override val securityDocs: Map[String, String] = {
+        Map("logged" -> "Current logged user")
       }
     }
 

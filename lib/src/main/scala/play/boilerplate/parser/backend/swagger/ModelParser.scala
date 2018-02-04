@@ -85,6 +85,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
       case ArrayModel(m, items) =>
         ModelFactory.build(ArrayDefinition(
           name = modelName,
+          description = Option(m.getDescription),
           items = getPropertyDef(schema, modelName, items, canBeOption = false),
           uniqueItems = false,
           minItems = Option(m.getMinItems).map(Integer2int),

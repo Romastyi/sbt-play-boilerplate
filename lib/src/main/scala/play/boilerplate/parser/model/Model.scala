@@ -18,7 +18,7 @@ final class Model(name: String, ref: Definition, val isInterface: Boolean) exten
 }
 
 object ModelFactory extends DefinitionFactory[Model] {
-  override def build(definition: Definition): Model = {
-    new Model(definition.name, definition, isInterface = false)
+  override def build(definition: Definition, name: Option[String]): Model = {
+    new Model(name getOrElse definition.name, definition, isInterface = false)
   }
 }
