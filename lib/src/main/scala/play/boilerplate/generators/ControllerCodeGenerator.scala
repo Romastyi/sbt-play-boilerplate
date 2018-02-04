@@ -176,22 +176,22 @@ class ControllerCodeGenerator extends CodeGenerator {
       mimeType => getMimeTypeSupport.lift(mimeType)
     )
 
-    val cases = for ((code, response) <- operation.responses) yield {
-      val className = getResponseClassName(operation.operationId, code)
-      val statusCode = Some(code).flatMap {
+    val cases = for ((responseCode, response) <- operation.responses) yield {
+      val className = getResponseClassName(operation.operationId, responseCode)
+      val statusCode = Some(responseCode).flatMap {
         case DefaultResponse => None
-        case StatusResponse(c) => Some(c)
+        case StatusResponse(code) => Some(code)
       }
       val status: Tree = statusCode.flatMap(getStatusByCode).map {
         name => REF(name)
       }.getOrElse {
-        REF("Status") APPLY REF("status")
+        REF("Status") APPLY REF("code")
       }
       val bodySupport = response.schema.map(body => getTypeSupport(body))
-      val tree = (bodySupport.map(_.tpe), Some(IntClass).filter(_ => code == DefaultResponse)) match {
+      val tree = (bodySupport.map(_.tpe), Some(IntClass).filter(_ => responseCode == DefaultResponse)) match {
         case (Some(body), Some(_)) =>
           val default = status APPLY TYPE_TO_JSON(body)(REF("answer"))
-          CASE(REF(className) UNAPPLY (ID("answer"), ID("status"))) ==>
+          CASE(REF(className) UNAPPLY (ID("answer"), ID("code"))) ==>
             generateResponse(status, body, supportedProduces, default)
         case (Some(body), None) =>
           val default = status APPLY TYPE_TO_JSON(body)(REF("answer"))
@@ -199,7 +199,7 @@ class ControllerCodeGenerator extends CodeGenerator {
             generateResponse(status, body, supportedProduces, default)
         case (None, Some(_)) =>
           val default = status
-          CASE(REF(className) UNAPPLY ID("status")) ==>
+          CASE(REF(className) UNAPPLY ID("code")) ==>
             generateResponse(status, UnitClass, Nil, default)
         case (None, None) =>
           val default = status
@@ -209,8 +209,9 @@ class ControllerCodeGenerator extends CodeGenerator {
       Method(tree, bodySupport.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
 
-    val UnexpectedResultCase = CASE(REF(UnexpectedResult) UNAPPLY(ID("answer"), ID("status"))) ==>
-      REF("Status") APPLY REF("status") APPLY REF("answer")
+    val UnexpectedResultCase = CASE(REF(UnexpectedResult) UNAPPLY(ID("answer"), ID("code"), ID("contentType"))) ==>
+      REF("Status") APPLY REF("code") APPLY REF("answer") DOT "withHeaders" APPLY
+      INFIX_CHAIN("->", ID("CONTENT_TYPE"), REF("contentType"))
 
     val tree = BLOCK {
       cases.map(_.tree) ++ Seq(UnexpectedResultCase)

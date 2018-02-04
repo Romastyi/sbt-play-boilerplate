@@ -123,8 +123,9 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val UnexpectedResultDef = CASECLASSDEF(UnexpectedResult)
       .withParams(
-        PARAM("body", StringClass) := LIT(""),
-        PARAM("status", IntClass) := LIT(500)
+        PARAM("body", StringClass).empty,
+        PARAM("code", IntClass) := LIT(500),
+        PARAM("contentType", StringClass) := LIT(MIME_TYPE_TEXT)
       )
       .withParents(traits)
       .withFlags(Flags.FINAL)
@@ -134,7 +135,7 @@ class ServiceCodeGenerator extends CodeGenerator {
 
   }
 
-  case class Responses(traitName: String, tree: Seq[Tree], withDefault: Boolean)
+  case class Responses(traitName: String, tree: Seq[Tree])
 
   def generateOperationResults(operation: Operation, models: Map[String, Model])
                               (implicit ctx: GeneratorContext): Responses = {
@@ -143,7 +144,10 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val sealedTrait = TRAITDEF(traitName).withFlags(Flags.SEALED).empty
 
-    val withDefault = operation.responses.keySet(DefaultResponse)
+    val hasOk = operation.responses.keys.exists {
+      case StatusResponse(code) if codeIsOk(code) => true
+      case _ => false
+    }
 
     val responses = for ((code, response) <- operation.responses.toSeq) yield {
       val className = getResponseClassName(operation.operationId, code)
@@ -153,7 +157,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       val params = bodyType.map(body => PARAM("body", body.tpe).tree).toSeq ++ {
         code match {
           case DefaultResponse =>
-            Seq(PARAM("status", IntClass) := LIT(200))
+            Seq(PARAM("code", IntClass) := LIT(if (hasOk) 500 else 200))
           case _ =>
             Nil
         }
@@ -166,7 +170,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       bodyType.map(_.definitions).getOrElse(Nil) :+ classDef
     }
 
-    Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq, withDefault)
+    Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq)
 
   }
 

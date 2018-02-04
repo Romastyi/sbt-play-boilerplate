@@ -130,6 +130,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     500 -> "InternalServerError"
   )
 
+  def codeIsOk(code: Int): Boolean = code >= 200 && code < 300
+
   /*
    * final case class UnexpectedResult(body: String = "", code: Int = 200) extends ...
    */
@@ -144,7 +146,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   def getResponseClassName(operationId: String, responseCode: ResponseCode): String = {
     operationId.capitalize + (responseCode match {
       case DefaultResponse => "Default"
-      case StatusResponse(status) => getStatusByCode(status).getOrElse(status.toString)
+      case StatusResponse(code) => getStatusByCode(code).getOrElse(code.toString)
     }).capitalize
   }
 

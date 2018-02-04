@@ -63,8 +63,12 @@ class ClientCodeGenerator extends CodeGenerator {
         BLOCK {
           filterNonEmptyTree(
             methods.flatMap(_.implicits).toIndexedSeq ++
-              methods.map(_.tree).toIndexedSeq
-          ) :+ generateParseResponseAsJson
+            methods.map(_.tree).toIndexedSeq
+          ) ++ Seq(
+            generateContentTypeMethod,
+            generateParseResponseAsJson,
+            generateOrErrorMethod
+          )
         }
 
       // --- DI
@@ -205,17 +209,17 @@ class ClientCodeGenerator extends CodeGenerator {
       case _ => 1
     }
 
-    val cases = for ((code, response) <- responses) yield {
-      val className = getResponseClassName(operation.operationId, code)
+    val cases = for ((responseCode, response) <- responses) yield {
+      val className = getResponseClassName(operation.operationId, responseCode)
       val bodySupport = response.schema.map(body => getTypeSupport(body))
       val bodyParam = bodySupport.map { body =>
         REF("parseResponseAsJson") APPLYTYPE body.tpe APPLY responseVal
       }
-      val tree = code match {
+      val tree = responseCode match {
         case DefaultResponse =>
-          CASE(ID("status")) ==> (REF(className) APPLY (bodyParam.toSeq :+ REF("status")))
-        case StatusResponse(status) =>
-          CASE(LIT(status)) ==> bodyParam.map(bp => REF(className) APPLY bp).getOrElse(REF(className))
+          CASE(ID("code")) ==> (REF(className) APPLY (bodyParam.toSeq :+ REF("code")))
+        case StatusResponse(code) =>
+          CASE(LIT(code)) ==> bodyParam.map(bp => REF(className) APPLY bp).getOrElse(REF(className))
       }
       (tree, bodySupport.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
@@ -224,7 +228,9 @@ class ClientCodeGenerator extends CodeGenerator {
       None
     } else {
       Some(
-        CASE(ID("status")) ==> (REF(UnexpectedResult) APPLY (responseVal DOT "body", REF("status")))
+        CASE(ID("code")) ==> {
+          REF(UnexpectedResult) APPLY(responseVal DOT "body", REF("code"), REF("contentType") APPLY responseVal)
+        }
       )
     }
 
@@ -234,6 +240,15 @@ class ClientCodeGenerator extends CodeGenerator {
 
     Method(tree, cases.flatMap(_._2))
 
+  }
+
+  final def generateContentTypeMethod(implicit ctx: GeneratorContext): Tree = {
+    DEF("contentType", StringClass)
+      .withFlags(Flags.PROTECTED)
+      .withParams(PARAM("response", TYPE_REF("WSResponse")).empty) :=
+      BLOCK {
+        REF("response") DOT "header" APPLY LIT("Content-Type") DOT "getOrElse" APPLY LIT(MIME_TYPE_TEXT)
+      }
   }
 
   final def generateParseResponseAsJson(implicit ctx: GeneratorContext): Tree = {
@@ -246,18 +261,86 @@ class ClientCodeGenerator extends CodeGenerator {
     DEF("parseResponseAsJson", A)
       .withFlags(Flags.PROTECTED)
       .withTypeParams(TYPEVAR(A))
-      .withParams(PARAM("resp", TYPE_REF("WSResponse")).empty)
+      .withParams(PARAM("response", TYPE_REF("WSResponse")).empty)
       .withParams(PARAM("rs", TYPE_REF("Reads") TYPE_OF A).withFlags(Flags.IMPLICIT).empty) :=
       BLOCK {
-        TryClass APPLY (REF("resp") DOT "json" DOT "as" APPLYTYPE A) DOT "recover" APPLY BLOCK(
+        val responseVal = REF("response")
+        val responseJson = responseVal DOT "json"
+        val responseBody = responseVal DOT "body"
+        val responseCode = responseVal DOT "status"
+        val responseContentType = REF("contentType") APPLY responseVal
+        TryClass APPLY (responseJson DOT "as" APPLYTYPE A) DOT "recover" APPLY BLOCK(
           CASE(ID("cause") withType JsonParseExceptionClass) ==>
-            THROW(REF("JsonParsingError") APPLY (REF("cause") DOT "getMessage", REF("resp") DOT "body")),
+            THROW(REF("JsonParsingError") APPLY (REF("cause"), responseBody, responseCode, responseContentType)),
           CASE(ID("cause") withType JsResultExceptionClass) ==>
-            THROW(REF("JsonValidationError") APPLY (REF("cause") DOT "getMessage", REF("resp") DOT "json")),
+            THROW(REF("JsonValidationError") APPLY (REF("cause"), responseJson, responseCode, responseContentType)),
           CASE(REF("cause")) ==>
-            THROW(REF("UnexpectedResponseError") APPLY (REF("resp") DOT "status", REF("resp") DOT "body", REF("cause")))
+            THROW(REF("UnexpectedResponseError") APPLY (REF("cause"), responseBody, responseCode, responseContentType))
         ) DOT "get"
       }
+
+  }
+
+  def generateOrErrorMethod(implicit ctx: GeneratorContext): Tree = {
+
+    val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
+    val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
+
+    val exceptionsCase = REF("cause") MATCH(
+      CASE(REF("JsonParsingError") UNAPPLY(ID("cause"), ID("body"), ID("code"), ID("contentType"))) ==> BLOCK(
+        {
+          val message = INTERP(StringContext_s,
+            LIT("JSON parsing error (operationId: "), REF("operationId"), LIT("): "),
+            REF("cause") DOT "getMessage", LIT("\nOriginal body: "), REF("body")
+          )
+          ctx.settings.loggerProvider.error(message, REF("cause"))
+        },
+        REF("Future") DOT "successful" APPLY (REF(UnexpectedResult) APPLY (REF("body"), REF("code"), REF("contentType")))
+      ),
+      CASE(REF("JsonValidationError") UNAPPLY(ID("cause"), ID("body"), ID("code"), ID("contentType"))) ==> BLOCK(
+        {
+          val message = INTERP(StringContext_s,
+            LIT("JSON validation error (operationId: "), REF("operationId"), LIT("): "),
+            REF("cause") DOT "getMessage", LIT("\nOriginal body: "), REF("body")
+          )
+          ctx.settings.loggerProvider.error(message, REF("cause"))
+        },
+        REF("Future") DOT "successful" APPLY (REF(UnexpectedResult) APPLY (REF("body") DOT "toString", REF("code"), REF("contentType")))
+      ),
+      CASE(REF("UnexpectedResponseError") UNAPPLY(ID("cause"), ID("body"), ID("code"), ID("contentType"))) ==> BLOCK(
+        {
+          val message = INTERP(StringContext_s,
+            LIT("Unexpected response (operationId: "), REF("operationId"), LIT("): "),
+            REF("code"), LIT(" "), REF("body")
+          )
+          ctx.settings.loggerProvider.error(message, REF("cause"))
+        },
+        REF("Future") DOT "successful" APPLY (REF(UnexpectedResult) APPLY (REF("body"), REF("code"), REF("contentType")))
+      ),
+      CASE(REF("cause")) ==> BLOCK(
+        {
+          val message = INTERP(StringContext_s,
+            LIT("Unexpected error (operationId: "), REF("operationId"), LIT("): "),
+            REF("cause") DOT "getMessage"
+          )
+          ctx.settings.loggerProvider.error(message, REF("cause"))
+        },
+        REF("Future") DOT "failed" APPLY REF("cause")
+      )
+    )
+
+    val methodTree = DEF("onError", FUTURE(TYPE_REF(UnexpectedResult)))
+      .withFlags(Flags.OVERRIDE)
+      .withParams(operationId, cause) :=
+      BLOCK(
+        exceptionsCase
+      )
+
+    methodTree.withDoc(
+      "Error handler",
+      DocTag.Param("operationId", "Operation where error was occurred"),
+      DocTag.Param("cause"      , "An occurred error")
+    )
 
   }
 
@@ -338,39 +421,54 @@ class ClientCodeGenerator extends CodeGenerator {
   final def generateErrors: Seq[Tree] = {
     val NoStackTraceClass = RootClass.newClass("scala.util.control.NoStackTrace")
     val JsonParsingError = CASECLASSDEF("JsonParsingError")
-      .withParams(PARAM("error", StringClass).tree, PARAM("body", StringClass).tree)
+      .withParams(
+        PARAM("cause", ThrowableClass).tree,
+        PARAM("body", StringClass).tree,
+        PARAM("code", IntClass).tree,
+        PARAM("contentType", StringClass).tree
+      )
       .withParents(ThrowableClass, NoStackTraceClass) :=
       BLOCK {
         DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
           INFIX_CHAIN("+",
             LIT("JSON parsing error: "),
-            REF("error"),
+            REF("cause") DOT "getMessage",
             LIT("\nOriginal body: "),
             REF("body")
           )
         }
       }
     val JsonValidationError = CASECLASSDEF("JsonValidationError")
-      .withParams(PARAM("error", StringClass).tree, PARAM("body", "JsValue").tree)
+      .withParams(
+        PARAM("cause", ThrowableClass).tree,
+        PARAM("body", "JsValue").tree,
+        PARAM("code", IntClass).tree,
+        PARAM("contentType", StringClass).tree
+      )
       .withParents(ThrowableClass, NoStackTraceClass) :=
       BLOCK {
         DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
           INFIX_CHAIN("+",
             LIT("JSON validation error: "),
-            REF("error"),
+            REF("cause") DOT "getMessage",
             LIT("\nOriginal body: "),
             REF("body")
           )
         }
       }
     val UnexpectedResponseError = CASECLASSDEF("UnexpectedResponseError")
-      .withParams(PARAM("status", IntClass).tree, PARAM("body", StringClass).tree, PARAM("cause", ThrowableClass).tree)
+      .withParams(
+        PARAM("cause", ThrowableClass).tree,
+        PARAM("body", StringClass).tree,
+        PARAM("code", IntClass).tree,
+        PARAM("contentType", StringClass).tree
+      )
       .withParents(ThrowableClass, NoStackTraceClass) :=
       BLOCK {
         DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
           INFIX_CHAIN("+",
-            LIT("Unexpected response status: "),
-            REF("status"),
+            LIT("Unexpected response: "),
+            REF("code"),
             LIT(" "),
             REF("body")
           )
