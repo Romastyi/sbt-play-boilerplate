@@ -187,7 +187,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
       }
     }
     def writes: Tree = {
-      LIT(name) INFIX ("->", REF("o") DOT name)
+      PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "writeNullable" else "write") APPLYTYPE noOptType
     }
   }
 
@@ -288,11 +288,21 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
                           (implicit ctx: GeneratorContext): Tree = {
 
+    val caseObject = properties.isEmpty
     val writesType = RootClass.newClass("Writes") TYPE_OF modelType
 
     val modelWrites = VAL(s"${modelName}Writes", writesType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
-      ANONDEF(writesType) :=
-        LAMBDA(PARAM("o").tree) ==> REF("Json") DOT "obj" APPLY (properties.map(_.writes): _ *)
+      if (caseObject) {
+        ANONDEF(writesType) := LAMBDA(PARAM(WILDCARD).tree) ==> REF("Json") DOT "obj" APPLY ()
+      } else {
+        val propertiesChain = INFIX_CHAIN("and", properties.map(_.writes))
+        val unliftUnapply = REF("unlift") APPLY (REF(modelName) DOT "unapply")
+        if (properties.length > 1) {
+          PAREN(propertiesChain) APPLY unliftUnapply
+        } else {
+          propertiesChain DOT "contramap" APPLY unliftUnapply
+        }
+      }
     }
 
     modelWrites
