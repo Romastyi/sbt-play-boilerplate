@@ -16,10 +16,14 @@ abstract class RoutesCodeGenerator(prefix: String) extends CodeGenerator {
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
     } yield composeRoutes(defaultPrefix, path, operation)
 
-    ResourceFile(
-      fileName = ctx.settings.routesFileName,
-      source = routes.mkString("\n")
-    ) :: Nil
+    if (routes.nonEmpty) {
+      ResourceFile(
+        fileName = ctx.settings.routesFileName,
+        source = routes.mkString("\n")
+      ) :: Nil
+    } else {
+      Nil
+    }
 
   }
 
