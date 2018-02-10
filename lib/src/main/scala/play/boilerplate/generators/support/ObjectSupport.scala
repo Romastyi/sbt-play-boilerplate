@@ -167,18 +167,19 @@ trait ObjectSupport { this: DefinitionsSupport =>
   }
 
   case class ObjectProperty(name: String, support: TypeSupport, noOptType: Type, isOpt: Boolean, defaultValue: Option[Literal], constraints: Seq[Constraint]) {
-    def method: DefDef = DEF(name, support.tpe).empty
+    val ident: String = stringToValidIdentifier(name, skipNotValidChars = true)
+    def method: DefDef = DEF(ident, support.tpe).empty
     def param : ValDef = defaultValue match {
       case Some(default) =>
-        PARAM(name, support.tpe) := support.constructor(default)
+        PARAM(ident, support.tpe) := support.constructor(default)
       case None =>
-        PARAM(name, support.tpe).empty
+        PARAM(ident, support.tpe).empty
     }
-    def json  : ObjectPropertyJson = ObjectPropertyJson(name, reads, writes)
+    def json  : ObjectPropertyJson = ObjectPropertyJson(ident, reads, writes)
     def reads : Enumerator = {
       val readsConstraints = filterNonEmptyTree(constraints.map(getReadsConstraint(_, noOptType)))
       val readsDef = PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "readNullable" else "read") APPLYTYPE noOptType
-      VALFROM(name) := {
+      VALFROM(ident) := {
         if (readsConstraints.isEmpty) {
           readsDef
         } else {
@@ -192,7 +193,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
   }
 
   case class ObjectJson(reads: Tree, writes: Tree)
-  case class ObjectPropertyJson(name: String, reads: Enumerator, writes: Tree)
+  case class ObjectPropertyJson(ident: String, reads: Enumerator, writes: Tree)
 
   def generateClassParams(properties: Map[String, Definition])
                          (implicit ctx: GeneratorContext): Seq[ObjectProperty] = {
@@ -277,7 +278,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
       if (caseObject) {
         REF("Reads") DOT "pure" APPLY REF(modelName)
       } else {
-        FOR (properties.map(_.reads): _ *) YIELD REF(modelName) APPLY (properties.map(js => REF(js.name)): _ *)
+        FOR (properties.map(_.reads): _ *) YIELD REF(modelName) APPLY (properties.map(js => REF(js.ident)): _ *)
       }
     }
 
