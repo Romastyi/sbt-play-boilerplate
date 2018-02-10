@@ -22,7 +22,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("QueryStringBindable"), "_"),
       IMPORT(REF("PathBindable"), "_"),
-      IMPORT(REF("play.boilerplate.api.client.dsl"), "Compat", "ServiceLocator"),
+      IMPORT(REF("play.boilerplate.api.client.dsl"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
@@ -31,17 +31,17 @@ class ClientCodeGenerator extends CodeGenerator {
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
-  def innerClassMember(member: String)(implicit ctx: GeneratorContext): Tree = {
-    REF(ctx.settings.clientClassName) DOT member
-  }
-
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
     Seq(
-      InjectionProvider.Dependency("handler", TYPE_REF(innerClassMember("RequestHandler")), Some(innerClassMember("DefaultHandler"))),
+      InjectionProvider.Dependency("handler", TYPE_REF("RequestHandler") TYPE_OF TYPE_REF(ctx.settings.clientClassName), Some(REF("RequestHandler") DOT "default")),
       InjectionProvider.Dependency("ws", TYPE_REF("WSClient"), isImplicit = true),
       InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator"), isImplicit = true),
       InjectionProvider.Dependency("ec", TYPE_REF("ExecutionContext"), isImplicit = true)
     )
+  }
+
+  def credentialsClassName(implicit ctx: GeneratorContext): String = {
+    objectNameFromFileName(ctx.settings.fileName, "Credentials")
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
@@ -51,14 +51,14 @@ class ClientCodeGenerator extends CodeGenerator {
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
     } yield generateMethod(schema, path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
 
-    val clientSources = if (methods.nonEmpty) {
+    if (methods.nonEmpty) {
 
       val clientImports = BLOCK {
         generateImports
       } inPackage ctx.settings.clientPackageName
 
       val classDef = CLASSDEF(ctx.settings.clientClassName)
-        .withParents(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelper"))
+        .withParents(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelpers"))
         .withSelf("self") :=
         BLOCK {
           filterNonEmptyTree(
@@ -74,22 +74,18 @@ class ClientCodeGenerator extends CodeGenerator {
       // --- DI
       val clientTree = ctx.settings.injectionProvider.classDefModifier(classDef, dependencies)
 
-      val companionObject = OBJECTDEF(ctx.settings.clientClassName) := BLOCK(
-        generateRequestHandler(schema)
-      )
+      val credentialsClass = generateCredentialsClass(schema)
 
       SourceCodeFile(
         packageName = ctx.settings.clientPackageName,
         className = ctx.settings.clientClassName,
         header = treeToString(clientImports),
-        impl = clientTree + "\n\n" + treeToString(companionObject)
+        impl = treeToString(credentialsClass: _ *) + "\n\n" + clientTree
       ) :: Nil
 
     } else {
       Nil
     }
-
-    clientSources ++ generateHelpers
 
   }
 
@@ -161,12 +157,20 @@ class ClientCodeGenerator extends CodeGenerator {
       wsRequestWithAccept DOT "withHeaders" APPLY SEQARG(REF("_render_header_params") APPLY (headerParams: _*))
     }
 
-    val handleRequest = REF("handler") DOT "handleRequest" APPLY(
-      LIT(operation.operationId) +:
-      (REF("ws") DOT "url" APPLY REF("url")) +:
-      actionSecurity.securityParams.keys.map(
-        v => REF(v) := SOME(REF(v))
-      ).toIndexedSeq
+    val credentials = {
+      val params = actionSecurity.securityParams.keys
+        .map(ident => REF(ident) := REF(ident))
+        .toIndexedSeq
+      if (params.nonEmpty) {
+        REF(credentialsClassName) APPLY(params: _ *)
+      } else {
+        REF("NoCredentials")
+      }
+    }
+    val beforeRequest = REF("handler") DOT "beforeRequest" APPLY(
+      LIT(operation.operationId),
+      REF("ws") DOT "url" APPLY REF("url"),
+      credentials
     )
     val responses = generateResponses(REF("response"), operation)
 
@@ -178,9 +182,9 @@ class ClientCodeGenerator extends CodeGenerator {
           LAMBDA(PARAM("uri").tree) ==> BLOCK(
             urlValDef,
             VAL("f") := FOR(
-              VALFROM("request") := handleRequest,
+              VALFROM("request") := beforeRequest,
               VALFROM("response") := wsRequestWithHeaderParams DOT opType APPLY fullBodyParams.values,
-              VAL("_") := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("response")),
+              VAL("_") := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("response"), credentials),
               VAL("result") := responses.tree
             ) YIELD REF("result"),
             REF("f") DOT "recoverWith" APPLY BLOCK {
@@ -347,203 +351,22 @@ class ClientCodeGenerator extends CodeGenerator {
 
   }
 
-  final def generateRenderPathParam: Seq[Tree] = {
-    val A = RootClass.newAliasType("A")
-    val funcDef = DEF("_render_path_param", StringClass)
-      .withFlags(Flags.PROTECTED)
-      .withTypeParams(TYPEVAR(A))
-      .withParams(PARAM("key", StringClass).empty, PARAM("value", A).empty)
-      .withParams(PARAM("pb", TYPE_REF("PathBindable") TYPE_OF A).withFlags(Flags.IMPLICIT).empty) :=
-      BLOCK {
-        REF("pb") DOT "unbind" APPLY (REF("key"), REF("value"))
-      }
-    funcDef :: Nil
-  }
+  def generateCredentialsClass(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
 
-  final def generateRenderUrlParams: Seq[Tree] = {
-
-    val imports = IMPORT(REF("scala.language"), "implicitConversions")
-
-    val wrapper = RootClass.newClass("QueryValueWrapper")
-    val wrapperDef = TRAITDEF(wrapper).withFlags(Flags.SEALED).empty
-
-    val wrapperImpl = RootClass.newClass("QueryValueWrapperImpl")
-    val wrapperImplDef = CASECLASSDEF(wrapperImpl)
-      .withFlags(Flags.PRIVATE)
-      .withParams(PARAM("unbind", StringClass TYPE_=> StringClass).empty)
-      .withParents(wrapper)
-      .empty
-
-    val T = RootClass.newAliasType("T")
-    val wrapperImplicit = DEF("toQueryValueWrapper", wrapper)
-      .withTypeParams(TYPEVAR(T))
-      .withParams(PARAM("value", T).empty)
-      .withParams(PARAM("qb", TYPE_REF("QueryStringBindable") TYPE_OF T).withFlags(Flags.IMPLICIT).empty)
-      .withFlags(Flags.IMPLICIT) :=
-      BLOCK {
-        wrapperImpl APPLY (REF("qb") DOT "unbind" APPLY (WILDCARD, REF("value")))
-      }
-
-    val funcDef = DEF("_render_url_params", StringClass)
-      .withFlags(Flags.PROTECTED)
-      .withParams(PARAM("pairs", TYPE_*(TYPE_TUPLE(StringClass, wrapper))).tree) :=
-      BLOCK(
-        Seq(
-          VAL("parts") := {
-            REF("pairs") DOT "collect" APPLY BLOCK {
-              CASE(TUPLE(ID("k"), REF("QueryValueWrapperImpl") UNAPPLY ID("unbind"))) ==>
-                REF("unbind") APPLY REF("k")
-            } DOT "filter" APPLY (WILDCARD DOT "nonEmpty")
-          },
-          IF (REF("parts") DOT "nonEmpty") THEN {
-            REF("parts") DOT "mkString" APPLY(LIT("?"), LIT("&"), LIT(""))
-          } ELSE {
-            LIT("")
-          }
-        )
-      )
-
-    imports :: wrapperDef :: wrapperImplDef :: wrapperImplicit :: funcDef :: Nil
-
-  }
-
-  final def generateRenderHeaderParams: Seq[Tree] = {
-    val fundDef = DEF("_render_header_params", SeqClass TYPE_OF TYPE_TUPLE(StringClass, StringClass))
-      .withFlags(Flags.PROTECTED)
-      .withParams(PARAM("pairs", TYPE_*(TYPE_TUPLE(StringClass, OptionClass TYPE_OF AnyClass))).tree) :=
-      BLOCK(
-        Seq(
-          REF("pairs")
-            DOT "collect" APPLY BLOCK(CASE(TUPLE(ID("k"), REF("Some") UNAPPLY ID("v"))) ==>
-            (REF("k") INFIX ("->", REF("v") DOT "toString")))
-        )
-      )
-    fundDef :: Nil
-  }
-
-  final def generateErrors: Seq[Tree] = {
-    val NoStackTraceClass = RootClass.newClass("scala.util.control.NoStackTrace")
-    val JsonParsingError = CASECLASSDEF("JsonParsingError")
-      .withParams(
-        PARAM("cause", ThrowableClass).tree,
-        PARAM("body", StringClass).tree,
-        PARAM("code", IntClass).tree,
-        PARAM("contentType", StringClass).tree
-      )
-      .withParents(ThrowableClass, NoStackTraceClass) :=
-      BLOCK {
-        DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
-          INFIX_CHAIN("+",
-            LIT("JSON parsing error: "),
-            REF("cause") DOT "getMessage",
-            LIT("\nOriginal body: "),
-            REF("body")
-          )
-        }
-      }
-    val JsonValidationError = CASECLASSDEF("JsonValidationError")
-      .withParams(
-        PARAM("cause", ThrowableClass).tree,
-        PARAM("body", "JsValue").tree,
-        PARAM("code", IntClass).tree,
-        PARAM("contentType", StringClass).tree
-      )
-      .withParents(ThrowableClass, NoStackTraceClass) :=
-      BLOCK {
-        DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
-          INFIX_CHAIN("+",
-            LIT("JSON validation error: "),
-            REF("cause") DOT "getMessage",
-            LIT("\nOriginal body: "),
-            REF("body")
-          )
-        }
-      }
-    val UnexpectedResponseError = CASECLASSDEF("UnexpectedResponseError")
-      .withParams(
-        PARAM("cause", ThrowableClass).tree,
-        PARAM("body", StringClass).tree,
-        PARAM("code", IntClass).tree,
-        PARAM("contentType", StringClass).tree
-      )
-      .withParents(ThrowableClass, NoStackTraceClass) :=
-      BLOCK {
-        DEF("getMessage", StringClass).withFlags(Flags.OVERRIDE) := BLOCK {
-          INFIX_CHAIN("+",
-            LIT("Unexpected response: "),
-            REF("code"),
-            LIT(" "),
-            REF("body")
-          )
-        }
-      }
-    JsonParsingError :: JsonValidationError :: UnexpectedResponseError :: Nil
-  }
-
-  def generateHelpers(implicit ctx: GeneratorContext): Seq[CodeFile] = {
-    generateHelperTrait
-  }
-
-  def generateRequestHandler(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
-    val WSRequestClass = RootClass.newClass("Compat.WSRequest")
-    val WSResponseClass = RootClass.newClass("Compat.WSResponse")
     val securityParams = schema.paths.flatMap(_.operations.values)
       .foldLeft(Map.empty[String, Type]) { case (acc, op) =>
         acc ++ ctx.settings.securityProvider.getActionSecurity(op.security.toIndexedSeq).securityParams
       }
-    val securityParamsDef: Seq[ValDef] = securityParams.map {
-      case (name, tpe) => PARAM(name, OptionClass TYPE_OF tpe) := NONE
-    }.toIndexedSeq
-    val operationIdParam = PARAM("operationId", StringClass).empty
-    val requestParam: ValDef = PARAM("request", WSRequestClass).empty
-    val responseParam: ValDef = PARAM("response", WSResponseClass).empty
-    val causeParam: ValDef = PARAM("cause", RootClass.newClass("Throwable")).empty
-    val handleRequestDef = DEF("handleRequest", FUTURE(WSRequestClass))
-      .withParams(operationIdParam +: requestParam +: securityParamsDef)
-    val onSuccessDef = DEF("onSuccess", UnitClass)
-      .withParams(operationIdParam +: responseParam +: securityParamsDef)
-    val onErrorDef = DEF("onError", UnitClass)
-      .withParams(operationIdParam +: causeParam +: securityParamsDef)
-    val traitDef = TRAITDEF("RequestHandler")
-      .withParents(ctx.settings.loggerProvider.parents)
-      .withSelf("self", ctx.settings.loggerProvider.selfTypes: _ *) :=
-      BLOCK(
-        ctx.settings.loggerProvider.loggerDefs :+
-        handleRequestDef.empty :+
-        onSuccessDef.empty :+
-        onErrorDef.empty
+
+    if (securityParams.nonEmpty) {
+      val params = securityParams.map {
+        case (name, tpe) => PARAM(name, tpe).tree
+      }.toIndexedSeq
+      Seq(
+        CASECLASSDEF(credentialsClassName)
+          .withParams(params: _ *)
+          .withParents(TYPE_REF("Credentials") TYPE_OF TYPE_REF(ctx.settings.clientClassName)).empty
       )
-    val defaultImpl = OBJECTDEF("DefaultHandler").withParents(RootClass.newClass("RequestHandler")) := BLOCK(
-      handleRequestDef.withFlags(Flags.OVERRIDE) := REF("Future") DOT "successful" APPLY REF("request"),
-      onSuccessDef.withFlags(Flags.OVERRIDE) := UNIT,
-      onErrorDef.withFlags(Flags.OVERRIDE) := UNIT
-    )
-    Seq(traitDef, defaultImpl)
-  }
-
-  def generateHelperMethods(implicit ctx: GeneratorContext): Seq[Tree] = {
-    generateErrors ++
-    generateRenderPathParam ++
-    generateRenderUrlParams ++
-    generateRenderHeaderParams
-  }
-
-  final def generateHelperTrait(implicit ctx: GeneratorContext): Seq[CodeFile] = {
-
-    val helpers = generateHelperMethods
-
-    if (helpers.nonEmpty) {
-      val imports = BLOCK(
-        IMPORT(REF("play.api.libs.json"), "_"),
-        IMPORT(REF("play.api.mvc"), "_")
-      ) inPackage ctx.settings.clientPackageName
-      val objectTree = TRAITDEF("ClientHelper") := BLOCK(helpers)
-      SourceCodeFile(
-        packageName = ctx.settings.clientPackageName,
-        className = "ClientHelper",
-        header = treeToString(imports),
-        impl = treeToString(objectTree)
-      ) :: Nil
     } else {
       Nil
     }
