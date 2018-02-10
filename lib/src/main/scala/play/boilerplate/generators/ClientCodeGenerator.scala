@@ -142,11 +142,6 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)
 
-    val ERROR = BLOCK(
-      REF("handler") DOT "onError" APPLY(LIT(operation.operationId), REF("cause")),
-      REF("self") DOT "onError" APPLY (LIT(operation.operationId), REF("cause"))
-    )
-
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val opType = operation.httpMethod.toString.toLowerCase
@@ -173,6 +168,11 @@ class ClientCodeGenerator extends CodeGenerator {
       credentials
     )
     val responses = generateResponses(REF("response"), operation)
+
+    val ERROR = BLOCK(
+      REF("handler") DOT "onError" APPLY(LIT(operation.operationId), REF("cause"), credentials),
+      REF("self") DOT "onError" APPLY(LIT(operation.operationId), REF("cause"))
+    )
 
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
       .withFlags(Flags.OVERRIDE)
