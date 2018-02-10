@@ -56,13 +56,43 @@ object CustomTypeSupport {
     }
   }
 
-  def jodaLocalDateSupport: CustomTypeSupport = simple { _ => {
+  /**
+    * Use org.joda.time.LocalDate for ''date'' type
+    *
+    * @param pattern read/write date format pattern (default is "yyyy-MM-dd")
+    * @param corrector a simple string transformation function that can be used to transform input String before parsing.
+    */
+  def jodaLocalDateSupport(pattern: String = "yyyy-MM-dd", corrector: Tree = REF("identity")): CustomTypeSupport = simple { _ => {
     case _: DateDefinition =>
       val LocalDateClass = RootClass.newClass("org.joda.time.LocalDate")
-      TypeSupport(LocalDateClass, LocalDateClass, Nil)
+      val defs = TypeSupportDefs(
+        symbol = LocalDateClass,
+        definition = EmptyTree,
+        jsonReads  = {
+          val readsType = RootClass.newClass("Reads") TYPE_OF LocalDateClass
+          VAL("LocalDateReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            REF("Reads") DOT "jodaLocalDateReads" APPLY(LIT(pattern), corrector)
+          }
+        },
+        jsonWrites = {
+          val writesType = RootClass.newClass("Writes") TYPE_OF LocalDateClass
+          VAL("LocalDateWrites", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            REF("Writes") DOT "jodaLocalDateWrites" APPLY LIT(pattern)
+          }
+        },
+        queryBindable = EmptyTree,
+        pathBindable  = EmptyTree
+      )
+      TypeSupport(LocalDateClass, LocalDateClass, defs :: Nil)
   }}
 
-  def jodaDateTimeSupport(pattern: String = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"): CustomTypeSupport = simple { _ => {
+  /**
+    * Use org.joda.time.DateTime for ''date-time'' type
+    *
+    * @param pattern read/write date-time format pattern (default is "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+    * @param corrector a simple string transformation function that can be used to transform input String before parsing.
+    */
+  def jodaDateTimeSupport(pattern: String = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", corrector: Tree = REF("identity")): CustomTypeSupport = simple { _ => {
     case _: DateTimeDefinition =>
       val DateTimeClass = RootClass.newClass("org.joda.time.DateTime")
       val defs = TypeSupportDefs(
@@ -71,7 +101,7 @@ object CustomTypeSupport {
         jsonReads  = {
           val readsType = RootClass.newClass("Reads") TYPE_OF DateTimeClass
           VAL("DateTimeReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
-            REF("Reads") DOT "jodaDateReads" APPLY LIT(pattern)
+            REF("Reads") DOT "jodaDateReads" APPLY(LIT(pattern), corrector)
           }
         },
         jsonWrites = {

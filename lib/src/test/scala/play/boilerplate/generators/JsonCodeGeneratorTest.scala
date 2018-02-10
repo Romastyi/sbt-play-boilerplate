@@ -44,7 +44,10 @@ class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
     val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
       "petStore.v2.yaml", "test", "",
-      customTypeSupport = CustomTypeSupport.jodaLocalDateSupport ++ CustomTypeSupport.jodaDateTimeSupport()
+      customTypeSupport = {
+        CustomTypeSupport.jodaLocalDateSupport() ++
+        CustomTypeSupport.jodaDateTimeSupport()
+      }
     ))
     val gen = new JsonCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)

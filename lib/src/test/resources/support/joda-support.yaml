@@ -1,0 +1,24 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: Enum support test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+definitions:
+  JodaTypes:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: integer
+        format: int64
+      date:
+        type: string
+        format: date
+      date-time:
+        type: string
+        format: 'date-time'
