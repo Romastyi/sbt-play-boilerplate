@@ -18,6 +18,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       IMPORT(REF(ctx.settings.serviceClassName), "_"),
       IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("play.api.libs.json"), "_"),
+      IMPORT(REF("play.boilerplate.api.server.dsl"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext")
     ) ++
       ctx.settings.securityProvider.controllerImports ++
@@ -42,7 +43,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
     } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
 
-    val controllerSources = if (methods.nonEmpty) {
+    if (methods.nonEmpty) {
 
       val controllerImports = BLOCK {
         generateImports
@@ -59,7 +60,7 @@ class ControllerCodeGenerator extends CodeGenerator {
         (EmptyTree, EmptyTree)
       }
 
-      val parents = Seq(baseControllerType, TYPE_REF("ControllerHelper")) ++
+      val parents = Seq(baseControllerType, TYPE_REF("ControllerMixins")) ++
         ctx.settings.securityProvider.controllerParents
 
       val classDef = CLASSDEF(ctx.settings.controllerClassName)
@@ -82,8 +83,6 @@ class ControllerCodeGenerator extends CodeGenerator {
     } else {
       Nil
     }
-
-    controllerSources ++ generateHelperTrait
 
   }
 
@@ -120,8 +119,11 @@ class ControllerCodeGenerator extends CodeGenerator {
         REF("InternalServerError") APPLY (REF("cause") DOT "getMessage")
     }
 
-    val methodValues =
-      actionSecurity.securityValues.values.toIndexedSeq ++ bodyValues.values.toIndexedSeq
+    val methodValues = Seq(
+      VAL(WILDCARD).withFlags(Flags.IMPLICIT) := REF("request")
+    ) ++
+      actionSecurity.securityValues.values.toIndexedSeq ++
+      bodyValues.values.toIndexedSeq
 
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
@@ -131,7 +133,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methodTree =
       DEFINFER(methodName) withParams methodParams.values.map(_.valDef) withType actionType := BLOCK {
         actionSecurity.actionMethod(parser) APPLY {
-          LAMBDA(PARAM("request").tree) ==> BODY_WITH_EXCEPTION_HANDLE
+          LAMBDA(PARAM("request").empty) ==> BODY_WITH_EXCEPTION_HANDLE
         }
       }
 
@@ -222,47 +224,23 @@ class ControllerCodeGenerator extends CodeGenerator {
   }
 
   private def generateResponse(status: Tree, tpe: Type, produces: Iterable[MimeTypeSupport], default: Tree): Tree = {
-
     if (produces.isEmpty) {
       default
     } else {
-      val matchers = produces.zipWithIndex.map { case (support, idx) =>
-        val matcherDef = VAL(s"m$idx") := (REF("AcceptMatcher") APPLY LIT(support.mimeType))
-        support -> matcherDef
-      }.toMap
-      val cases = matchers.map { case (support, matcher) =>
-        CASE(REF(matcher.name) UNAPPLY WILDCARD) ==> {
-          status APPLY support.serialize(tpe)(REF("answer"))
+      scala.Function.chain(
+        produces.toIndexedSeq.map { support =>
+          new ((Tree) => Tree) {
+            override def apply(v1: Tree): Tree = {
+              IF(REF("acceptsMimeType") APPLY LIT(support.mimeType)) THEN {
+                status APPLY support.serialize(tpe)(REF("answer"))
+              } ELSE {
+                v1
+              }
+            }
+          }
         }
-      }.toSeq :+ {
-        CASE(WILDCARD) ==> default
-      }
-      BLOCK(
-        matchers.values.toSeq :+ (REF("request") MATCH cases)
-      )
+      ) apply default
     }
-
-  }
-
-  def generateHelpers(implicit ctx: GeneratorContext): Seq[Tree] = Seq(generateAcceptMatcher)
-
-  final def generateHelperTrait(implicit ctx: GeneratorContext): Seq[CodeFile] = {
-
-    val helpers = generateHelpers
-
-    if (helpers.nonEmpty) {
-      val imports = EmptyTree inPackage ctx.settings.controllerPackageName
-      val objectTree = TRAITDEF("ControllerHelper") := BLOCK(helpers)
-      SourceCodeFile(
-        packageName = ctx.settings.controllerPackageName,
-        className = "ControllerHelper",
-        header = treeToString(imports),
-        impl = treeToString(objectTree)
-      ) :: Nil
-    } else {
-      Nil
-    }
-
   }
 
 }

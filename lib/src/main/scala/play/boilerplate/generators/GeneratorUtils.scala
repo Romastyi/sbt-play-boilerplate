@@ -152,22 +152,6 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }).capitalize
   }
 
-  def generateAcceptMatcher: Tree = {
-    val tpe = (OptionClass APPLYTYPE StringClass.toType).tpe
-    BLOCK(
-      IMPORT(REF("play.api.mvc"), "_"),
-      CASECLASSDEF("AcceptMatcher") withParams PARAM("mimeType", StringClass.toType).tree := BLOCK {
-        DEF("unapply", tpe) withParams PARAM("arg", TYPE_REF("RequestHeader")).tree := BLOCK {
-          IF((REF("arg") DOT "acceptedTypes" DOT "nonEmpty") AND (REF("arg") DOT "accepts" APPLY REF("mimeType"))) THEN BLOCK {
-            SOME(REF("mimeType"))
-          } ELSE BLOCK {
-            NONE
-          }
-        }
-      }
-    )
-  }
-
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
 
   def doRoutesUrl(basePath: String, path: Iterable[PathPart], operation: Operation): String = {
