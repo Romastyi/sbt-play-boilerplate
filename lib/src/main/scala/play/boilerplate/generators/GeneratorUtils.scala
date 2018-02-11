@@ -53,16 +53,16 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }.toMap
   }
 
-  def getMethodParameters(path: Path, operation: Operation)
+  def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true)
                          (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
     (path.parameters ++ operation.parameters).toSeq
       .filter {
+        case _: HeaderParameter => withHeaders
         case _: PathParameter   => true
         case _: QueryParameter  => true
-        case _: HeaderParameter => true
         case _: BodyParameter   => false
         case x =>
-          println(s"Unmanaged parameter type for parameter ${x.name}, please contact the developer to implement it XD")
+          println(s"Unmanaged parameter type for parameter '${x.name}' (operationId: ${operation.operationId}), please contact the developer to implement it XD")
           false
       }
       .sortBy { //the order must be verified...
@@ -72,18 +72,22 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         case _ => 4
       }
       .map { param =>
-        val paramName = decapitalize(param.name)
-        val defaultValue = getDefaultValue(param)
-        val support = getTypeSupport(param.ref, DefinitionContext.inline.copy(canBeOption = defaultValue.isEmpty))
-        val valDef = defaultValue match {
-          case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
-          case None => PARAM(paramName, support.tpe).empty
-        }
-        val fullQualified = PARAM(paramName, support.fullQualified).empty
-        val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), doc)
+        getMethodParam(param)
       }
       .toMap
+  }
+
+  def getMethodParam(param: Parameter)(implicit ctx: GeneratorContext): (String, MethodParam) = {
+    val paramName = decapitalize(param.name)
+    val defaultValue = getDefaultValue(param)
+    val support = getTypeSupport(param.ref, DefinitionContext.inline.copy(canBeOption = defaultValue.isEmpty))
+    val valDef = defaultValue match {
+      case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
+      case None => PARAM(paramName, support.tpe).empty
+    }
+    val fullQualified = PARAM(paramName, support.fullQualified).empty
+    val doc = DocTag.Param(paramName, param.description.getOrElse(""))
+    paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), doc)
   }
 
   def getParamImplicits(param: Parameter, support: TypeSupport): Seq[Tree] = {
@@ -153,27 +157,5 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   }
 
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
-
-  def doRoutesUrl(basePath: String, path: Iterable[PathPart], operation: Operation): String = {
-
-    val p1 = if (basePath.startsWith("/")) basePath else "/" + basePath
-    val p2 = if (p1.endsWith("/")) p1.dropRight(1) else p1
-
-    val parts = path.collect {
-      case StaticPart(str) =>
-        str
-      case ParamPart(name) =>
-        val param = operation.parameters.find(_.name == name).map(_.baseDef).getOrElse {
-          throw new RuntimeException(s"Url path parameter '$name' not found for operation (${operation.operationId}).")
-        }
-        param match {
-          case _: IntegerDefinition | _: LongDefinition => "$" + name + "<[0-9]+>"
-          case _ => ":" + name
-        }
-    }.toSeq
-
-    cleanDuplicateSlash((p2 +: parts).mkString("/"))
-
-  }
 
 }

@@ -94,7 +94,21 @@ class ControllerCodeGenerator extends CodeGenerator {
 
     val supportedConsumes = operation.consumes.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
     val bodyValues = generateValuesFromBody(operation.parameters, supportedConsumes)
-    val methodParams = getMethodParameters(path, operation)
+    val methodParams = getMethodParameters(path, operation, withHeaders = false)
+    val headerParams = (path.parameters ++ operation.parameters).toSeq.collect {
+      case param: HeaderParameter =>
+        val paramName = decapitalize(param.name)
+        val value = REF("request") DOT "headers" DOT "get" APPLY LIT(param.name)
+        val valDef = VAL(paramName) := {
+          param.ref match {
+            case _: OptionDefinition =>
+              value
+            case _ =>
+              value DOT "get"
+          }
+        }
+        paramName -> valDef
+    }.toMap
 
     val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
 
@@ -105,7 +119,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val methodCall = REF("service") DOT methodName APPLY {
-      (bodyValues.keys ++ methodParams.keys ++ actionSecurity.securityValues.keys).map(REF(_))
+      (bodyValues.keys ++ headerParams.keys ++ methodParams.keys ++ actionSecurity.securityValues.keys).map(REF(_))
     }
 
     val answerMethod = generateAnswer(operation)
@@ -122,6 +136,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methodValues = Seq(
       VAL(WILDCARD).withFlags(Flags.IMPLICIT) := REF("request")
     ) ++
+      headerParams.values.toIndexedSeq ++
       actionSecurity.securityValues.values.toIndexedSeq ++
       bodyValues.values.toIndexedSeq
 

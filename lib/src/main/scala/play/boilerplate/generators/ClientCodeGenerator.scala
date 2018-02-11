@@ -132,12 +132,12 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val headerParams: Seq[Tree] = (path.parameters ++ operation.parameters).toSeq collect {
       case param: HeaderParameter =>
-        val name = param.name
+        val paramName = decapitalize(param.name)
         val ref = param.ref match {
-          case _: OptionDefinition => SOME(REF(name))
-          case _ => REF(name)
+          case _: OptionDefinition => SOME(REF(paramName))
+          case _ => REF(paramName)
         }
-        LIT(name) INFIX ("->", ref)
+        LIT(param.name) INFIX ("->", ref)
     }
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)
@@ -184,7 +184,7 @@ class ClientCodeGenerator extends CodeGenerator {
             VAL("f") := FOR(
               VALFROM("request") := beforeRequest,
               VALFROM("response") := wsRequestWithHeaderParams DOT opType APPLY fullBodyParams.values,
-              VAL("_") := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("response"), credentials),
+              VAL(WILDCARD) := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("response"), credentials),
               VAL("result") := responses.tree
             ) YIELD REF("result"),
             REF("f") DOT "recoverWith" APPLY BLOCK {

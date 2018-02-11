@@ -37,9 +37,31 @@ abstract class RoutesCodeGenerator(prefix: String) extends CodeGenerator {
 
   }
 
+  def doRoutesUrl(basePath: String, path: Iterable[PathPart], operation: Operation): String = {
+
+    val p1 = if (basePath.startsWith("/")) basePath else "/" + basePath
+    val p2 = if (p1.endsWith("/")) p1.dropRight(1) else p1
+
+    val parts = path.collect {
+      case StaticPart(str) =>
+        str
+      case ParamPart(name) =>
+        val param = operation.parameters.find(_.name == name).map(_.baseDef).getOrElse {
+          throw new RuntimeException(s"Url path parameter '$name' not found for operation (${operation.operationId}).")
+        }
+        param match {
+          case _: IntegerDefinition | _: LongDefinition => "$" + name + "<[0-9]+>"
+          case _ => ":" + name
+        }
+    }.toSeq
+
+    cleanDuplicateSlash((p2 +: parts).mkString("/"))
+
+  }
+
   def generateMethodCall(path: Path, operation: Operation)(implicit ctx: GeneratorContext): String = {
 
-    val ps = getMethodParameters(path, operation).map {
+    val ps = getMethodParameters(path, operation, withHeaders = false).map {
       case (n, MethodParam(_, fullQualified, _, _, defaultValue, _)) =>
         s"$n: ${treeToString(fullQualified.tpt)}" + defaultValue.map(
           literal => " ?= " + treeToString(literal)
