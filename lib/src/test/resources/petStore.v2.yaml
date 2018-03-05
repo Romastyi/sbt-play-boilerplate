@@ -107,7 +107,7 @@ paths:
           - "pending"
           - "sold"
           default: "available"
-        collectionFormat: "multi"
+        collectionFormat: "pipes"
       responses:
         200:
           description: "successful operation"

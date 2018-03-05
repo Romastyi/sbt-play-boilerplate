@@ -1,6 +1,7 @@
 package play.boilerplate.generators.support
 
 import play.boilerplate.generators.GeneratorContext
+import play.boilerplate.generators.GeneratorUtils._
 import play.boilerplate.parser.model._
 
 trait DefinitionsSupport
@@ -26,11 +27,20 @@ trait DefinitionsSupport
         } else {
           support
         }
-      case ArrayDefinition(_, _, items, _, _, _) =>
+      case ArrayDefinition(_, _, items, _, _, _, collectionFormat) =>
         val support = getTypeSupport(items, context)
+        val listDefs = TypeSupportDefs(
+          symbol = (ListClass TYPE_OF support.tpe).typeSymbol,
+          definition = EmptyTree,
+          jsonReads = EmptyTree,
+          jsonWrites = EmptyTree,
+          queryBindable = getCollectFormatQueryBinder(support.tpe, collectionFormat),
+          pathBindable = EmptyTree
+        )
         support.copy(
           tpe = ListClass TYPE_OF support.tpe,
           fullQualified = ListClass TYPE_OF support.fullQualified,
+          defs = support.defs :+ listDefs,
           constructor = l => LIST(support.constructor(l))
         )
       case MapDefinition(_, _, additionalProperties) =>
@@ -53,6 +63,23 @@ trait DefinitionsSupport
       case _ =>
         throw new RuntimeException(s"Unsupported definition type ${definition.getClass.getName}.")
     }
+  }
+
+  private def customListQueryBinder(tpe: Type, separator: Char): Tree = {
+    val queryBindableType = RootClass.newClass("QueryStringBindable") TYPE_OF (ListClass TYPE_OF tpe)
+    val tpeName = stringToValidIdentifier(tpe.safeToString, skipNotValidChars = true)
+    VAL(s"${tpeName}ListQueryBindable", queryBindableType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+      RootClass.newClass("play.boilerplate.api.common.Binders") DOT "queryList" APPLY LIT(separator)
+    }
+  }
+
+  private def getCollectFormatQueryBinder(tpe: Type, collectionFormat: CollectionFormat): Tree = collectionFormat match {
+    case CollectionFormat.None  => EmptyTree
+    case CollectionFormat.Multi => EmptyTree // default Play behavior
+    case CollectionFormat.Csv   => customListQueryBinder(tpe, ',' )
+    case CollectionFormat.Ssv   => customListQueryBinder(tpe, ' ' )
+    case CollectionFormat.Tsv   => customListQueryBinder(tpe, '\t')
+    case CollectionFormat.Pipes => customListQueryBinder(tpe, '|' )
   }
 
   private def getComplexTypeSupport(definition: ComplexDefinition, context: DefinitionContext)

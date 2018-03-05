@@ -43,6 +43,7 @@ paths:
 #            enum:
 #              - young
 #              - mature
+          collectionFormat: csv
         - name: pager.drop
           in: query
           description: number of results to skip from the beginning

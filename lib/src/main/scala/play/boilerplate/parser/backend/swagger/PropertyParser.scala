@@ -209,7 +209,8 @@ trait PropertyParser { this: ReferenceParser =>
           items = getPropertyDef(schema, name, items, canBeOption = false),
           uniqueItems = Option(prop.getUniqueItems).exists(_ == true),
           minItems = Option(prop.getMinItems).map(Integer2int),
-          maxItems = Option(prop.getMaxItems).map(Integer2int)
+          maxItems = Option(prop.getMaxItems).map(Integer2int),
+          collectionFormat = CollectionFormat.None
         )
       case prop: ObjectProperty =>
         val items = for ((name, p) <- Option(prop.getProperties).map(_.asScala.toMap).getOrElse(Map.empty)) yield {

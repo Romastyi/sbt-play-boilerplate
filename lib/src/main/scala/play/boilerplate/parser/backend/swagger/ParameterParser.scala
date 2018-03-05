@@ -53,12 +53,21 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     def isArray: Boolean = underlying.getType == ArrayProperty.TYPE
 
     def getItems: SwaggerProperty = Option(underlying.getItems).getOrElse {
-      throw ParserException(s"Array items property is not specified for parameter.")
+      throw ParserException(s"Array `items` property is not specified for parameter.")
     }
 
     def isEnum: Boolean = Option(underlying.getEnum).isDefined
 
     def getEnum: Iterable[String] = underlying.getEnum.asScala
+
+    def collectionFormat: CollectionFormat = Option(underlying.getCollectionFormat).getOrElse("csv") match {
+      case "csv"   => CollectionFormat.Csv
+      case "ssv"   => CollectionFormat.Ssv
+      case "tsv"   => CollectionFormat.Tsv
+      case "pipes" => CollectionFormat.Pipes
+      case "multi" => CollectionFormat.Multi
+      case other   => throw ParserException(s"Unknown `collectionFormat` property value ($other).")
+    }
 
     def toProperty: SwaggerProperty = {
 
@@ -108,7 +117,8 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         items = getPropertyDef(schema, parameter.getName, parameter.getItems, canBeOption = false),
         uniqueItems = Option(parameter.underlying.isUniqueItems).exists(_ == true),
         minItems = Option(parameter.underlying.getMinItems).map(Integer2int),
-        maxItems = Option(parameter.underlying.getMaxItems).map(Integer2int)
+        maxItems = Option(parameter.underlying.getMaxItems).map(Integer2int),
+        collectionFormat = parameter.collectionFormat
       ), Option(parameter.underlying.getName))
     } else if (parameter.isEnum) {
       factory.build(EnumDefinition(

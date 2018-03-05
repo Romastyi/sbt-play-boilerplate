@@ -25,12 +25,23 @@ final case class OptionDefinition(override val name: String,
   }
 }
 
+sealed trait CollectionFormat
+object CollectionFormat {
+  case object None extends CollectionFormat
+  case object Csv extends CollectionFormat
+  case object Ssv extends CollectionFormat
+  case object Tsv extends CollectionFormat
+  case object Pipes extends CollectionFormat
+  case object Multi extends CollectionFormat
+}
+
 final case class ArrayDefinition(override val name: String,
                                  override val description: Option[String],
                                  items: Definition,
                                  uniqueItems: Boolean,
                                  minItems: Option[Int],
-                                 maxItems: Option[Int]
+                                 maxItems: Option[Int],
+                                 collectionFormat: CollectionFormat
                                 ) extends Definition {
   override val baseDef: Definition = items.baseDef
   override val containsLazyRef: Boolean = baseDef.containsLazyRef

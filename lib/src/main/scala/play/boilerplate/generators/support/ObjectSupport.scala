@@ -123,7 +123,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     property match {
       case OptionDefinition(_, base) =>
         collectPropertyConstraints(base)
-      case ArrayDefinition(_, _, items, _, minItems, maxItems) =>
+      case ArrayDefinition(_, _, items, _, minItems, maxItems, _) =>
         val list = ListConstraint(collectPropertyConstraints(items), getTypeSupport(items).tpe)
         list +: (minItems.map(MaxLength).toList ++ maxItems.map(MinLength).toList)
       case RefDefinition(_, ref) =>
