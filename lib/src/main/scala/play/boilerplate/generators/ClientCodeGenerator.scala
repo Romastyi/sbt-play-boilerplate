@@ -126,11 +126,11 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodParams = getMethodParameters(path, operation)
     val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
     val securityParams = actionSecurity.securityParamsDef
-    val fullBodyParams = bodyParams.keys.map {
-      name => name -> (REF("Json") DOT "toJson" APPLY REF(name))
-    }.toMap
+    val fullBodyParams = bodyParams.map {
+      case (name, _) => name -> (REF("Json") DOT "toJson" APPLY REF(name))
+    }.distinctBy(_._1)
 
-    val headerParams: Seq[Tree] = (path.parameters ++ operation.parameters).toSeq collect {
+    val headerParams: Seq[Tree] = (path.parameters ++ operation.parameters).toIndexedSeq collect {
       case param: HeaderParameter =>
         val paramName = decapitalize(param.name)
         val ref = param.ref match {
@@ -153,9 +153,11 @@ class ClientCodeGenerator extends CodeGenerator {
     }
 
     val credentials = {
-      val params = actionSecurity.securityParams.keys
-        .map(ident => REF(ident) := REF(ident))
-        .toIndexedSeq
+      val params = actionSecurity.securityParams
+        .distinctBy(_._1)
+        .map {
+          case (ident, _) => REF(ident) := REF(ident)
+        }
       if (params.nonEmpty) {
         REF(credentialsClassName) APPLY(params: _ *)
       } else {
@@ -176,14 +178,14 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
       .withFlags(Flags.OVERRIDE)
-      .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams) :=
+      .withParams(bodyParams.map(_._2.valDef) ++ methodParams.map(_._2.valDef) ++ securityParams) :=
       BLOCK {
         REF("locator") DOT "doServiceCall" APPLY(LIT(ctx.settings.serviceName), LIT(operation.operationId)) APPLY {
           LAMBDA(PARAM("uri").tree) ==> BLOCK(
             urlValDef,
             VAL("f") := FOR(
               VALFROM("request") := beforeRequest,
-              VALFROM("response") := wsRequestWithHeaderParams DOT opType APPLY fullBodyParams.values,
+              VALFROM("response") := wsRequestWithHeaderParams DOT opType APPLY fullBodyParams.map(_._2),
               VAL(WILDCARD) := REF("handler") DOT "onSuccess" APPLY(LIT(operation.operationId), REF("response"), credentials),
               VAL("result") := responses.tree
             ) YIELD REF("result"),
@@ -194,16 +196,16 @@ class ClientCodeGenerator extends CodeGenerator {
         }
       }
 
-    val paramDocs = (bodyParams.values ++ methodParams.values).map(_.doc) ++
+    val paramDocs = (bodyParams.map(_._2) ++ methodParams.map(_._2)).map(_.doc) ++
       actionSecurity.securityDocs.map { case (param, description) =>
         DocTag.Param(param, description)
       }
     val tree = methodTree.withDoc(
       Seq(operation.description.getOrElse("") + "\n "),
-      paramDocs.toIndexedSeq: _ *
+      paramDocs: _ *
     )
 
-    val implicits = methodParams.values.flatMap(_.implicits).toSeq
+    val implicits = methodParams.flatMap(_._2.implicits)
 
     Method(tree, responses.implicits ++ implicits)
 
@@ -354,14 +356,14 @@ class ClientCodeGenerator extends CodeGenerator {
   def generateCredentialsClass(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
 
     val securityParams = schema.paths.flatMap(_.operations.values)
-      .foldLeft(Map.empty[String, Type]) { case (acc, op) =>
+      .foldLeft(Seq.empty[(String, Type)]) { case (acc, op) =>
         acc ++ ctx.settings.securityProvider.getActionSecurity(op.security.toIndexedSeq).securityParams
-      }
+      }.distinctBy(_._1)
 
     if (securityParams.nonEmpty) {
       val params = securityParams.map {
         case (name, tpe) => PARAM(name, tpe).tree
-      }.toIndexedSeq
+      }
       Seq(
         CASECLASSDEF(credentialsClassName)
           .withParams(params: _ *)

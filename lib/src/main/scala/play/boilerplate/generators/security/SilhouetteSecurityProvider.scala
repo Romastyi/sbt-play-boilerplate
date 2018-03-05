@@ -33,14 +33,14 @@ abstract class SilhouetteSecurityProvider(securitySchema: String) extends Defaul
       override def actionMethod(parser: Tree): Tree = {
         REF("silhouette") DOT "SecuredAction" APPLY authority DOT "async" APPLY parser
       }
-      override val securityParams: Map[String, Type] = {
-        Map("logged" -> userType)
+      override val securityParams: Seq[(String, Type)] = {
+        Seq("logged" -> userType)
       }
-      override val securityValues: Map[String, ValDef] = {
-        Map("logged" -> userValue)
+      override val securityValues: Seq[(String, ValDef)] = {
+        Seq("logged" -> userValue)
       }
-      override val securityDocs: Map[String, String] = {
-        Map("logged" -> "Current logged user")
+      override val securityDocs: Seq[(String, String)] = {
+        Seq("logged" -> "Current logged user")
       }
     }
 

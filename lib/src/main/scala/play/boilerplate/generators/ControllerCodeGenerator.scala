@@ -95,7 +95,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val supportedConsumes = operation.consumes.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
     val bodyValues = generateValuesFromBody(operation.parameters, supportedConsumes)
     val methodParams = getMethodParameters(path, operation, withHeaders = false)
-    val headerParams = (path.parameters ++ operation.parameters).toSeq.collect {
+    val headerParams = (path.parameters ++ operation.parameters).toIndexedSeq.collect {
       case param: HeaderParameter =>
         val paramName = decapitalize(param.name)
         val value = REF("request") DOT "headers" DOT "get" APPLY LIT(param.name)
@@ -108,7 +108,7 @@ class ControllerCodeGenerator extends CodeGenerator {
           }
         }
         paramName -> valDef
-    }.toMap
+    }.distinctBy(_._1)
 
     val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
 
@@ -119,7 +119,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val methodCall = REF("service") DOT methodName APPLY {
-      (bodyValues.keys ++ headerParams.keys ++ methodParams.keys ++ actionSecurity.securityValues.keys).map(REF(_))
+      (bodyValues.map(_._1) ++ headerParams.map(_._1) ++ methodParams.map(_._1) ++ actionSecurity.securityValues.map(_._1)).map(REF(_))
     }
 
     val answerMethod = generateAnswer(operation)
@@ -136,9 +136,9 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methodValues = Seq(
       VAL(WILDCARD).withFlags(Flags.IMPLICIT) := REF("request")
     ) ++
-      headerParams.values.toIndexedSeq ++
-      actionSecurity.securityValues.values.toIndexedSeq ++
-      bodyValues.values.toIndexedSeq
+      headerParams.map(_._2) ++
+      actionSecurity.securityValues.map(_._2) ++
+      bodyValues.map(_._2)
 
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
@@ -146,7 +146,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       }
 
     val methodTree =
-      DEFINFER(methodName) withParams methodParams.values.map(_.valDef) withType actionType := BLOCK {
+      DEFINFER(methodName) withParams methodParams.map(_._2.valDef) withType actionType := BLOCK {
         actionSecurity.actionMethod(parser) APPLY {
           LAMBDA(PARAM("request").empty) ==> BODY_WITH_EXCEPTION_HANDLE
         }
@@ -156,17 +156,17 @@ class ControllerCodeGenerator extends CodeGenerator {
       operation.description.getOrElse("")
     )
 
-    val implicits = methodParams.values.flatMap(_.implicits).toSeq
+    val implicits = methodParams.flatMap(_._2.implicits)
 
     Method(tree, answerMethod.implicits ++ implicits)
 
   }
 
   final def generateValuesFromBody(parameters: Iterable[Parameter], produces: Iterable[MimeTypeSupport])
-                                  (implicit ctx: GeneratorContext): Map[String, ValDef] = {
+                                  (implicit ctx: GeneratorContext): Seq[(String, ValDef)] = {
 
     if (produces.isEmpty) {
-      Map.empty
+      Nil
     } else {
       parameters.collect {
         case bp: BodyParameter =>
@@ -182,7 +182,7 @@ class ControllerCodeGenerator extends CodeGenerator {
               THROW(IllegalArgumentExceptionClass, "Invalid body format")
             }
           valName -> valDef
-      }.toMap
+      }.distinctBy(_._1).toIndexedSeq
     }
 
   }

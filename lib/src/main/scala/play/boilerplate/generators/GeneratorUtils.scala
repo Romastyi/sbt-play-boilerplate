@@ -3,6 +3,9 @@ package play.boilerplate.generators
 import play.boilerplate.generators.support.{DefinitionContext, DefinitionsSupport, TypeSupport}
 import play.boilerplate.parser.model._
 
+import scala.collection.IterableLike
+import scala.collection.generic.CanBuildFrom
+
 object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   import treehugger.forest._
@@ -41,7 +44,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], doc: DocElement)
 
   def getBodyParameters(path: Path, operation: Operation)
-                       (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
+                       (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
     (path.parameters ++ operation.parameters).collect {
       case param: BodyParameter =>
         val paramName = decapitalize(param.name)
@@ -50,12 +53,12 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         val fullQualified = PARAM(paramName, support.fullQualified).empty
         val doc = DocTag.Param(paramName, param.description.getOrElse(""))
         paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil, None, doc)
-    }.toMap
+    }.distinctBy(_._1).toIndexedSeq
   }
 
   def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true)
-                         (implicit ctx: GeneratorContext): Map[String, MethodParam] = {
-    (path.parameters ++ operation.parameters).toSeq
+                         (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
+    (path.parameters ++ operation.parameters).toIndexedSeq
       .filter {
         case _: HeaderParameter => withHeaders
         case _: PathParameter   => true
@@ -74,7 +77,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
       .map { param =>
         getMethodParam(param)
       }
-      .toMap
+      .distinctBy(_._1)
   }
 
   def getMethodParam(param: Parameter)(implicit ctx: GeneratorContext): (String, MethodParam) = {
@@ -157,5 +160,24 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   }
 
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
+
+  implicit class IterableExtensionMethods[A, Repr](val xs: IterableLike[A, Repr]) extends AnyVal {
+
+    def distinctBy[B, That](f: A => B)(implicit cbf: CanBuildFrom[Repr, A, That]): That = {
+      val builder = cbf(xs.repr)
+      val i = xs.iterator
+      var set = Set[B]()
+      while (i.hasNext) {
+        val o = i.next
+        val b = f(o)
+        if (!set(b)) {
+          set += b
+          builder += o
+        }
+      }
+      builder.result
+    }
+
+  }
 
 }

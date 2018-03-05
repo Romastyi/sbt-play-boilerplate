@@ -72,20 +72,20 @@ class ServiceCodeGenerator extends CodeGenerator {
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val methodTree = DEF(operation.operationId, FUTURE(methodType))
-      .withParams(bodyParams.values.map(_.valDef) ++ methodParams.values.map(_.valDef) ++ securityParams)
+      .withParams(bodyParams.map(_._2.valDef) ++ methodParams.map(_._2.valDef) ++ securityParams)
       .empty
 
-    val paramDocs = (bodyParams.values ++ methodParams.values).map(_.doc) ++
+    val paramDocs = (bodyParams.map(_._2) ++ methodParams.map(_._2)).map(_.doc) ++
       actionSecurity.securityDocs.map { case (param, description) =>
         DocTag.Param(param, description)
       }
     val tree = methodTree.withDoc(
       Seq(operation.description.getOrElse("") + "\n "),
-      paramDocs.toIndexedSeq: _ *
+      paramDocs: _ *
     )
 
-    val additionalDef = bodyParams.values.flatMap(_.additionalDef) ++
-      methodParams.values.flatMap(_.additionalDef)
+    val additionalDef = bodyParams.flatMap(_._2.additionalDef) ++
+      methodParams.flatMap(_._2.additionalDef)
 
     Method(tree, filterNonEmptyTree(additionalDef))
 

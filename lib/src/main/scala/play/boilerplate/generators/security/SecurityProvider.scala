@@ -30,9 +30,9 @@ object SecurityProvider {
 
   trait ActionSecurity {
     def actionMethod(parser: Tree): Tree
-    def securityValues: Map[String, ValDef]
-    def securityParams: Map[String, Type]
-    def securityDocs: Map[String, String]
+    def securityValues: Seq[(String, ValDef)]
+    def securityParams: Seq[(String, Type)]
+    def securityDocs  : Seq[(String, String)]
     def securityParamsDef: Iterable[ValDef] = securityParams.map {
       case (name, tpe) => PARAM(name, tpe).empty
     }
@@ -40,9 +40,9 @@ object SecurityProvider {
 
   object WithoutSecurity extends ActionSecurity {
     override def actionMethod(parser: Tree): Tree = REF("Action.async") APPLY parser
-    override val securityValues: Map[String, ValDef] = Map.empty
-    override val securityParams: Map[String, Type] = Map.empty
-    override val securityDocs: Map[String, String] = Map.empty
+    override val securityValues: Seq[(String, ValDef)] = Nil
+    override val securityParams: Seq[(String, Type)]   = Nil
+    override val securityDocs  : Seq[(String, String)] = Nil
   }
 
   def default: SecurityProvider = new SecurityProvider {
