@@ -31,18 +31,25 @@ paths:
         - text/plain
         - text/xml
       parameters:
-#        - $ref: '#/parameters/tags'
-        - name: tags
+        - $ref: '#/parameters/tags0'
+        - $ref: '#/parameters/tags1'
+        - name: tags2
           in: query
           description: tags to filter by
           required: false
           type: array
           items:
             $ref: '#/definitions/PetTag'
-#            type: string
-#            enum:
-#              - young
-#              - mature
+        - name: tags3
+          in: query
+          description: tags to filter by
+          required: false
+          type: array
+          items:
+            type: string
+            enum:
+              - young
+              - mature
           collectionFormat: csv
         - name: pager.drop
           in: query
@@ -152,38 +159,75 @@ paths:
             - young
             - mature
       responses:
-        '200':
+        200:
           description: pet response
           schema:
             $ref: '#/definitions/pet'
+        500:
+          description: internal error
+          schema:
+            type: object
+            required:
+            - message
+            - code
+            properties:
+              message:
+                type: string
+              code:
+                type: integer
+                minimum: 100
+                maximum: 600
         default:
           description: unexpected error
           schema:
             $ref: '#/definitions/errorModel'
-#            type: object
-#            required:
-#            - message
-#            - code
-#            properties:
-#              message:
-#                type: string
-#              code:
-#                type: integer
-#                minimum: 100
-#                maximum: 600
+  /additional:
+    post:
+      operationId: additional
+      description:
+      parameters:
+        - name: params
+          description:
+          in: body
+          required: true
+          schema:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: integer
+                format: int32
+              others:
+                type: string
+      responses:
+        200:
+          description: OK
+        default:
+          description: unexpected error
+          schema:
+            $ref: '#/definitions/errorModel'
 parameters:
-  tags:
-    name: tags
+  tags0:
+    name: tags0
     in: query
     description: tags to filter by
     required: false
     type: array
     items:
       $ref: '#/definitions/PetTag'
-#      type: string
-#      enum:
-#        - young
-#        - mature
+    collectionFormat: csv
+  tags1:
+    name: tags1
+    in: query
+    description: tags to filter by
+    required: false
+    type: array
+    items:
+      type: string
+      enum:
+        - young
+        - mature
     collectionFormat: csv
 definitions:
   pet:
@@ -197,7 +241,7 @@ definitions:
         minimum: 0
       name:
         type: string
-      tag:
+      tags:
         type: array
         minItems: 0
         maxItems: 2
@@ -243,18 +287,18 @@ definitions:
       uuid:
         type: string
         format: uuid
-#      obj:
-#        type: object
-#        required:
-#        - message
-#        - code
-#        properties:
-#          message:
-#            type: string
-#          code:
-#            type: integer
-#            minimum: 100
-#            maximum: 600
+      obj:
+        type: object
+        required:
+          - message
+          - code
+        properties:
+          message:
+            type: string
+          code:
+            type: integer
+            minimum: 100
+            maximum: 600
   PetTag:
     type: string
     enum: &PETTAG

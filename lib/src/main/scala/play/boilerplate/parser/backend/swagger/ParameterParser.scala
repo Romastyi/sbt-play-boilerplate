@@ -18,7 +18,8 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
       throw ParserException("Trying to resolve null parameter.")
     } match {
       case param: swagger.BodyParameter =>
-        val body = parseModel(schema, getParamName(parameter), param.getSchema)
+        val context = ctx.withObjectCreator(ObjectDefinitionInline).withEnumCreator(EnumDefinitionInline)
+        val body = parseModel(schema, getParamName(parameter), param.getSchema)(context)
         BodyParameterFactory.build(body, Option(param.getName))
       case param: swagger.HeaderParameter =>
         parseTypedParameter(schema, ASP(param), HeaderParameterFactory)
@@ -121,7 +122,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         collectionFormat = parameter.collectionFormat
       ), Option(parameter.underlying.getName))
     } else if (parameter.isEnum) {
-      factory.build(EnumDefinition(
+      factory.build(EnumDefinitionInline(
         items = parameter.getEnum,
         name = parameter.getName,
         title = None,
@@ -138,22 +139,15 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
   // TODO Nested object query parameters like 'a.b.c'
   def findObjectQueryParameters(parameters: Iterable[Parameter]): Iterable[Parameter] = {
 
-    val groupedParams = parameters.foldLeft(Map.empty[String, ObjectDefinition]) {
+    val groupedParams = parameters.foldLeft(Map.empty[String, Map[String, Definition]]) {
       case (acc, param: QueryParameter) =>
         val parts = param.name.split('.')
         if (parts.length > 1) {
           val objectName = parts.head
-          val objectDef = acc.getOrElse(objectName, ObjectDefinition(
-            properties = Map.empty,
-            name = objectName,
-            title = None,
-            description = None,
-            readOnly = false,
-            allowEmptyValue = false
-          ))
+          val properties = acc.getOrElse(objectName, Map.empty)
           val propertyName = parts.tail.mkString
           val property = param.ref.modifyName(_ => propertyName)
-          acc + (objectName -> objectDef.addProperty(propertyName, property))
+          acc + (objectName -> (properties + (propertyName -> property)))
         } else {
           acc
         }
@@ -168,7 +162,15 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         false
     }
 
-    groupedParams.map { case (objectName, objectDef) =>
+    groupedParams.map { case (objectName, properties) =>
+      val objectDef = ObjectDefinitionInline(
+        properties = properties,
+        name = objectName,
+        title = None,
+        description = Some(s"Class, that composed query parameters: ${properties.keys.mkString(", ")}"),
+        readOnly = true,
+        allowEmptyValue = false
+      )
       new QueryParameter(objectName, None, objectDef)
     } ++ otherParams
 

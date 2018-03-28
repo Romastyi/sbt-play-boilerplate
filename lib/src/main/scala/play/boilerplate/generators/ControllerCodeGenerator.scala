@@ -119,7 +119,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val methodCall = REF("service") DOT methodName APPLY {
-      (bodyValues.map(_._1) ++ headerParams.map(_._1) ++ methodParams.map(_._1) ++ actionSecurity.securityValues.map(_._1)).map(REF(_))
+      (bodyValues.map(_.valName) ++ headerParams.map(_._1) ++ methodParams.map(_._1) ++ actionSecurity.securityValues.map(_._1)).map(REF(_))
     }
 
     val answerMethod = generateAnswer(operation)
@@ -138,7 +138,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     ) ++
       headerParams.map(_._2) ++
       actionSecurity.securityValues.map(_._2) ++
-      bodyValues.map(_._2)
+      bodyValues.map(_.valDef)
 
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
@@ -156,21 +156,24 @@ class ControllerCodeGenerator extends CodeGenerator {
       operation.description.getOrElse("")
     )
 
-    val implicits = methodParams.flatMap(_._2.implicits)
+    val implicits = bodyValues.flatMap(_.implicits) ++ methodParams.flatMap(_._2.implicits)
 
     Method(tree, answerMethod.implicits ++ implicits)
 
   }
 
+  case class BodyValue(valName: String, valDef: ValDef, implicits: Seq[Tree])
+
   final def generateValuesFromBody(parameters: Iterable[Parameter], produces: Iterable[MimeTypeSupport])
-                                  (implicit ctx: GeneratorContext): Seq[(String, ValDef)] = {
+                                  (implicit ctx: GeneratorContext): Seq[BodyValue] = {
 
     if (produces.isEmpty) {
       Nil
     } else {
       parameters.collect {
         case bp: BodyParameter =>
-          val tpe = getTypeSupport(bp.ref).tpe
+          val support = getTypeSupport(bp.ref)
+          val tpe = support.tpe
           val resolvers = produces.map { support =>
             support.requestBody INFIX "map" APPLY BLOCK(
               LAMBDA(PARAM("body").tree) ==> support.deserialize(tpe)(REF("body"))
@@ -181,8 +184,8 @@ class ControllerCodeGenerator extends CodeGenerator {
             INFIX_CHAIN("orElse", resolvers) INFIX "getOrElse" APPLY BLOCK {
               THROW(IllegalArgumentExceptionClass, "Invalid body format")
             }
-          valName -> valDef
-      }.distinctBy(_._1).toIndexedSeq
+          BodyValue(valName, valDef, support.jsonReads ++ support.jsonWrites)
+      }.distinctBy(_.valName).toIndexedSeq
     }
 
   }
@@ -195,6 +198,7 @@ class ControllerCodeGenerator extends CodeGenerator {
 
     val cases = for ((responseCode, response) <- operation.responses) yield {
       val className = getResponseClassName(operation.operationId, responseCode)
+      val bodyType  = getResponseBodyType(response)
       val statusCode = Some(responseCode).flatMap {
         case DefaultResponse => None
         case StatusResponse(code) => Some(code)
@@ -204,8 +208,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       }.getOrElse {
         REF("Status") APPLY REF("code")
       }
-      val bodySupport = response.schema.map(body => getTypeSupport(body))
-      val tree = (bodySupport.map(_.tpe), Some(IntClass).filter(_ => responseCode == DefaultResponse)) match {
+      val tree = (bodyType.map(_.tpe), Some(IntClass).filter(_ => responseCode == DefaultResponse)) match {
         case (Some(body), Some(_)) =>
           val default = status APPLY TYPE_TO_JSON(body)(REF("answer"))
           CASE(REF(className) UNAPPLY (ID("answer"), ID("code"))) ==>
@@ -223,7 +226,7 @@ class ControllerCodeGenerator extends CodeGenerator {
           CASE(REF(className)) ==>
             generateResponse(status, UnitClass, Nil, default)
       }
-      Method(tree, bodySupport.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
+      Method(tree, bodyType.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
 
     val UnexpectedResultCase = CASE(REF(UnexpectedResult) UNAPPLY(ID("answer"), ID("code"), ID("contentType"))) ==>

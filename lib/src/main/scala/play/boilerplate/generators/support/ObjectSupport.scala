@@ -14,12 +14,12 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def composeInterfaceName(objName: String): String = "I" + composeClassName(objName)
 
-  def composeFullClassName(objName: String, context: DefinitionContext)(implicit ctx: GeneratorContext): String = {
+  def composeFullClassName(objName: String, obj: ComplexDefinition)(implicit ctx: GeneratorContext): String = {
     val className = objName.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
-    if (ctx.inModel && context.isInline) {
+    if (ctx.inModel && obj.inline) {
       composeName(ctx.settings.modelPackageName, pathClassName)
-    } else if ((ctx.inService || ctx.inClient) && context.isInline) {
+    } else if ((ctx.inService || ctx.inClient) && obj.inline) {
       composeName(ctx.settings.servicePackageName, ctx.settings.serviceClassName, pathClassName)
     } else {
       val packageName = if (ctx.isModel) {
@@ -33,16 +33,17 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def getObjectSupport(obj: ObjectDefinition, context: DefinitionContext)
                       (implicit ctx: GeneratorContext): TypeSupport = {
-    val fullClassName = composeFullClassName(obj.name, context)
+    val fullClassName = composeFullClassName(obj.name, obj)
     val newCtx = ctx.addCurrentPath(composeClassName(obj.name))
     val params = generateClassParams(obj.properties)(newCtx)
-    val support = generateObject(fullClassName, params, Nil, context)(newCtx)
+    val withDefinition = ctx.currentPath.isEmpty || obj.inline
+    val support = generateObject(fullClassName, params, Nil, context, withDefinition)(newCtx)
     support.copy(
       defs = support.defs.map { defs =>
-        if (context.withoutDefinition) {
-          defs.copy(definition = EmptyTree)
-        } else {
+        if (withDefinition) {
           defs
+        } else {
+          defs.copy(definition = EmptyTree)
         }
       }
     )
@@ -50,7 +51,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   def getComplexObjectSupport(complex: ComplexObjectDefinition, context: DefinitionContext)
                              (implicit ctx: GeneratorContext): TypeSupport = {
-    val fullClassName = composeFullClassName(complex.name, context)
+    val fullClassName = composeFullClassName(complex.name, complex)
     val interfaces = complex.interfaces.map(
       _.baseDef match {
         case obj: ObjectDefinition =>
@@ -73,13 +74,14 @@ trait ObjectSupport { this: DefinitionsSupport =>
     ).reduceLeftOption(_ ++ _).getOrElse(Map.empty)
     val newCtx = ctx.addCurrentPath(composeClassName(complex.name))
     val ownParams = generateClassParams(ownProperties)(newCtx)
-    val support = generateObject(fullClassName, parentsParams ++ ownParams, parents, context)(newCtx)
+    val withDefinition = ctx.currentPath.isEmpty || complex.inline
+    val support = generateObject(fullClassName, parentsParams ++ ownParams, parents, context, withDefinition)(newCtx)
     support.copy(
       defs = support.defs.map { defs =>
-        if (context.withoutDefinition) {
-          defs.copy(definition = EmptyTree)
-        } else {
+        if (withDefinition) {
           defs
+        } else {
+          defs.copy(definition = EmptyTree)
         }
       }
     )
@@ -88,23 +90,24 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def generateObject(fullClassName: String,
                      params: Seq[ObjectProperty],
                      parents: Seq[Symbol],
-                     context: DefinitionContext)
+                     context: DefinitionContext,
+                     withDefinition: Boolean)
                     (implicit ctx: GeneratorContext): TypeSupport = {
     val objectClassName = fullClassName.split('.').last
     val objectClass = RootClass.newClass(objectClassName)
+    val interfaces = if (ctx.needInterface) {
+      Seq(generateInterfaceDefs(RootClass.newClass(composeInterfaceName(objectClassName)), params))
+    } else {
+      Nil
+    }
+    val objectDefs = generateObjectDefs(objectClass, params, parents ++ interfaces.map(_.symbol))
     TypeSupport(
       tpe = objectClass,
       fullQualified = RootClass.newClass(fullClassName),
-      defs = if (context.withoutDefinition) {
-        Nil
+      defs = if (withDefinition) {
+        interfaces ++ objectDefs
       } else {
-        val interface = if (ctx.needInterface) {
-          Some(generateInterfaceDefs(RootClass.newClass(composeInterfaceName(objectClassName)), params))
-        } else {
-          None
-        }
-        interface.toList ++
-        generateObjectDefs(objectClass, params, parents ++ interface.map(_.symbol))
+        Nil
       }
     )
   }

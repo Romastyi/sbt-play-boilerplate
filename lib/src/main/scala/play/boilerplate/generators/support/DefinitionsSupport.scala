@@ -13,7 +13,7 @@ trait DefinitionsSupport
   import definitions._
   import treehuggerDSL._
 
-  def getTypeSupport(definition: Definition, context: DefinitionContext = DefinitionContext.inline)
+  def getTypeSupport(definition: Definition, context: DefinitionContext = DefinitionContext.default)
                     (implicit ctx: GeneratorContext): TypeSupport = {
     definition match {
       case OptionDefinition(_, base) =>
@@ -97,22 +97,11 @@ trait DefinitionsSupport
   def getTypeSupportRef(reference: RefDefinition)(implicit ctx: GeneratorContext): TypeSupport = {
     reference match {
       case m: Model =>
-        val context = if (ctx.inModel || ctx.inService || ctx.inClient) {
-          DefinitionContext.withoutDefinition
-        } else {
-          DefinitionContext.inline
-        }
-        val newCtx = ctx.setInModel(true).setIsModel(true).setNeedInterface(m.isInterface)
-        getTypeSupport(m.ref, context)(newCtx)
+        getTypeSupport(m.ref)(ctx.setInModel(true).setIsModel(true).setNeedInterface(m.isInterface))
       case p: Parameter =>
-        val context = if (ctx.inModel) {
-          DefinitionContext.withoutDefinition
-        } else {
-          DefinitionContext.inline
-        }
-        getTypeSupport(p.ref, context)(ctx.setIsModel(false))
+        getTypeSupport(p.ref)(ctx.setIsModel(false))
       case RefDefinition(_, ref) =>
-        getTypeSupport(ref, DefinitionContext.inline)(ctx.setIsModel(false))
+        getTypeSupport(ref)(ctx.setIsModel(false))
     }
   }
 

@@ -93,7 +93,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           collectionFormat = CollectionFormat.None
         ))
       case EnumModel(m, items) =>
-        ModelFactory.build(EnumDefinition(
+        ModelFactory.build(ctx.enumCreator(
           items = items,
           name = Option(m.getName).getOrElse(modelName),
           title = Option(m.getTitle),
@@ -103,7 +103,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
           default = None
         ))
       case ObjectModel(m, properties) =>
-        ModelFactory.build(ObjectDefinition(
+        ModelFactory.build(ctx.objectCreator(
           properties = for ((name, prop) <- properties) yield {
             name -> getPropertyDef(schema, name, prop)
           },

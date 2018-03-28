@@ -51,8 +51,9 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         val support = getTypeSupport(param.ref)
         val valDef = PARAM(paramName, support.tpe).empty
         val fullQualified = PARAM(paramName, support.fullQualified).empty
+        val implicits = support.jsonReads ++ support.jsonWrites
         val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, Nil, None, doc)
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, implicits, None, doc)
     }.distinctBy(_._1).toIndexedSeq
   }
 
@@ -83,7 +84,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   def getMethodParam(param: Parameter)(implicit ctx: GeneratorContext): (String, MethodParam) = {
     val paramName = decapitalize(param.name)
     val defaultValue = getDefaultValue(param)
-    val support = getTypeSupport(param.ref, DefinitionContext.inline.copy(canBeOption = defaultValue.isEmpty))
+    val support = getTypeSupport(param.ref, DefinitionContext.default.copy(canBeOption = defaultValue.isEmpty))
     val valDef = defaultValue match {
       case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
       case None => PARAM(paramName, support.tpe).empty
@@ -157,6 +158,12 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
       case DefaultResponse => "Default"
       case StatusResponse(code) => getStatusByCode(code).getOrElse(code.toString)
     }).capitalize
+  }
+
+  def getResponseBodyType(response: Response)(implicit ctx: GeneratorContext): Option[TypeSupport] = {
+    response.schema.map(
+      body => getTypeSupport(body)(ctx.addCurrentPath("body"))
+    )
   }
 
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)

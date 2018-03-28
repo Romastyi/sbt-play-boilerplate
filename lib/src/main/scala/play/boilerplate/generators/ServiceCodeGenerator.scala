@@ -121,7 +121,7 @@ class ServiceCodeGenerator extends CodeGenerator {
     val operationResults = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield generateOperationResults(operation, models)
+    } yield generateOperationResults(operation, models)(ctx.addCurrentPath(operation.operationId))
 
     val traits = operationResults.map(_.traitName)
 
@@ -155,9 +155,7 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val responses = for ((code, response) <- operation.responses.toSeq) yield {
       val className = getResponseClassName(operation.operationId, code)
-      val bodyType = response.schema.map(
-        body => getTypeSupport(body)(ctx.addCurrentPath(operation.operationId, "body"))
-      )
+      val bodyType  = getResponseBodyType(response)
       val params = bodyType.map(body => PARAM("body", body.tpe).tree).toSeq ++ {
         code match {
           case DefaultResponse =>

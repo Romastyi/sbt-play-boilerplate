@@ -53,7 +53,7 @@ trait PropertyParser { this: ReferenceParser =>
           base = getPropertyDef(schema, propertyName, prop, canBeOption = false)
         )
       case EnumProperty(prop, items) =>
-        EnumDefinition(
+        EnumDefinitionInline(
           items = items,
           name = Option(prop.getName).getOrElse(propertyName),
           title = Option(prop.getTitle),
@@ -216,7 +216,7 @@ trait PropertyParser { this: ReferenceParser =>
         val items = for ((name, p) <- Option(prop.getProperties).map(_.asScala.toMap).getOrElse(Map.empty)) yield {
           name -> getPropertyDef(schema, name, p)
         }
-        ObjectDefinition(
+        ObjectDefinitionInline(
           properties = items,
           name = Option(prop.getName).getOrElse(propertyName),
           title = Option(prop.getTitle),

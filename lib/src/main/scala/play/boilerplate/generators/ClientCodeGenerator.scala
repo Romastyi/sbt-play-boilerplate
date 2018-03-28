@@ -205,7 +205,7 @@ class ClientCodeGenerator extends CodeGenerator {
       paramDocs: _ *
     )
 
-    val implicits = methodParams.flatMap(_._2.implicits)
+    val implicits = bodyParams.flatMap(_._2.implicits) ++ methodParams.flatMap(_._2.implicits)
 
     Method(tree, responses.implicits ++ implicits)
 
@@ -220,8 +220,8 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val cases = for ((responseCode, response) <- responses) yield {
       val className = getResponseClassName(operation.operationId, responseCode)
-      val bodySupport = response.schema.map(body => getTypeSupport(body))
-      val bodyParam = bodySupport.map { body =>
+      val bodyType  = getResponseBodyType(response)
+      val bodyParam = bodyType.map { body =>
         REF("parseResponseAsJson") APPLYTYPE body.tpe APPLY responseVal
       }
       val tree = responseCode match {
@@ -230,7 +230,7 @@ class ClientCodeGenerator extends CodeGenerator {
         case StatusResponse(code) =>
           CASE(LIT(code)) ==> bodyParam.map(bp => REF(className) APPLY bp).getOrElse(REF(className))
       }
-      (tree, bodySupport.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
+      (tree, bodyType.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
 
     val UnexpectedResultCase = if (operation.responses.keySet(DefaultResponse)) {

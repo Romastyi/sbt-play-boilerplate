@@ -40,7 +40,7 @@ object SwaggerBackend
     }
 
     resolved.copy(
-      paths = parsePaths(swagger, resolved)(ParserContext(false))
+      paths = parsePaths(swagger, resolved)(ParserContext.notLazy)
     )
 
   }

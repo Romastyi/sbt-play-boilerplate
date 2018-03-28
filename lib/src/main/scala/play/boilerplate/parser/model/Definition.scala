@@ -105,19 +105,18 @@ sealed trait DefinitionImpl extends Definition {
 
 }
 
-sealed trait ComplexDefinition
+sealed trait ComplexDefinition {
+  def inline: Boolean
+}
 
-final case class ObjectDefinition(properties: Map[String, Definition],
-                                  override val name: String,
-                                  override val title: Option[String],
-                                  override val description: Option[String],
-                                  override val readOnly: Boolean,
-                                  override val allowEmptyValue: Boolean
-                                 ) extends DefinitionImpl with ComplexDefinition with WithReadOnly {
-
-  def addProperty(name: String, property: Definition): ObjectDefinition = {
-    copy(properties = properties + (name -> property))
-  }
+case class ObjectDefinition(properties: Map[String, Definition],
+                            override val name: String,
+                            override val title: Option[String],
+                            override val description: Option[String],
+                            override val readOnly: Boolean,
+                            override val allowEmptyValue: Boolean,
+                            override val inline: Boolean
+                           ) extends DefinitionImpl with ComplexDefinition with WithReadOnly {
 
   override def containsLazyRef: Boolean = properties.values.exists(_.containsLazyRef)
 
@@ -133,6 +132,51 @@ final case class ObjectDefinition(properties: Map[String, Definition],
 
 }
 
+trait ObjectCreator {
+  def apply(properties: Map[String, Definition],
+            name: String,
+            title: Option[String],
+            description: Option[String],
+            readOnly: Boolean,
+            allowEmptyValue: Boolean): ObjectDefinition
+}
+object ObjectDefinition extends ObjectCreator {
+  override def apply(properties: Map[String, Definition],
+                     name: String,
+                     title: Option[String],
+                     description: Option[String],
+                     readOnly: Boolean,
+                     allowEmptyValue: Boolean): ObjectDefinition = {
+    new ObjectDefinition(
+      properties = properties,
+      name = name,
+      title = title,
+      description = description,
+      readOnly = readOnly,
+      allowEmptyValue = allowEmptyValue,
+      inline = false
+    )
+  }
+}
+object ObjectDefinitionInline extends ObjectCreator {
+  override def apply(properties: Map[String, Definition],
+                     name: String,
+                     title: Option[String],
+                     description: Option[String],
+                     readOnly: Boolean,
+                     allowEmptyValue: Boolean): ObjectDefinition = {
+    new ObjectDefinition(
+      properties = properties,
+      name = name,
+      title = title,
+      description = description,
+      readOnly = readOnly,
+      allowEmptyValue = allowEmptyValue,
+      inline = true
+    )
+  }
+}
+
 final case class ComplexObjectDefinition(interfaces: Seq[Definition],
                                          inlines: Seq[Definition],
                                          override val name: String,
@@ -140,6 +184,8 @@ final case class ComplexObjectDefinition(interfaces: Seq[Definition],
                                          override val description: Option[String],
                                          override val allowEmptyValue: Boolean
                                         ) extends DefinitionImpl with ComplexDefinition {
+
+  override val inline: Boolean = false
 
   def hasInterface(definition: Definition): Boolean = {
     definition.baseDef match {
@@ -167,17 +213,68 @@ final case class ComplexObjectDefinition(interfaces: Seq[Definition],
 
 }
 
-final case class EnumDefinition(items: Iterable[String],
-                                override val name: String,
-                                override val title: Option[String],
-                                override val description: Option[String],
-                                override val readOnly: Boolean,
-                                override val allowEmptyValue: Boolean,
-                                override val default: Option[String]
-                               ) extends DefinitionImpl with ComplexDefinition with WithReadOnly with WithDefault[String] {
+case class EnumDefinition(items: Iterable[String],
+                          override val name: String,
+                          override val title: Option[String],
+                          override val description: Option[String],
+                          override val readOnly: Boolean,
+                          override val allowEmptyValue: Boolean,
+                          override val default: Option[String],
+                          override val inline: Boolean
+                         ) extends DefinitionImpl with ComplexDefinition with WithReadOnly with WithDefault[String] {
   override val containsLazyRef: Boolean = false
   override def modifyName(f: String => String): Definition = {
     copy(name = f(name))
+  }
+}
+
+trait EnumCreator {
+  def apply(items: Iterable[String],
+            name: String,
+            title: Option[String],
+            description: Option[String],
+            readOnly: Boolean,
+            allowEmptyValue: Boolean,
+            default: Option[String]): EnumDefinition
+}
+object EnumDefinition extends EnumCreator {
+  override def apply(items: Iterable[String],
+                     name: String,
+                     title: Option[String],
+                     description: Option[String],
+                     readOnly: Boolean,
+                     allowEmptyValue: Boolean,
+                     default: Option[String]): EnumDefinition = {
+    new EnumDefinition(
+      items = items,
+      name = name,
+      title = title,
+      description = description,
+      readOnly = readOnly,
+      allowEmptyValue = allowEmptyValue,
+      default = default,
+      inline = false
+    )
+  }
+}
+object EnumDefinitionInline extends EnumCreator {
+  override def apply(items: Iterable[String],
+                     name: String,
+                     title: Option[String],
+                     description: Option[String],
+                     readOnly: Boolean,
+                     allowEmptyValue: Boolean,
+                     default: Option[String]): EnumDefinition = {
+    new EnumDefinition(
+      items = items,
+      name = name,
+      title = title,
+      description = description,
+      readOnly = readOnly,
+      allowEmptyValue = allowEmptyValue,
+      default = default,
+      inline = true
+    )
   }
 }
 
