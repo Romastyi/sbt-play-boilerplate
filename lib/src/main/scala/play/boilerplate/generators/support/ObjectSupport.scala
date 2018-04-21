@@ -149,9 +149,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def getReadsConstraint(constraint: Constraint, noOptType: Type): Tree = {
     constraint match {
       case ListConstraint(constraints, tpe) if constraints.nonEmpty =>
-        REF("Reads") DOT "list" APPLYTYPE tpe APPLY constraints.map(getReadsConstraint(_, tpe))
+        REF("Reads") DOT "list" APPLYTYPE tpe APPLY INFIX_CHAIN("keepAnd", constraints.map(getReadsConstraint(_, tpe)))
       case MapConstraint(constraints, tpe) if constraints.nonEmpty =>
-        REF("Reads") DOT "map" APPLYTYPE tpe APPLY constraints.map(getReadsConstraint(_, tpe))
+        REF("Reads") DOT "map" APPLYTYPE tpe APPLY INFIX_CHAIN("keepAnd", constraints.map(getReadsConstraint(_, tpe)))
       case Maximum(value) =>
         REF("Reads") DOT "max" APPLYTYPE noOptType APPLY LIT(value)
       case Minimum(value) =>

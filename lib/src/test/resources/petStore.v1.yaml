@@ -198,6 +198,12 @@ paths:
               id:
                 type: integer
                 format: int32
+              tags:
+                type: array
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 32
               others:
                 type: string
       responses:
