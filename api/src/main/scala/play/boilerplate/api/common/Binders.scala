@@ -25,14 +25,14 @@ object Binders {
     def bindList(values: String): Seq[A] = {
       for {
         rawValue <- values.trim.split(separator).toList
-        bound <- binder.bind("key", Map("key" -> Seq(rawValue)))
+        bound <- binder.bind("anon", Map("anon" -> Seq(rawValue)))
         value <- bound.right.toOption
       } yield value
     }
 
     def serializeList(values: Seq[A]): String = {
       (for (value <- values) yield {
-        binder.unbind("key", value).replaceAll("key=", "")
+        binder.unbind("anon", value).replaceAll("anon=", "")
       }).mkString(separator.toString)
     }
 

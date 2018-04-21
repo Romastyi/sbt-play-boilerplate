@@ -15,6 +15,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
     Seq(
       IMPORT(REF("play.api.routing"), "Router", "SimpleRouter"),
       IMPORT(REF("play.api.routing.sird"), "_"),
+      IMPORT(REF("play.boilerplate.api.server.dsl.SirdOps"), "_"),
       IMPORT(REF(ctx.settings.controllerClassName), "_")
     )
   }
@@ -33,12 +34,13 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
     val defaultPrefix = prefix + schema.basePath
 
-    val routes = filterNonEmptyTree(
-      (for {
-        path <- schema.paths
-        (_, operation) <- path.operations.toSeq.sortBy(_._1)
-      } yield composeRoutes(defaultPrefix, path, operation)).toIndexedSeq
-    )
+    val routesCases = (for {
+      path <- schema.paths
+      (_, operation) <- path.operations.toSeq.sortBy(_._1)
+    } yield composeRoutesCases(defaultPrefix, path, operation)).toIndexedSeq
+
+    val definitions = filterNonEmptyTree(routesCases.flatMap(_.definitions))
+    val routes = filterNonEmptyTree(routesCases.map(_.caseDef))
 
     if (routes.nonEmpty) {
 
@@ -46,13 +48,15 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
         generateImports
       } inPackage ctx.settings.controllerPackageName
 
+      val routesMethod = DEF("routes", TYPE_REF("Router.Routes")).withFlags(Flags.OVERRIDE) := BLOCK {
+        routes
+      }
+
       val classDef = CLASSDEF(routerClassName)
         .withParents("SimpleRouter") :=
-        BLOCK {
-          DEF("routes", TYPE_REF("Router.Routes")).withFlags(Flags.OVERRIDE) := BLOCK {
-            routes
-          }
-        }
+        BLOCK(
+          definitions :+ routesMethod
+        )
 
       // --- DI
       val routerTree = ctx.settings.injectionProvider.classDefModifier(classDef, dependencies)
@@ -70,20 +74,28 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
   }
 
-  def composeRoutes(basePath: String, path: Path, operation: Operation)(implicit ctx: GeneratorContext): CaseDef = {
+  private case class RoutesCase(definitions: Seq[Tree], caseDef: CaseDef)
+
+  private def composeRoutesCases(basePath: String, path: Path, operation: Operation)
+                                (implicit ctx: GeneratorContext): RoutesCase = {
 
     val httpMethod = operation.httpMethod.toString.toUpperCase
     val url = composeRoutesUrl(basePath, path.pathParts, operation)
-    val queryParams = composeQueryParams(path, operation)
+    val queryInterp = composeQueryParams(path, operation)
+    val queryParams = queryInterp.map(_.interp)
+    val queryDefs   = filterNonEmptyTree(queryInterp.map(_.definition))
     val methodCall = generateMethodCall(path, operation)
 
     val fullUrl = INFIX_CHAIN("&", url +: queryParams)
 
-    CASE(REF(httpMethod) UNAPPLY fullUrl) ==> methodCall
+    RoutesCase(
+      definitions = queryDefs,
+      caseDef = CASE(REF(httpMethod) UNAPPLY fullUrl) ==> methodCall
+    )
 
   }
 
-  protected def paramInterp(name: String, param: Definition): String = param match {
+  private def paramInterp(name: String, param: Definition): String = param match {
     case _: IntegerDefinition => "${int(" + name + ")}"
     case _: LongDefinition => "${long(" + name + ")}"
     case _: FloatDefinition => "${float(" + name + ")}"
@@ -112,21 +124,46 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
   }
 
+  private case class QueryInterp(definition: Tree, interp: Interpolated)
+
   @tailrec
-  final def queryParamInterpSym(param: Definition): String = param match {
-    case RefDefinition(_, ref) => queryParamInterpSym(ref)
-    case _: OptionDefinition => "q_?"
-    case _: ArrayDefinition => "q_*"
-    case _ => "q"
+  private def queryParamInterpSym(param: Definition)(implicit ctx: GeneratorContext): QueryInterp = {
+
+    def interpolated(symbol: String, paramInterp: String): Interpolated = {
+      INTERP(symbol, LIT(param.name + "=" + paramInterp))
+    }
+
+    param match {
+      case RefDefinition(_, ref) =>
+        queryParamInterpSym(ref)
+      case _: OptionDefinition =>
+        QueryInterp(EmptyTree, interpolated("q_?", paramInterp(param.name, param.baseDef)))
+      case a: ArrayDefinition
+        if a.collectionFormat == CollectionFormat.Multi || a.collectionFormat == CollectionFormat.None =>
+        QueryInterp(EmptyTree, interpolated("q_*", paramInterp(param.name, param.baseDef)))
+      case a: ArrayDefinition =>
+        val name = param.name
+        val sep = a.collectionFormat match {
+          case CollectionFormat.Csv => ','
+          case CollectionFormat.Tsv => '\t'
+          case CollectionFormat.Ssv => ' '
+          case CollectionFormat.Pipes => '|'
+          case other => throw new RuntimeException(s"Unsupported 'collectionFormat' ($other) for array parameter ($name).")
+        }
+        val tpe = getTypeSupport(a.baseDef).tpe
+        QueryInterp(
+          VAL(s"interp_$name") := REF("listOf") APPLYTYPE tpe APPLY LIT(sep),
+          interpolated("q", "${interp_" + name + "(" + name + ")}")
+        )
+      case _ =>
+        QueryInterp(EmptyTree, interpolated("q", paramInterp(param.name, param)))
+    }
+
   }
 
-  protected def composeQueryParams(path: Path, operation: Operation)
-                                  (implicit ctx: GeneratorContext): Seq[Interpolated] = {
+  private def composeQueryParams(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Seq[QueryInterp] = {
     (path.parameters ++ operation.parameters).toIndexedSeq.collect {
-      case param: QueryParameter =>
-        val interpSym = queryParamInterpSym(param)
-        val interp = paramInterp(param.name, param.baseDef)
-        INTERP(interpSym, LIT(param.name + "=" + interp))
+      case param: QueryParameter => queryParamInterpSym(param)
     }
   }
 
