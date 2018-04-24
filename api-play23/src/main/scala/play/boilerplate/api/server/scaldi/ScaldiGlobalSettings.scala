@@ -9,8 +9,8 @@ import play.api.Application
 import play.api.http.Status._
 import play.api.mvc.{Handler, RequestHeader, Result}
 import play.boilerplate.api.server.dsl.{HttpErrorHandler, InjectedRoutes}
-import scaldi.play.ScaldiSupport
-import scaldi.{Injector, LifecycleManager, NilInjector}
+import scaldi.play.{PlayAppModule, ScaldiSupport}
+import scaldi._
 
 import scala.concurrent.Future
 
@@ -21,13 +21,25 @@ trait ScaldiGlobalSettings extends ScaldiSupport {
 
   final override def applicationModule: Injector = NilInjector
 
-  override implicit lazy val injector: Injector = super.injector ++ loadedInjector.getOrElse {
+  override implicit lazy val injector: Injector = loadedInjector.getOrElse {
     throw new IllegalStateException("No injector found. Is application running?")
   }
 
   private def createInjector(currentApplication: Application, errorHandler: HttpErrorHandler): Injector with LifecycleManager = {
-    ScaldiBuilder.loadModules(currentApplication.configuration, currentApplication.classloader) ::
+
+    val allInjectors = ScaldiBuilder.loadModules(currentApplication.configuration, currentApplication.classloader) ::
+      TypesafeConfigInjector(currentApplication.configuration.underlying) ::
+      new PlayAppModule(currentApplication) ::
       new ScaldiPlayModule(currentApplication, errorHandler)
+
+    allInjectors match {
+      case init: Initializeable[_] =>
+        init.initNonLazy()
+      case _ => // there is nothing to init
+    }
+
+    allInjectors
+
   }
 
   override def onStart(app: Application): Unit = {
