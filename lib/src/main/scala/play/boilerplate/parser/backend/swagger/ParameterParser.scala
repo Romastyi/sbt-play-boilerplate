@@ -156,7 +156,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
     }
 
     val otherParams = parameters.filterNot {
-      case (param: QueryParameter) =>
+      case param: QueryParameter =>
         param.name.split('.').length > 1
       case _ =>
         false
