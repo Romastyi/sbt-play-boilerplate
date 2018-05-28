@@ -24,6 +24,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF("QueryStringBindable"), "_"),
       IMPORT(REF("PathBindable"), "_"),
       IMPORT(REF("play.boilerplate.api.client.dsl"), "_"),
+      IMPORT(REF("play.boilerplate.api.client.dsl.Compat"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
       ctx.settings.securityProvider.serviceImports ++
@@ -34,7 +35,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
     Seq(
-      InjectionProvider.Dependency("handler", TYPE_REF("RequestHandler") TYPE_OF TYPE_REF(ctx.settings.clientClassName), Some(REF("RequestHandler") DOT "default")),
+      InjectionProvider.Dependency("handler", TYPE_REF("RequestHandler") TYPE_OF TYPE_REF(ctx.settings.clientClassName), Some(REF("RequestHandler") DOT "default" APPLYTYPE TYPE_REF(ctx.settings.clientClassName))),
       InjectionProvider.Dependency("ws", TYPE_REF("WSClient"), isImplicit = true),
       InjectionProvider.Dependency("locator", TYPE_REF("ServiceLocator"), isImplicit = true),
       InjectionProvider.Dependency("ec", TYPE_REF("ExecutionContext"), isImplicit = true)
@@ -146,11 +147,11 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val opType = operation.httpMethod.toString.toLowerCase
-    val wsRequestWithAccept = REF("request") DOT "withHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT("application/json")))
+    val wsRequestWithAccept = REF("request") DOT "withHttpHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT("application/json")))
     val wsRequestWithHeaderParams = if (headerParams.isEmpty) {
       wsRequestWithAccept
     } else {
-      wsRequestWithAccept DOT "withHeaders" APPLY SEQARG(REF("_render_header_params") APPLY (headerParams: _*))
+      wsRequestWithAccept DOT "withHttpHeaders" APPLY SEQARG(REF("_render_header_params") APPLY (headerParams: _*))
     }
 
     val credentials = {
