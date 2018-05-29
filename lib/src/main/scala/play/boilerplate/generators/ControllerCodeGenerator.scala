@@ -231,8 +231,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val UnexpectedResultCase = CASE(REF(UnexpectedResult) UNAPPLY(ID("answer"), ID("code"), ID("contentType"))) ==>
-      REF("Status") APPLY REF("code") APPLY REF("answer") DOT "withHeaders" APPLY
-      INFIX_CHAIN("->", ID("CONTENT_TYPE"), REF("contentType"))
+      REF("Status") APPLY REF("code") APPLY REF("answer") DOT "as" APPLY REF("contentType")
 
     val tree = BLOCK {
       cases.map(_.tree) ++ Seq(UnexpectedResultCase)
@@ -248,7 +247,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     } else {
       scala.Function.chain(
         produces.toIndexedSeq.map { support =>
-          new ((Tree) => Tree) {
+          new (Tree => Tree) {
             override def apply(v1: Tree): Tree = {
               IF(REF("acceptsMimeType") APPLY LIT(support.mimeType)) THEN {
                 status APPLY support.serialize(tpe)(REF("answer"))
