@@ -86,6 +86,10 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       SingletonRoutesCodeGenerator(implSuffix, prefix)
     }
 
+    val sirdRoutes: CodeGenerator = sirdRoutesWithPrefix("/")
+
+    def sirdRoutesWithPrefix(prefix: String): CodeGenerator = SirdRouterGenerator(prefix)
+
   }
 
   object Imports {

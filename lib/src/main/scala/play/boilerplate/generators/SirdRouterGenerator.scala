@@ -15,9 +15,11 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
     Seq(
       IMPORT(REF("play.api.routing"), "Router", "SimpleRouter"),
       IMPORT(REF("play.api.routing.sird"), "_"),
-      IMPORT(REF("play.boilerplate.api.server.dsl.SirdOps"), "_"),
-      IMPORT(REF(ctx.settings.controllerClassName), "_")
-    )
+      IMPORT(REF("play.boilerplate.api.server.dsl.SirdOps"), "_")/*,
+      IMPORT(REF(ctx.settings.controllerClassName), "_")*/
+    ) ++
+      ctx.settings.injectionProvider.imports ++
+      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
