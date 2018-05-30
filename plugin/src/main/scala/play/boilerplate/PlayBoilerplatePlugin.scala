@@ -1,5 +1,6 @@
 package play.boilerplate
 
+import play.boilerplate.generators.GeneratorUtils.MimeTypeSupport
 import play.boilerplate.generators._
 import play.boilerplate.generators.injection._
 import play.boilerplate.generators.logger.LoggerProvider
@@ -53,6 +54,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val injectionProvider: SettingKey[InjectionProvider] = settingKey("injectionProvider")
     val loggerProvider: SettingKey[LoggerProvider] = settingKey("loggerProvider")
     val customTypeSupport: SettingKey[CustomTypeSupport] = settingKey("customTypeSupport")
+    val supportedMimeTypes: SettingKey[Map[String, MimeTypeSupport]] = settingKey("supportedMimeTypes")
 
     val generatorsSources: TaskKey[Seq[SchemasWatcher]] = taskKey("generatorsSources")
     val generatorsCodeGen: TaskKey[GeneratedFiles] = taskKey("generatorsCodeGen")
@@ -178,12 +180,13 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     // Default generators
     Keys.generators := Seq(Generators.json, Generators.model),
     // Generators code-gen settings
-    Keys.enumGenerator     := VanillaEnumerations,
-    Keys.securityProvider  := SecurityProvider.default,
-    Keys.injectionProvider := InjectionProvider.defaultInConstructor,
-    Keys.loggerProvider    := LoggerProvider.defaultPlayLogger,
-    Keys.customTypeSupport := CustomTypeSupport.empty,
-    Keys.generatorSettings := new Keys.GenSettings {
+    Keys.enumGenerator      := VanillaEnumerations,
+    Keys.securityProvider   := SecurityProvider.default,
+    Keys.injectionProvider  := InjectionProvider.defaultInConstructor,
+    Keys.loggerProvider     := LoggerProvider.defaultPlayLogger,
+    Keys.customTypeSupport  := CustomTypeSupport.empty,
+    Keys.supportedMimeTypes := Map.empty,
+    Keys.generatorSettings  := new Keys.GenSettings {
       def apply(fileName: String, basePackageName: String, codeProvidedPackage: String) =
         DefaultGeneratorSettings(
           fileName,
@@ -193,7 +196,8 @@ object PlayBoilerplatePlugin extends AutoPlugin {
           securityProvider = Keys.securityProvider.value,
           injectionProvider = Keys.injectionProvider.value,
           loggerProvider = Keys.loggerProvider.value,
-          customTypeSupport = Keys.customTypeSupport.value
+          customTypeSupport = Keys.customTypeSupport.value,
+          supportedMimeTypes = Keys.supportedMimeTypes.value
         )
     },
     // Generation sources and others

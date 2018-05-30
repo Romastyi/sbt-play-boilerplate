@@ -36,9 +36,11 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
                              deserialize: Type => Ident => Tree,
                              serialize: Type => Ident => Tree)
 
-  def getMimeTypeSupport: PartialFunction[String, MimeTypeSupport] = {
-    case MIME_TYPE_JSON => MimeTypeSupport(MIME_TYPE_JSON, REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON)
-    case MIME_TYPE_TEXT => MimeTypeSupport(MIME_TYPE_TEXT, REQUEST_AS_TEXT, tpe => ident => tpe APPLY ident, _ => ident => ident DOT "toString()")
+  def getMimeTypeSupport(implicit ctx: GeneratorContext): PartialFunction[String, MimeTypeSupport] = {
+    Map(
+      MIME_TYPE_JSON -> MimeTypeSupport(MIME_TYPE_JSON, REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON),
+      MIME_TYPE_TEXT -> MimeTypeSupport(MIME_TYPE_TEXT, REQUEST_AS_TEXT, tpe => ident => tpe APPLY ident, _ => ident => ident DOT "toString()")
+    ) ++ ctx.settings.supportedMimeTypes
   }
 
   case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], doc: DocElement)
