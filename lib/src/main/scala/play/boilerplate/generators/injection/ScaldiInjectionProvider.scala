@@ -34,8 +34,8 @@ object ScaldiInjectionProvider extends InjectionProvider {
     )
     val tree = treeToString(classTree)
     tree
-      .replaceFirst(s"\\)\\s*\\{", ")(" + treeToString(injector) + ") {")
-      .replaceFirst(s"\\)\\s*extends", ")(" + treeToString(injector) + ") extends")
+      //.replaceFirst(s"\\)\\s*\\{", ")(" + treeToString(injector) + ") {")
+      //.replaceFirst(s"\\)\\s*extends", ")(" + treeToString(injector) + ") extends")
       .replaceFirst(s"$className\\s*\\{", className + "(" + treeToString(injector) + ") {")
       .replaceFirst(s"$className\\s*extends", className + "(" + treeToString(injector) + ") extends")
   }

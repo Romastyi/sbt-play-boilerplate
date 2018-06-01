@@ -59,8 +59,11 @@ class ClientCodeGenerator extends CodeGenerator {
         generateImports
       } inPackage ctx.settings.clientPackageName
 
+      val parents = Seq(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelpers")) ++
+        ctx.settings.loggerProvider.parents
+
       val classDef = CLASSDEF(ctx.settings.clientClassName)
-        .withParents(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelpers"))
+        .withParents(parents)
         .withSelf("self") :=
         BLOCK {
           filterNonEmptyTree(

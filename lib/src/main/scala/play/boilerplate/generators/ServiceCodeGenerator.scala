@@ -100,7 +100,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       .withParams(operationId, cause) :=
       BLOCK(
         VAL("message") := INFIX_CHAIN("+",
-          INTERP(StringContext_s, LIT("Unexpected error (operationId: "), REF("operationId"), LIT("): ")),
+          INTERP(StringContext_s, LIT("["), REF("operationId") , LIT("] Unexpected error: ")),
           REF("cause") DOT "getMessage"
         ),
         ctx.settings.loggerProvider.error(REF("message"), REF("cause")),

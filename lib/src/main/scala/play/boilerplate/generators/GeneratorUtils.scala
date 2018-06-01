@@ -30,17 +30,18 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   final def JSON_TO_TYPE(tpe: Type)(ident: Ident): Tree = ident DOT "as" APPLYTYPE tpe
   final def TYPE_TO_JSON(tpe: Type)(ident: Ident): Tree = REF("Json") DOT "toJson" APPLYTYPE tpe APPLY ident
+  final def LOG_JSON(ident: Ident): Tree = REF("Json") DOT "stringify" APPLY ident
 
   case class MimeTypeSupport(mimeType: String,
                              requestBody: Tree,
                              deserialize: Type => Ident => Tree,
-                             serialize: Type => Ident => Tree)
+                             serialize: Type => Ident => Tree,
+                             logContent: Ident => Tree)
+
+  val defaultJsonSupport: MimeTypeSupport = MimeTypeSupport(MIME_TYPE_JSON, REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON, LOG_JSON)
 
   def getMimeTypeSupport(implicit ctx: GeneratorContext): PartialFunction[String, MimeTypeSupport] = {
-    Map(
-      MIME_TYPE_JSON -> MimeTypeSupport(MIME_TYPE_JSON, REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON),
-      MIME_TYPE_TEXT -> MimeTypeSupport(MIME_TYPE_TEXT, REQUEST_AS_TEXT, tpe => ident => tpe APPLY ident, _ => ident => ident DOT "toString()")
-    ) ++ ctx.settings.supportedMimeTypes
+    Map(MIME_TYPE_JSON -> defaultJsonSupport) ++ ctx.settings.supportedMimeTypes
   }
 
   case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], doc: DocElement)
