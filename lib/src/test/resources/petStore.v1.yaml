@@ -181,7 +181,13 @@ paths:
           description: unexpected error
           schema:
             $ref: '#/definitions/errorModel'
-  /additional:
+  /additional/{params}:
+    parameters:
+      - name: params
+        in: path
+        required: true
+        type: string
+        pattern: '^(\d{2}-\d{2})$'
     post:
       operationId: additional
       description:

@@ -51,6 +51,7 @@ abstract class RoutesCodeGenerator(prefix: String) extends CodeGenerator {
         }
         param match {
           case _: IntegerDefinition | _: LongDefinition => "$" + name + "<[0-9]+>"
+          case s: StringDefinition if s.pattern.isDefined => "$" + name + "<" + s.pattern.get + ">"
           case _ => ":" + name
         }
     }.toSeq
