@@ -10,6 +10,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
   import treehuggerDSL._
   import definitions._
 
+  val MaxJsonArity = 21
+
   def composeClassName(objName: String): String = objName.capitalize
 
   def composeInterfaceName(objName: String): String = "I" + composeClassName(objName)
@@ -266,7 +268,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
     ObjectJson(
       reads  = generateObjectReads (modelName, modelType, properties.map(_.json)),
-      writes = generateObjectWrites(modelName, modelType, properties.map(_.json))
+      writes = generateObjectWrites(modelName, modelType, properties)
     )
 
   }
@@ -289,7 +291,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
+  def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectProperty])
                           (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
@@ -299,12 +301,38 @@ trait ObjectSupport { this: DefinitionsSupport =>
       if (caseObject) {
         ANONDEF(writesType) := LAMBDA(PARAM(WILDCARD).tree) ==> REF("Json") DOT "obj" APPLY ()
       } else {
-        val propertiesChain = INFIX_CHAIN("and", properties.map(_.writes))
-        val unliftUnapply = REF("unlift") APPLY (REF(modelName) DOT "unapply")
-        if (properties.length > 1) {
-          PAREN(propertiesChain) APPLY unliftUnapply
+        if (properties.size > MaxJsonArity) {
+          val tupleDefs = for ((tupleProps, idx) <- properties.grouped(MaxJsonArity).toIndexedSeq.zipWithIndex) yield {
+            val tupleClass = RootClass.newClass(s"${modelName}Tuple${idx + 1}")
+            (idx + 1, tupleClass, tupleProps, generateObjectDefs(tupleClass, tupleProps, Nil))
+          }
+          val tupleWrites = tupleDefs.flatMap { case (_, _, _, definitions) =>
+            definitions.flatMap(i => Seq(i.definition, i.jsonWrites))
+          }
+          val unapplyTuple = TYPE_TUPLE(tupleDefs.map(_._2))
+          val unapplyDef = DEF("unapplyClass", unapplyTuple)
+            .withParams(PARAM("value", modelType).empty) :=
+            BLOCK {
+              val values = for ((_, tupleClass, tupleProps, _) <- tupleDefs) yield {
+                tupleClass APPLY tupleProps.map { prop =>
+                  REF(prop.ident) := (REF("value") DOT prop.ident)
+                }
+              }
+              TUPLE(values)
+            }
+          val propertiesChain = INFIX_CHAIN("and", tupleDefs.map {
+            case (_, tupleClass, _, _) => REF("JsPath") DOT "write" APPLYTYPE tupleClass
+          })
+          val jsonWrites = PAREN(propertiesChain) APPLY (REF("unapplyClass") APPLY WILDCARD)
+          BLOCK(tupleWrites :+ unapplyDef :+ jsonWrites)
         } else {
-          propertiesChain DOT "contramap" APPLY unliftUnapply
+          val propertiesChain = INFIX_CHAIN("and", properties.map(_.json.writes))
+          val unliftUnapply = REF("unlift") APPLY (REF(modelName) DOT "unapply")
+          if (properties.length > 1) {
+            PAREN(propertiesChain) APPLY unliftUnapply
+          } else {
+            propertiesChain DOT "contramap" APPLY unliftUnapply
+          }
         }
       }
     }

@@ -1,0 +1,113 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: More than 22 fields case class test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+definitions:
+  BigClass:
+    type: object
+    required:
+      - field1
+      - field2
+      - field3
+      - field4
+      - field5
+      - field11
+      - field12
+      - field13
+      - field14
+      - field15
+      - field21
+      - field22
+      - field23
+      - field24
+      - field25
+    properties:
+      field1:
+        type: integer
+        format: int64
+      field2:
+        type: string
+        format: date
+      field3:
+        type: string
+        format: 'date-time'
+      field4:
+        type: boolean
+      field5:
+        type: number
+        format: double
+      field6:
+        type: integer
+        format: int64
+      field7:
+        type: string
+        format: date
+      field8:
+        type: string
+        format: 'date-time'
+      field9:
+        type: boolean
+      field10:
+        type: number
+        format: double
+      field11:
+        type: integer
+        format: int64
+      field12:
+        type: string
+        format: date
+      field13:
+        type: string
+        format: 'date-time'
+      field14:
+        type: boolean
+      field15:
+        type: number
+        format: double
+      field16:
+        type: integer
+        format: int64
+      field17:
+        type: string
+        format: date
+      field18:
+        type: string
+        format: 'date-time'
+      field19:
+        type: boolean
+      field20:
+        type: number
+        format: double
+      field21:
+        type: integer
+        format: int64
+      field22:
+        type: string
+        format: date
+      field23:
+        type: string
+        format: 'date-time'
+      field24:
+        type: boolean
+      field25:
+        type: number
+        format: double
+      field26:
+        type: integer
+        format: int64
+      field27:
+        type: string
+        format: date
+      field28:
+        type: string
+        format: 'date-time'
+      field29:
+        type: boolean
+      field30:
+        type: number
+        format: double

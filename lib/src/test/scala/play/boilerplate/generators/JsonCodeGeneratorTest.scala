@@ -28,6 +28,17 @@ class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
   }
 
+  it should "More than 22 fields case class support." in {
+
+    val schema = SwaggerBackend.parseSchema("support/more-than-22-fields.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/more-than-22-fields.yaml", "test", ""))
+    val gen = new JsonCodeGenerator().generate(schema)(ctx)
+    printCodeFile(gen)
+
+    true should be (true)
+
+  }
+
   "Full support" should "Parse petStore.v1.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
