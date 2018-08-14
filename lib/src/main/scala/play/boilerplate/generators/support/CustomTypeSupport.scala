@@ -82,17 +82,30 @@ object CustomTypeSupport {
           definition = EmptyTree,
           jsonReads  = {
             val readsType = RootClass.newClass("Reads") TYPE_OF LocalDateClass
-            VAL("LocalDateReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            VAL("JodaLocalDateReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
               readsClass DOT "jodaLocalDateReads" APPLY(LIT(pattern), corrector)
             }
           },
           jsonWrites = {
             val writesType = RootClass.newClass("Writes") TYPE_OF LocalDateClass
-            VAL("LocalDateWrites", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            VAL("JodaLocalDateWrites", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
               writesClass DOT "jodaLocalDateWrites" APPLY LIT(pattern)
             }
           },
-          queryBindable = EmptyTree,
+          queryBindable = {
+            val formatter = RootClass.newClass("org.joda.time.format.DateTimeFormat") DOT "forPattern" APPLY LIT(pattern)
+            val parent = RootClass.newClass("QueryStringBindable") DOT "Parsing" APPLYTYPE LocalDateClass APPLY (
+              LAMBDA(PARAM("s").tree) ==> { LocalDateClass DOT "parse" APPLY(REF("s"), formatter) },
+              LAMBDA(PARAM("d").tree) ==> { REF("d") DOT "toString" APPLY LIT(pattern) },
+              LAMBDA(PARAM("key", StringClass).tree, PARAM("e", RootClass.newClass("Exception")).tree) ==> {
+                LIT(s"Cannot parse parameter %s as date with pattern '$pattern': %s") DOT "format" APPLY(REF("key"), REF("e") DOT "getMessage")
+              }
+            )
+            OBJECTDEF("JodaLocalDateQueryStringBindable")
+              .withFlags(Flags.IMPLICIT)
+              .withParents(parent)
+              .tree
+          },
           pathBindable  = EmptyTree
         )
         TypeSupport(LocalDateClass, LocalDateClass, defs :: Nil)
@@ -121,17 +134,30 @@ object CustomTypeSupport {
           definition = EmptyTree,
           jsonReads  = {
             val readsType = RootClass.newClass("Reads") TYPE_OF DateTimeClass
-            VAL("DateTimeReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            VAL("JodaDateTimeReads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
               readsClass DOT "jodaDateReads" APPLY(LIT(pattern), corrector)
             }
           },
           jsonWrites = {
             val writesType = RootClass.newClass("Writes") TYPE_OF DateTimeClass
-            VAL("DateTimeWrites", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+            VAL("JodaDateTimeWrites", writesType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
               writesClass DOT "jodaDateWrites" APPLY LIT(pattern)
             }
           },
-          queryBindable = EmptyTree,
+          queryBindable = {
+            val formatter = RootClass.newClass("org.joda.time.format.DateTimeFormat") DOT "forPattern" APPLY LIT(pattern)
+            val parent = RootClass.newClass("QueryStringBindable") DOT "Parsing" APPLYTYPE DateTimeClass APPLY (
+              LAMBDA(PARAM("s").tree) ==> { DateTimeClass DOT "parse" APPLY(REF("s"), formatter) },
+              LAMBDA(PARAM("d").tree) ==> { REF("d") DOT "toString" APPLY LIT(pattern) },
+              LAMBDA(PARAM("key", StringClass).tree, PARAM("e", RootClass.newClass("Exception")).tree) ==> {
+                LIT(s"Cannot parse parameter %s as date-time with pattern '$pattern': %s") DOT "format" APPLY(REF("key"), REF("e") DOT "getMessage")
+              }
+            )
+            OBJECTDEF("JodaDateTimeQueryStringBindable")
+              .withFlags(Flags.IMPLICIT)
+              .withParents(parent)
+              .tree
+          },
           pathBindable  = EmptyTree
         )
         TypeSupport(DateTimeClass, DateTimeClass, defs :: Nil)

@@ -171,6 +171,25 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   def filterNonEmptyTree(trees: Seq[Tree]): Seq[Tree] = trees.filterNot(_ == EmptyTree)
 
+  def distinctTreeByName(trees: Seq[Tree]): Seq[Tree] = {
+    val UnknownName = "&Unknown&"
+    val definitions = for {
+      (key, values) <- trees.groupBy {
+        case ModuleDef(_, name, _) => name.name
+        case valDef: ValOrDefDef => valDef.name.name
+        case ProcDef(_, name, _, _, _) => name.name
+        case TypeDef(_, name, _, _) => name.name
+        case ClassDef(_, _, name, _, _, _) => name.name
+        case _ => UnknownName
+      }.toList
+    } yield if (key == UnknownName) {
+      values
+    } else {
+      values.headOption.toList
+    }
+    definitions.flatten
+  }
+
   implicit class IterableExtensionMethods[A, Repr](val xs: IterableLike[A, Repr]) extends AnyVal {
 
     def distinctBy[B, That](f: A => B)(implicit cbf: CanBuildFrom[Repr, A, That]): That = {

@@ -62,14 +62,14 @@ class ClientCodeGenerator extends CodeGenerator {
       val parents = Seq(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelpers")) ++
         ctx.settings.loggerProvider.parents
 
+      val methodImplicits = distinctTreeByName(filterNonEmptyTree(methods.flatMap(_.implicits)))
+      val methodDefinitions = filterNonEmptyTree(methods.map(_.tree))
+
       val classDef = CLASSDEF(ctx.settings.clientClassName)
         .withParents(parents)
         .withSelf("self") :=
         BLOCK {
-          filterNonEmptyTree(
-            methods.flatMap(_.implicits).toIndexedSeq ++
-            methods.map(_.tree).toIndexedSeq
-          ) ++ Seq(
+          methodImplicits ++ methodDefinitions ++ Seq(
             generateContentTypeMethod,
             generateParseResponseAsJson,
             generateOrErrorMethod

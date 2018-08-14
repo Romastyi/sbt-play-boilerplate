@@ -51,7 +51,7 @@ class ControllerCodeGenerator extends CodeGenerator {
         generateImports
       } inPackage ctx.settings.controllerPackageName
 
-      val companionItems = filterNonEmptyTree(methods.flatMap(_.implicits))
+      val companionItems = distinctTreeByName(filterNonEmptyTree(methods.flatMap(_.implicits)))
 
       val (companionObj, importCompanion) = if (companionItems.nonEmpty) {
         val objDef = OBJECTDEF(ctx.settings.controllerClassName) := BLOCK {
