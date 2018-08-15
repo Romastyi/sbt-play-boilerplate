@@ -69,7 +69,7 @@ trait DefinitionsSupport
     val queryBindableType = RootClass.newClass("QueryStringBindable") TYPE_OF (ListClass TYPE_OF tpe)
     val tpeName = stringToValidIdentifier(tpe.safeToString, skipNotValidChars = true)
     VAL(s"${tpeName}ListQueryBindable", queryBindableType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
-      RootClass.newClass("play.boilerplate.api.common.Binders") DOT "queryList" APPLY LIT(separator)
+      RootClass.newClass("play.boilerplate.api.common.Binders") DOT "queryList" APPLYTYPE tpe APPLY LIT(separator)
     }
   }
 
