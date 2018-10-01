@@ -302,7 +302,7 @@ class ControllerCodeGenerator extends CodeGenerator {
                   )
                   ctx.settings.loggerProvider.trace(message)
                 },
-                status APPLY support.serialize(tpe)(REF("response"))
+                status APPLY REF("response")
               ) ELSE {
                 v1
               }
