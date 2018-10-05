@@ -13,13 +13,13 @@ trait ReferenceParser { self =>
 
     ref match {
       case parametersRx(name) =>
-        schema.parameters.getOrElse(name, if (ctx.refCanBeLazy) {
+        schema.parameters.getOrElse[Definition](name, if (ctx.refCanBeLazy) {
           LazyRefDefinition(ref)
         } else {
           throw ParserException(s"Reference item not found ($ref).")
         })
       case definitionsRx(name) =>
-        schema.definitions.getOrElse(name, if (ctx.refCanBeLazy) {
+        schema.definitions.getOrElse[Definition](name, if (ctx.refCanBeLazy) {
           LazyRefDefinition(ref)
         } else {
           throw ParserException(s"Reference item not found ($ref).")

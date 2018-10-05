@@ -12,7 +12,7 @@ trait EnumerationsSupport {
                     (implicit ctx: GeneratorContext): TypeSupport = {
     val className = enum.name.capitalize
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
-    val fullClassName = if (ctx.inModel && enum.inline) {
+    val fullClassName = if (ctx.currentModel.nonEmpty && enum.inline) {
       composeName(ctx.settings.modelPackageName, pathClassName)
     } else if ((ctx.inService || ctx.inClient) && enum.inline) {
       composeName(ctx.settings.servicePackageName, ctx.settings.serviceClassName, pathClassName)

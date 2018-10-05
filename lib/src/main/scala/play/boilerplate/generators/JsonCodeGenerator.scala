@@ -12,7 +12,7 @@ class JsonCodeGenerator extends CodeGenerator {
 
     val methods: Iterable[Tree] = schema.definitions.values
       .flatMap { model =>
-        GeneratorUtils.getTypeSupport(model.ref)(ctx.setInModel(true)).defs
+        GeneratorUtils.getTypeSupport(model.ref)(ctx.setCurrentModel(Some(model))).defs
       }
       .groupBy(_.symbol.nameString)
       .mapValues(defs => filterNonEmptyTree(Seq(defs.head.jsonReads, defs.head.jsonWrites)))

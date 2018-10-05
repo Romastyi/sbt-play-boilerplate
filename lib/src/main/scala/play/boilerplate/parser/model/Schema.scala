@@ -20,11 +20,9 @@ case class Schema(host: String,
     if (complexObjects.nonEmpty) {
       for ((name, model) <- definitions) yield {
         if (model.complexObject.isEmpty) {
-          val isIntf = complexObjects.foldLeft(false) {
-            case (false, complex) => complex.hasInterface(model.ref)
-            case (true, _) => true
-          }
-          name -> new Model(name, model.ref, isInterface = isIntf)
+          val children = complexObjects.filter(_.hasInterface(model.ref))
+          val isInterface = children.nonEmpty
+          name -> new Model(name, model.ref, isInterface = isInterface, children.toList :+ model.ref)
         } else {
           name -> model
         }

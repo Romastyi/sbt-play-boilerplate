@@ -7,6 +7,16 @@ basePath: /api
 schemes:
   - http
 paths:
+  /errors:
+    get:
+      summary:
+      operationId: getErrors
+      responses:
+        200:
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/ErrorModel'
 definitions:
   ErrorModel:
     type: object

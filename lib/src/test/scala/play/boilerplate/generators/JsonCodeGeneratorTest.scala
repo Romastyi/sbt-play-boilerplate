@@ -39,6 +39,17 @@ class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStrin
 
   }
 
+  "Json generator: Polymorphism support." should "Inheritance" in {
+
+    val schema = SwaggerBackend.parseSchema("polymorphism/inheritance.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", ""))
+    val gen = new JsonCodeGenerator().generate(schema)(ctx)
+    printCodeFile(gen)
+
+    true should be (true)
+
+  }
+
   "Full support" should "Parse petStore.v1.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get

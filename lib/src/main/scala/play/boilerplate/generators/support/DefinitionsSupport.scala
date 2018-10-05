@@ -51,7 +51,7 @@ trait DefinitionsSupport
           constructor = l => MAKE_MAP(LIT("") INFIX (" -> ", support.constructor(l)))
         )
       case ref: RefDefinition =>
-        getTypeSupportRef(ref)
+        getTypeSupportRef(ref, context)
       case simple: SimpleDefinition =>
         ctx.settings.customTypeSupport.getSimpleTypeSupport(ctx).lift(simple).getOrElse {
           getSimpleTypeSupport(simple)
@@ -94,10 +94,12 @@ trait DefinitionsSupport
     }
   }
 
-  def getTypeSupportRef(reference: RefDefinition)(implicit ctx: GeneratorContext): TypeSupport = {
+  def getTypeSupportRef(reference: RefDefinition, context: DefinitionContext = DefinitionContext.default)
+                       (implicit ctx: GeneratorContext): TypeSupport = {
     reference match {
       case m: Model =>
-        getTypeSupport(m.ref)(ctx.setInModel(true).setIsModel(true).setNeedInterface(m.isInterface))
+        val canBeInterface = context.canBeInterface && m.isInterface
+        getTypeSupport(m.ref, context.copy(canBeInterface = canBeInterface))(ctx.setCurrentModel(Some(m)).setIsModel(true))
       case p: Parameter =>
         getTypeSupport(p.ref)(ctx.setIsModel(false))
       case RefDefinition(_, ref) =>

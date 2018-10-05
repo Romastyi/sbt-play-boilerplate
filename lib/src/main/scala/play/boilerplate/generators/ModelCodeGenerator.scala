@@ -26,7 +26,7 @@ class ModelCodeGenerator extends CodeGenerator {
   }
 
   private def generateClass(model: Model)(implicit ctx: GeneratorContext): Seq[Tree] = {
-    GeneratorUtils.getTypeSupportRef(model)(ctx.setInModel(true)).definitions
+    GeneratorUtils.getTypeSupportRef(model)(ctx.setCurrentModel(Some(model))).definitions
   }
 
 }

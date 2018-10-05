@@ -7,6 +7,17 @@ import play.boilerplate.parser.backend.swagger.SwaggerBackend
 
 class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString {
 
+  "Controller generator: Polymorphism support." should "Inheritance" in {
+
+    val schema = SwaggerBackend.parseSchema("polymorphism/inheritance.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", ""))
+    val gen = new ControllerCodeGenerator().generate(schema)(ctx)
+    printCodeFile(gen)
+
+    true should be (true)
+
+  }
+
   "Full support" should "Parse petStore.v1.yaml" in {
 
     import treehugger.forest._

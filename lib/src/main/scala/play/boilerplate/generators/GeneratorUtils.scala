@@ -165,7 +165,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   def getResponseBodyType(response: Response)(implicit ctx: GeneratorContext): Option[TypeSupport] = {
     response.schema.map(
-      body => getTypeSupport(body)(ctx.addCurrentPath("body"))
+      body => getTypeSupport(body, DefinitionContext.default.copy(canBeInterface = true))(ctx.addCurrentPath("body"))
     )
   }
 
