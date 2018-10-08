@@ -77,8 +77,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
     ).reduceLeftOption(_ ++ _).getOrElse(Map.empty)
     val newCtx = ctx.addCurrentPath(composeClassName(complex.name))
     val ownParams = generateClassParams(ownProperties)(newCtx)
+    val allParams: Seq[ObjectProperty] = parentsParams ++ ownParams
     val withDefinition = ctx.currentPath.isEmpty || complex.inline
-    val support = generateObject(complex, fullClassName, parentsParams ++ ownParams, parents, context, withDefinition)(newCtx)
+    val support = generateObject(complex, fullClassName, allParams, parents, context, withDefinition)(newCtx)
     support.copy(
       defs = support.defs.map { defs =>
         if (withDefinition) {
