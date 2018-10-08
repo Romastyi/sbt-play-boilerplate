@@ -259,19 +259,29 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def generateInterfaceReads(interfaceName: Symbol, children: Seq[Definition])(implicit ctx: GeneratorContext): Tree = {
 
     val readsType = RootClass.newClass("Reads") TYPE_OF interfaceName
+    val ValidationErrorClass = RootClass.newClass("ValidationError")
 
     val cases = for (child <- children) yield {
       val support = getTypeSupport(child.baseDef)(ctx.setCurrentModel(None))
       val className = support.tpe.toString()
-      CASE(LIT(className)) ==> (REF("JsPath") DOT "read" APPLYTYPE support.tpe)
+      val caseIn = CASE(LIT(className)) ==> (REF("JsPath") DOT "read" APPLYTYPE support.tpe)
+      (className, caseIn)
     }
 
-    VAL(s"${interfaceName}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := {
+    val validationError = ValidationErrorClass APPLY INFIX_CHAIN(
+      "+",
+      LIT("""Field "__class" can be one of the specific values: """),
+      REF("__classes") DOT "mkString" APPLY LIT(", ")
+    )
+    val validation = REF("Reads") DOT "filter" APPLYTYPE StringClass APPLY validationError APPLY REF("__classes")
+
+    VAL(s"${interfaceName}Reads", readsType) withFlags (Flags.IMPLICIT, Flags.LAZY) := BLOCK(
+      VAL("__classes", TYPE_SET(StringClass)) := ImmutableSetClass APPLY cases.map(_._1).map(LIT.apply),
       FOR(
-        VALFROM("__class") := (PAREN(INFIX_CHAIN("""\""", REF("JsPath"), LIT("__class"))) DOT "read" APPLYTYPE StringClass),
-        VALFROM("result") := REF("__class") MATCH cases
+        VALFROM("__class") := (PAREN(INFIX_CHAIN("""\""", REF("JsPath"), LIT("__class"))) DOT "read" APPLYTYPE StringClass APPLY validation),
+        VALFROM("result") := REF("__class") MATCH cases.map(_._2)
       ) YIELD REF("result")
-    }
+    )
 
   }
 
