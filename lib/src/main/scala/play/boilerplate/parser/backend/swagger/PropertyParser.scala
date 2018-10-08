@@ -201,7 +201,7 @@ trait PropertyParser { this: ReferenceParser =>
       case prop: ArrayProperty =>
         val name = Option(prop.getName).getOrElse(propertyName)
         val items = Option(prop.getItems).getOrElse {
-          throw ParserException(s"Array 'items' property is not specified for property.")
+          throw ParserException(s"Array 'items' property is not specified for property '$name'.")
         }
         ArrayDefinition(
           name = name,

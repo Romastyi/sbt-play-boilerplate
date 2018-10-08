@@ -1,6 +1,6 @@
 package play.boilerplate.generators
 
-import play.boilerplate.parser.model.Model
+import play.boilerplate.parser.model.{Definition, Model}
 
 final case class GeneratorContext private (settings: GeneratorSettings,
                                            currentPath: Seq[String],
@@ -16,6 +16,10 @@ final case class GeneratorContext private (settings: GeneratorSettings,
   def setInService(value: Boolean): GeneratorContext = copy(inService = value)
   def setInClient(value: Boolean): GeneratorContext = copy(inClient = value)
   def setModelsInOneFile(value: Boolean): GeneratorContext = copy(modelsInOneFile = value)
+
+  def isCurrentInterface(definition: Definition): Boolean = {
+    this.currentModel.exists(m => m.baseDef == definition && m.isInterface)
+  }
 
 }
 

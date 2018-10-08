@@ -39,14 +39,21 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val newCtx = ctx.addCurrentPath(composeClassName(obj.name))
     val params = generateClassParams(obj.properties)(newCtx)
     val withDefinition = ctx.currentPath.isEmpty || obj.inline
-    val support = if (context.canBeInterface) generateInterface(fullClassName, params)(newCtx)
-    else generateObject(obj, fullClassName, params, Nil, context, withDefinition)(newCtx)
+    val support = if (context.canBeInterface && ctx.isCurrentInterface(obj) && !obj.inline) {
+      generateInterface(fullClassName, params)(newCtx)
+    } else {
+      generateObject(obj, fullClassName, params, Nil, context, withDefinition)(newCtx)
+    }
     support.copy(
       defs = support.defs.map { defs =>
         if (withDefinition) {
           defs
         } else {
-          defs.copy(definition = EmptyTree)
+          defs.copy(
+            definition = EmptyTree,
+            jsonReads  = EmptyTree,
+            jsonWrites = EmptyTree
+          )
         }
       }
     )
@@ -112,7 +119,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
                     (implicit ctx: GeneratorContext): TypeSupport = {
     val objectClassName = fullClassName.split('.').last
     val objectClass = RootClass.newClass(objectClassName)
-    val interfaces = if (ctx.currentModel.exists(m => m.baseDef == definition && m.isInterface)) {
+    val interfaces = if (ctx.isCurrentInterface(definition)) {
       generateInterface(fullClassName, params).defs
     } else {
       Nil
