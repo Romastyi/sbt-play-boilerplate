@@ -16,6 +16,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
       IMPORT(REF(ctx.settings.servicePackageName), ctx.settings.serviceClassName),
       IMPORT(REF(ctx.settings.serviceClassName), "_"),
+      IMPORT(REF("play.api.data.validation"), "_"),
       IMPORT(REF("play.api.http.HeaderNames"), "_"),
       IMPORT(REF("play.api.libs.ws"), "_"),
       IMPORT(REF("play.api.libs.json"), "_"),

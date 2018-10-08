@@ -16,9 +16,10 @@ class ControllerCodeGenerator extends CodeGenerator {
       IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
       IMPORT(REF(ctx.settings.servicePackageName), ctx.settings.serviceClassName),
       IMPORT(REF(ctx.settings.serviceClassName), "_"),
-      IMPORT(REF("play.api.mvc"), "_"),
+      IMPORT(REF("play.api.data.validation"), "_"),
       IMPORT(REF("play.api.libs.json"), "_"),
       IMPORT(REF("play.api.libs.functional.syntax"), "_"),
+      IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("play.boilerplate.api.server.dsl"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext")
     ) ++
