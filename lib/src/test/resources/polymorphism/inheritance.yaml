@@ -17,6 +17,16 @@ paths:
             type: array
             items:
               $ref: '#/definitions/ErrorModel'
+  /extended-errors:
+    get:
+      summary:
+      operationId: getExtendedErrors
+      responses:
+        200:
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/ExtendedErrorModel'
 definitions:
   ErrorModel:
     type: object

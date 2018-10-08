@@ -12,7 +12,7 @@ class CustomTypeSupportTest extends FlatSpec with Matchers with PrintSyntaxStrin
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", "").copy(
       customTypeSupport = CustomTypeSupport.emptyObjectAsJsObject
     ))
-    val gen = new ModelCodeGenerator().generate(schema)(ctx)
+    val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
     printCodeFile(gen)
 
     true should be (true)

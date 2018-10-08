@@ -2,7 +2,7 @@ package play.boilerplate.generators
 
 import play.boilerplate.parser.model._
 
-class ModelCodeGenerator extends CodeGenerator {
+class ModelCodeGenerator(inOneFile: Boolean) extends CodeGenerator {
 
   import GeneratorUtils._
   import treehugger.forest._
@@ -12,9 +12,9 @@ class ModelCodeGenerator extends CodeGenerator {
 
     val init = EmptyTree inPackage ctx.settings.modelPackageName
 
-    for {
+    val sources = for {
       (name, model) <- schema.definitions
-      impl = filterNonEmptyTree(generateClass(model))
+      impl = filterNonEmptyTree(generateClass(model)(ctx.setModelsInOneFile(inOneFile)))
       if impl.nonEmpty
     } yield SourceCodeFile(
       packageName = ctx.settings.modelPackageName,
@@ -22,6 +22,17 @@ class ModelCodeGenerator extends CodeGenerator {
       header = treeToString(init),
       impl = treeToString(impl: _ *)
     )
+
+    if (sources.nonEmpty && inOneFile) {
+      SourceCodeFile(
+        packageName = ctx.settings.modelPackageName,
+        className = ctx.settings.modelSingleFileName,
+        header = treeToString(init),
+        impl = sources.map(_.impl).mkString("\n\n")
+      ) :: Nil
+    } else {
+      sources
+    }
 
   }
 

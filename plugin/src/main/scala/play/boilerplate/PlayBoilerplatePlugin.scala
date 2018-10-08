@@ -66,7 +66,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
     val json: CodeGenerator = new JsonCodeGenerator()
 
-    val model: CodeGenerator = new ModelCodeGenerator()
+    val model: CodeGenerator = new ModelCodeGenerator(inOneFile = true)
 
     val service: CodeGenerator = new ServiceCodeGenerator()
 

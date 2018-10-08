@@ -15,7 +15,7 @@ class JodaSupportTest extends FlatSpec with Matchers with PrintSyntaxString {
         CustomTypeSupport.jodaDateTimeSupport()
       }
     ))
-    val gen = new ModelCodeGenerator().generate(schema)(ctx)
+    val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
     printCodeFile(gen)
 
     true should be (true)

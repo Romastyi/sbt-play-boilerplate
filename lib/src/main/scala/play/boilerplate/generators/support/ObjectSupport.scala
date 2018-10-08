@@ -238,7 +238,10 @@ trait ObjectSupport { this: DefinitionsSupport =>
   def generateInterfaceDefs(interfaceName: Symbol, params: Seq[ObjectProperty], children: Seq[Definition])
                            (implicit ctx: GeneratorContext): TypeSupportDefs = {
 
-    val definition = TRAITDEF(interfaceName)/*.withFlags(Flags.SEALED)*/ := BLOCK(
+    val decl0 = TRAITDEF(interfaceName)
+    val decl1 = if (ctx.modelsInOneFile) decl0.withFlags(Flags.SEALED) else decl0
+
+    val definition = decl1 := BLOCK(
       params.map(_.method)
     )
 
