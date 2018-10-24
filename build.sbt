@@ -38,7 +38,7 @@ def PluginVersion(organization: String,
 
 lazy val common = Seq(
   organization := "com.github.romastyi",
-  version := "0.1.4-SNAPSHOT",
+  version := "0.1.4",
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
