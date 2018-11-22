@@ -38,7 +38,7 @@ def PluginVersion(organization: String,
 
 lazy val common = Seq(
   organization := "com.github.romastyi",
-  version := "0.1.4",
+  version := "0.1.5-SNAPSHOT",
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -131,7 +131,7 @@ lazy val `api-play24` = apiProject("play24", "2.4.11")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.13" % "provided")
 lazy val `api-play25` = apiProject("play25", "2.5.18")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.15" % "provided")
-lazy val `api-play26` = apiProject("play26", "2.6.7" )
+lazy val `api-play26` = apiProject("play26", "2.6.20" )
   .settings(
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.17" % "provided"

@@ -152,7 +152,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
         collectPropertyConstraints(base)
       case ArrayDefinition(_, _, items, _, minItems, maxItems, _) =>
         val list = ListConstraint(collectPropertyConstraints(items), getTypeSupport(items).tpe)
-        list +: (minItems.map(MaxLength).toList ++ maxItems.map(MinLength).toList)
+        list +: (minItems.map(MinLength).toList ++ maxItems.map(MaxLength).toList)
       case RefDefinition(_, ref) =>
         collectPropertyConstraints(ref)
       case MapDefinition(_, _, additionalProperties) =>
@@ -160,9 +160,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
       case _: EmailDefinition =>
         Email :: Nil
       case p: WithMinMax[_] =>
-        p.maximum.map(Maximum).toList ++ p.minimum.map(Minimum).toList
+        p.minimum.map(Minimum).toList ++ p.maximum.map(Maximum).toList
       case p: WithMinMaxLength =>
-        p.maxLength.map(MaxLength).toList ++ p.minLength.map(MinLength).toList
+        p.minLength.map(MinLength).toList ++ p.maxLength.map(MaxLength).toList
       case p: WithPattern =>
         p.pattern.map(Pattern).toList
       case _ =>
