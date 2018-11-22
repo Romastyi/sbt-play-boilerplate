@@ -24,7 +24,7 @@ class ServiceCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
     val security = new Play2AuthSecurityProvider("User", "AuthConfig", "session") {
       override def parseAuthority(scopes: Seq[SecurityProvider.SecurityScope]): Seq[forest.Tree] = Nil
     }
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", "", securityProvider = security))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", "", securityProviders = List(security)))
     val gen = new ServiceCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

@@ -1,5 +1,6 @@
 package play.boilerplate.generators
 
+import play.boilerplate.generators.security.SecurityProvider
 import play.boilerplate.generators.support.{DefinitionContext, DefinitionsSupport, TypeSupport}
 import play.boilerplate.parser.model._
 
@@ -42,6 +43,19 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   def getMimeTypeSupport(implicit ctx: GeneratorContext): PartialFunction[String, MimeTypeSupport] = {
     Map(MIME_TYPE_JSON -> defaultJsonSupport) ++ ctx.settings.supportedMimeTypes
+  }
+
+  def getSecurityProviderOfSchema(schema: Schema)(implicit ctx: GeneratorContext): Seq[SecurityProvider] = {
+    schema.security.toIndexedSeq.map(s => getSecurityProvider(s.schemaName))
+  }
+
+  def getSecurityProvider(schemaName: String)(implicit ctx: GeneratorContext): SecurityProvider = {
+    ctx.settings.securityProviders.find(_.securitySchema == schemaName).getOrElse(SecurityProvider.default)
+  }
+
+  // NOTE Use only first security schema
+  def getSecurityProvider(operation: Operation)(implicit ctx: GeneratorContext): SecurityProvider = {
+    operation.security.headOption.map(s => getSecurityProvider(s.schemaName)).getOrElse(SecurityProvider.default)
   }
 
   case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], doc: DocElement)

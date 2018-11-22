@@ -50,7 +50,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val generatorProvidedPackage: SettingKey[String] = settingKey("generatorProvidedPackage")
 
     val enumGenerator: SettingKey[EnumerationGenerator] = settingKey("enumGenerator")
-    val securityProvider: SettingKey[SecurityProvider] = settingKey("securityProvider")
+    val securityProviders: SettingKey[Seq[SecurityProvider]] = settingKey("securityProviders")
     val injectionProvider: SettingKey[InjectionProvider] = settingKey("injectionProvider")
     val loggerProvider: SettingKey[LoggerProvider] = settingKey("loggerProvider")
     val customTypeSupport: SettingKey[CustomTypeSupport] = settingKey("customTypeSupport")
@@ -181,7 +181,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.generators := Seq(Generators.json, Generators.model),
     // Generators code-gen settings
     Keys.enumGenerator      := VanillaEnumerations,
-    Keys.securityProvider   := SecurityProvider.default,
+    Keys.securityProviders  := Nil,
     Keys.injectionProvider  := InjectionProvider.defaultInConstructor,
     Keys.loggerProvider     := LoggerProvider.defaultPlayLogger,
     Keys.customTypeSupport  := CustomTypeSupport.empty,
@@ -193,7 +193,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
           basePackageName,
           codeProvidedPackage,
           enumGenerator = Keys.enumGenerator.value,
-          securityProvider = Keys.securityProvider.value,
+          securityProviders = Keys.securityProviders.value,
           injectionProvider = Keys.injectionProvider.value,
           loggerProvider = Keys.loggerProvider.value,
           customTypeSupport = Keys.customTypeSupport.value,

@@ -9,12 +9,16 @@ class ServiceCodeGenerator extends CodeGenerator {
   import definitions._
   import treehuggerDSL._
 
-  def generateImports(implicit ctx: GeneratorContext): Seq[Tree] = {
+  def securityImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Import] = {
+    getSecurityProviderOfSchema(schema).flatMap(_.serviceImports)
+  }
+
+  def generateImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
     Seq(
       IMPORT(REF(ctx.settings.modelPackageName), "_"),
       IMPORT(REF("scala.concurrent"), "Future")
     ) ++
-      ctx.settings.securityProvider.serviceImports ++
+      securityImports(schema) ++
       ctx.settings.loggerProvider.imports ++
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
@@ -22,7 +26,7 @@ class ServiceCodeGenerator extends CodeGenerator {
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
     val serviceImports = BLOCK {
-      generateImports
+      generateImports(schema)
     } inPackage ctx.settings.servicePackageName
 
     val methods = for {
@@ -66,7 +70,7 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
-    val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
+    val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
     val securityParams = actionSecurity.securityParamsDef
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))

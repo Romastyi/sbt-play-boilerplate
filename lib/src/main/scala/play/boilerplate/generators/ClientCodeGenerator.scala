@@ -10,7 +10,11 @@ class ClientCodeGenerator extends CodeGenerator {
   import definitions._
   import treehuggerDSL._
 
-  def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
+  def securityImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Import] = {
+    getSecurityProviderOfSchema(schema).flatMap(_.serviceImports)
+  }
+
+  def generateImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
       IMPORT(REF(ctx.settings.modelPackageName), "_"),
       IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
@@ -28,7 +32,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.boilerplate.api.client.dsl.Compat"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
-      ctx.settings.securityProvider.serviceImports ++
+      securityImports(schema) ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
@@ -57,7 +61,7 @@ class ClientCodeGenerator extends CodeGenerator {
     if (methods.nonEmpty) {
 
       val clientImports = BLOCK {
-        generateImports
+        generateImports(schema)
       } inPackage ctx.settings.clientPackageName
 
       val parents = Seq(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelpers")) ++
@@ -130,7 +134,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val bodyParams = getBodyParameters(path, operation)
     val methodParams = getMethodParameters(path, operation)
-    val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
+    val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
     val securityParams = actionSecurity.securityParamsDef
     val fullBodyParams = bodyParams.map {
       case (name, _) => name -> (REF("Json") DOT "toJson" APPLY REF(name))
@@ -363,7 +367,7 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val securityParams = schema.paths.flatMap(_.operations.values)
       .foldLeft(Seq.empty[(String, Type)]) { case (acc, op) =>
-        acc ++ ctx.settings.securityProvider.getActionSecurity(op.security.toIndexedSeq).securityParams
+        acc ++ getSecurityProvider(op).getActionSecurity(op.security.toIndexedSeq).securityParams
       }.distinctBy(_._1)
 
     if (securityParams.nonEmpty) {

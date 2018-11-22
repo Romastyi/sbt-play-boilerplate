@@ -12,6 +12,8 @@ trait SecurityProvider {
 
   import SecurityProvider._
 
+  def securitySchema: String
+
   def controllerImports: Seq[Import]
 
   def controllerParents: Seq[Type]
@@ -46,6 +48,7 @@ object SecurityProvider {
   }
 
   def default: SecurityProvider = new SecurityProvider {
+    override val securitySchema: String = "none"
     override val controllerSelfTypes: Seq[Type] = Nil
     override val controllerImports: Seq[Import] = Nil
     override val controllerParents: Seq[Type] = Nil
@@ -72,7 +75,7 @@ object SecurityProvider {
     val values: Seq[String] = for (i <- s.split(':').tail; v <- i.split(',')) yield v
   }
 
-  abstract class DefaultSecurity(securitySchema: String) extends SecurityProvider {
+  abstract class DefaultSecurity(override val securitySchema: String) extends SecurityProvider {
 
     def composeActionSecurity(scopes: Seq[SecurityScope]): ActionSecurity
 
@@ -84,6 +87,7 @@ object SecurityProvider {
           WithoutSecurity
       }
     }
+
   }
 
 }

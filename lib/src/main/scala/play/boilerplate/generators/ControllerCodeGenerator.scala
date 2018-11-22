@@ -10,7 +10,23 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   import GeneratorUtils._
 
-  def generateImports(implicit ctx: GeneratorContext): Seq[Import] = {
+  def securityImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Import] = {
+    getSecurityProviderOfSchema(schema).flatMap(_.controllerImports)
+  }
+
+  def securityDependencies(schema: Schema)(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
+    getSecurityProviderOfSchema(schema).flatMap(_.controllerDependencies)
+  }
+
+  def securityParents(schema: Schema)(implicit ctx: GeneratorContext): Seq[Type] = {
+    getSecurityProviderOfSchema(schema).flatMap(_.controllerParents)
+  }
+
+  def securitySelfTypes(schema: Schema)(implicit ctx: GeneratorContext): Seq[Type] = {
+    getSecurityProviderOfSchema(schema).flatMap(_.controllerSelfTypes)
+  }
+
+  def generateImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Import] = {
     Seq(
       IMPORT(REF(ctx.settings.modelPackageName), "_"),
       IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
@@ -23,18 +39,17 @@ class ControllerCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.boilerplate.api.server.dsl"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext")
     ) ++
-      ctx.settings.securityProvider.controllerImports ++
+      securityImports(schema) ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
-  def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
+  def dependencies(schema: Schema)(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
     Seq(
       InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName)),
       InjectionProvider.Dependency("ec", TYPE_REF("ExecutionContext"), isImplicit = true)
-    ) ++
-      ctx.settings.securityProvider.controllerDependencies
+    ) ++ securityDependencies(schema)
   }
 
   def baseControllerType: Type = TYPE_REF("Controller")
@@ -49,7 +64,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     if (methods.nonEmpty) {
 
       val controllerImports = BLOCK {
-        generateImports
+        generateImports(schema)
       } inPackage ctx.settings.controllerPackageName
 
       val companionItems = distinctTreeByName(filterNonEmptyTree(methods.flatMap(_.implicits)))
@@ -64,18 +79,18 @@ class ControllerCodeGenerator extends CodeGenerator {
       }
 
       val parents = Seq(baseControllerType, TYPE_REF("ControllerMixins")) ++
-        ctx.settings.securityProvider.controllerParents ++
+        securityParents(schema) ++
         ctx.settings.loggerProvider.parents
 
       val classDef = CLASSDEF(ctx.settings.controllerClassName)
         .withParents(parents)
-        .withSelf("self", ctx.settings.securityProvider.controllerSelfTypes: _ *) :=
+        .withSelf("self", securitySelfTypes(schema): _ *) :=
         BLOCK {
           filterNonEmptyTree(importCompanion +: (ctx.settings.loggerProvider.loggerDefs ++ methods.map(_.tree).toIndexedSeq))
         }
 
       // --- DI
-      val controllerTree = ctx.settings.injectionProvider.classDefModifier(classDef, dependencies)
+      val controllerTree = ctx.settings.injectionProvider.classDefModifier(classDef, dependencies(schema))
 
       SourceCodeFile(
         packageName = ctx.settings.controllerPackageName,
@@ -114,7 +129,7 @@ class ControllerCodeGenerator extends CodeGenerator {
         paramName -> valDef
     }.distinctBy(_._1)
 
-    val actionSecurity = ctx.settings.securityProvider.getActionSecurity(operation.security.toIndexedSeq)
+    val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
 
     val (actionType, parser) = if (operation.consumes.isEmpty || bodyValues.isEmpty) {
       (ACTION_EMPTY, PARSER_EMPTY)

@@ -20,6 +20,8 @@ consumes:
   - text/plain
 produces:
   - application/json
+securityDefinitions:
+  session:
 paths:
   /pets:
     get:
