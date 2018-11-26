@@ -46,7 +46,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   }
 
   def getSecurityProviderOfSchema(schema: Schema)(implicit ctx: GeneratorContext): Seq[SecurityProvider] = {
-    schema.security.toIndexedSeq.map(s => getSecurityProvider(s.schemaName))
+    schema.securitySchemas.keys.toIndexedSeq.map(getSecurityProvider)
   }
 
   def getSecurityProvider(schemaName: String)(implicit ctx: GeneratorContext): SecurityProvider = {

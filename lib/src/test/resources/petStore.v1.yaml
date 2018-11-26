@@ -22,6 +22,7 @@ produces:
   - application/json
 securityDefinitions:
   session:
+    type: basic
 paths:
   /pets:
     get:
