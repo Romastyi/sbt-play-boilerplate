@@ -5,6 +5,8 @@ import treehugger.forest._
 import definitions._
 import treehuggerDSL._
 
+import scala.language.postfixOps
+
 trait EnumerationGenerator {
   def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport
 }
@@ -65,27 +67,48 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
   }
 
   def generateEnumQueryBindable(enumClass: Symbol): Tree = {
-    generateEnumBindable(enumClass, "QueryStringBindable", "Query")
+    generateEnumBindable(enumClass, "QueryStringBindable")
   }
 
   def generateEnumPathBindable(enumClass: Symbol): Tree = {
-    generateEnumBindable(enumClass, "PathBindable", "Path")
+    generateEnumBindable(enumClass, "PathBindable")
   }
 
-  def generateEnumBindable(enumClass: Symbol, baseClassName: String, classSuffix: String): Tree = {
+  private def generateEnumBindable(enumClass: Symbol, baseClassName: String): Tree = {
 
-    val enumValue = enumerationValueType(enumClass)
+    val enumValueType = enumerationValueType(enumClass)
     val ExceptionClass = RootClass.newClass("Exception")
 
-    val bindable = (TYPE_REF(baseClassName) DOT "Parsing") APPLYTYPE enumValue APPLY(
+    val bindable = (TYPE_REF(baseClassName) DOT "Parsing") APPLYTYPE enumValueType APPLY(
       enumClass DOT "withName",
       WILDCARD DOT "toString",
       LAMBDA(PARAM("key", StringClass).tree, PARAM("e", ExceptionClass).tree) ==>
-        LIT(s"Cannot parse parameter %s as ${enumValue.toString()}: %s") DOT "format"
+        LIT(s"Cannot parse parameter %s as ${enumValueType.toString()}: %s") DOT "format"
         APPLY(REF("key"), REF("e") DOT "getMessage")
     )
 
-    OBJECTDEF(enumClass.nameString + classSuffix).withParents(bindable).withFlags(Flags.IMPLICIT).tree
+    OBJECTDEF(enumClass.nameString + baseClassName).withParents(bindable).withFlags(Flags.IMPLICIT).tree
+
+  }
+
+  def generateEnumQueryParameter(enumClass: Symbol): Tree = {
+    generateEnumParameter(enumClass, "QueryParameter")
+  }
+
+  def generateEnumPathParameter(enumClass: Symbol): Tree = {
+    generateEnumParameter(enumClass, "PathParameter")
+  }
+
+  private def generateEnumParameter(enumClass: Symbol, baseClassName: String): Tree = {
+
+    val enumValueType = enumerationValueType(enumClass)
+    val parameterType = RootClass.newClass(baseClassName) TYPE_OF enumValueType
+
+    VAL(enumClass.nameString + baseClassName, parameterType).withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+      REF("QueryParameter") APPLYTYPE StringClass DOT "transform" APPLY {
+        WILDCARD DOT "toString"
+      }
+    }
 
   }
 
@@ -96,7 +119,9 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
       jsonReads  = generateEnumReads(enumClass),
       jsonWrites = generateEnumWrites(enumClass),
       queryBindable = generateEnumQueryBindable(enumClass),
-      pathBindable  = generateEnumPathBindable(enumClass)
+      pathBindable  = generateEnumPathBindable(enumClass),
+      queryParameter = generateEnumQueryParameter(enumClass),
+      pathParameter = generateEnumPathParameter(enumClass)
     ) :: Nil
   }
 

@@ -111,10 +111,14 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), doc)
   }
 
-  def getParamImplicits(param: Parameter, support: TypeSupport): Seq[Tree] = {
+  def getParamImplicits(param: Parameter, support: TypeSupport)(implicit ctx: GeneratorContext): Seq[Tree] = {
     param match {
+      case _: PathParameter if ctx.inClient =>
+        support.pathParameter
       case _: PathParameter =>
         support.pathBindable
+      case _: QueryParameter if ctx.inClient =>
+        support.queryParameter
       case _: QueryParameter =>
         support.queryBindable
       case _ =>

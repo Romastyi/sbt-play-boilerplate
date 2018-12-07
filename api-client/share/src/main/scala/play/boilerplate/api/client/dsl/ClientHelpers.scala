@@ -1,44 +1,44 @@
 package play.boilerplate.api.client.dsl
 
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.libs.json.JsValue
 
 import scala.language.implicitConversions
+import scala.util.control.NoStackTrace
 
 trait ClientHelpers {
 
-  case class JsonParsingError(cause: java.lang.Throwable, body: String, code: Int, contentType: String) extends java.lang.Throwable with scala.util.control.NoStackTrace {
+  case class JsonParsingError(cause: Throwable, body: String, code: Int, contentType: String) extends Throwable with NoStackTrace {
     override def getMessage: String = {
       "JSON parsing error: " + cause.getMessage + "\nOriginal body: " + body
     }
   }
 
-  case class JsonValidationError(cause: java.lang.Throwable, body: JsValue, code: Int, contentType: String) extends java.lang.Throwable with scala.util.control.NoStackTrace {
+  case class JsonValidationError(cause: Throwable, body: JsValue, code: Int, contentType: String) extends Throwable with NoStackTrace {
     override def getMessage: String = {
       "JSON validation error: " + cause.getMessage + "\nOriginal body: " + body
     }
   }
 
-  case class UnexpectedResponseError(cause: java.lang.Throwable, body: String, code: Int, contentType: String) extends java.lang.Throwable with scala.util.control.NoStackTrace {
+  case class UnexpectedResponseError(cause: Throwable, body: String, code: Int, contentType: String) extends Throwable with NoStackTrace {
     override def getMessage: String = {
       "Unexpected response: " + code + " " + body
     }
   }
 
-  protected def _render_path_param[A](key: String, value: A)(implicit pb: PathBindable[A]): String = {
-    pb.unbind(key, value)
+  protected def _render_path_param[A : PathParameter](key: String, value: A): String = {
+    PathParameter.render(value)
   }
 
   sealed trait QueryValueWrapper
-  private case class QueryValueWrapperImpl(unbind: String => String) extends QueryValueWrapper
+  private case class QueryValueWrapperImpl(render: String => String) extends QueryValueWrapper
 
-  implicit def toQueryValueWrapper[T](value: T)(implicit qb: QueryStringBindable[T]): QueryValueWrapper = {
-    QueryValueWrapperImpl(qb.unbind(_, value))
+  implicit def toQueryValueWrapper[T : QueryParameter](value: T): QueryValueWrapper = {
+    QueryValueWrapperImpl(QueryParameter.render(_, value))
   }
 
   protected def _render_url_params(pairs: (String, QueryValueWrapper)*): String = {
     val parts = pairs.collect({
-      case (k, QueryValueWrapperImpl(unbind)) => unbind(k)
+      case (k, QueryValueWrapperImpl(render)) => render(k)
     }).filter(_.nonEmpty)
     if (parts.nonEmpty) parts.mkString("?", "&", "")
     else ""

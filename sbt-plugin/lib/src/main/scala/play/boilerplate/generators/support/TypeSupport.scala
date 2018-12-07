@@ -17,6 +17,9 @@ case class TypeSupport(tpe: Type,
   def queryBindable: Seq[Tree] = filterNonEmptyTree(defs.map(_.queryBindable))
   def pathBindable : Seq[Tree] = filterNonEmptyTree(defs.map(_.pathBindable ))
 
+  def queryParameter: Seq[Tree] = filterNonEmptyTree(defs.map(_.queryParameter))
+  def pathParameter : Seq[Tree] = filterNonEmptyTree(defs.map(_.pathParameter))
+
 }
 
 case class TypeSupportDefs(symbol: Symbol,
@@ -24,7 +27,9 @@ case class TypeSupportDefs(symbol: Symbol,
                            jsonReads: Tree,
                            jsonWrites: Tree,
                            queryBindable: Tree,
-                           pathBindable: Tree)
+                           pathBindable: Tree,
+                           queryParameter: Tree,
+                           pathParameter: Tree)
 
 object TypeSupport {
 

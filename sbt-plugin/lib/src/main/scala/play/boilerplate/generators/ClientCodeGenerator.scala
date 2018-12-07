@@ -26,8 +26,6 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.api.libs.json"), "_"),
       IMPORT(REF("play.api.libs.functional.syntax"), "_"),
       IMPORT(REF("play.api.mvc"), "_"),
-      IMPORT(REF("QueryStringBindable"), "_"),
-      IMPORT(REF("PathBindable"), "_"),
       IMPORT(REF("play.boilerplate.api.client.dsl"), "_"),
       IMPORT(REF("play.boilerplate.api.client.dsl.Compat"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")

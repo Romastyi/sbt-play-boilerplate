@@ -35,7 +35,9 @@ trait DefinitionsSupport
           jsonReads = EmptyTree,
           jsonWrites = EmptyTree,
           queryBindable = getCollectFormatQueryBinder(support.tpe, collectionFormat),
-          pathBindable = EmptyTree
+          pathBindable = EmptyTree,
+          queryParameter = getCollectFormatQueryParameter(support.tpe, collectionFormat),
+          pathParameter = EmptyTree
         )
         support.copy(
           tpe = ListClass TYPE_OF support.tpe,
@@ -74,12 +76,27 @@ trait DefinitionsSupport
   }
 
   private def getCollectFormatQueryBinder(tpe: Type, collectionFormat: CollectionFormat): Tree = collectionFormat match {
-    case CollectionFormat.None  => EmptyTree
-    case CollectionFormat.Multi => EmptyTree // default Play behavior
+    case CollectionFormat.None | CollectionFormat.Multi => EmptyTree // default Play behavior
     case CollectionFormat.Csv   => customListQueryBinder(tpe, ',' )
     case CollectionFormat.Ssv   => customListQueryBinder(tpe, ' ' )
     case CollectionFormat.Tsv   => customListQueryBinder(tpe, '\t')
     case CollectionFormat.Pipes => customListQueryBinder(tpe, '|' )
+  }
+
+  private def customListQueryParameter(tpe: Type, separator: Char): Tree = {
+    val queryParameterType = RootClass.newClass("QueryParameter") TYPE_OF (ListClass TYPE_OF tpe)
+    val tpeName = stringToValidIdentifier(tpe.safeToString, skipNotValidChars = true)
+    VAL(s"${tpeName}ListQueryParameter", queryParameterType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+      RootClass.newClass("QueryParameter") DOT "queryList" APPLYTYPE tpe APPLY LIT(separator)
+    }
+  }
+
+  private def getCollectFormatQueryParameter(tpe: Type, collectionFormat: CollectionFormat): Tree = collectionFormat match {
+    case CollectionFormat.None | CollectionFormat.Multi => EmptyTree // default Play behavior
+    case CollectionFormat.Csv   => customListQueryParameter(tpe, ',' )
+    case CollectionFormat.Ssv   => customListQueryParameter(tpe, ' ' )
+    case CollectionFormat.Tsv   => customListQueryParameter(tpe, '\t')
+    case CollectionFormat.Pipes => customListQueryParameter(tpe, '|' )
   }
 
   private def getComplexTypeSupport(definition: ComplexDefinition, context: DefinitionContext)

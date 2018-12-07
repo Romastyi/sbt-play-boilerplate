@@ -46,7 +46,8 @@ lazy val common = Seq(
     "-unchecked",
     "-Xfatal-warnings"
   ),
-  resolvers += sonatypeRepo(isSnapshot.value)
+  resolvers += sonatypeRepo(isSnapshot.value),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 ) ++ sonatypePublish
 
 // SBT plugin
@@ -70,8 +71,7 @@ lazy val lib = project
     crossScalaVersions := List("2.10.6", "2.12.4"),
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.3",
-      "io.swagger" % "swagger-parser" % "1.0.32",
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+      "io.swagger" % "swagger-parser" % "1.0.32"
     )
   )
 
@@ -120,6 +120,9 @@ def clientApiProject(suffix: String, playVersion: String): Project = {
       ),
       unmanagedSourceDirectories in Compile += {
         baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
+      },
+      unmanagedSourceDirectories in Test += {
+        baseDirectory.value / ".." / "share" / "src" / "test" / "scala"
       }
     )
     .dependsOn(`api-client-core`)

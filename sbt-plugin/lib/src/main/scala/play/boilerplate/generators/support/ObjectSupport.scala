@@ -259,7 +259,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
       jsonReads = generateInterfaceReads(interfaceName, children),
       jsonWrites = generateInterfaceWrites(interfaceName, children),
       queryBindable = EmptyTree,
-      pathBindable = EmptyTree
+      pathBindable = EmptyTree,
+      queryParameter = EmptyTree,
+      pathParameter = EmptyTree
     )
 
   }
@@ -338,7 +340,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
       jsonReads  = reads,
       jsonWrites = writes,
       queryBindable = generateObjectQueryBindable(objectClass, params),
-      pathBindable  = EmptyTree
+      pathBindable  = EmptyTree,
+      queryParameter = generateObjectQueryParameter(objectClass, params),
+      pathParameter  = EmptyTree
     )
 
     val paramsDefs = params.flatMap(_.support.defs)
@@ -455,6 +459,43 @@ trait ObjectSupport { this: DefinitionsSupport =>
       VAL(s"${modelName}QueryBindable", queryBindableType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
         RootClass.newClass("play.boilerplate.api.common.Binders") DOT "queryStringStrict"
       }
+    }
+
+  }
+
+  def generateObjectQueryParameter(objectClass: Symbol, properties: Seq[ObjectProperty])
+                                  (implicit ctx: GeneratorContext): Tree = {
+
+    val caseObject = properties.isEmpty
+    val modelName  = objectClass.nameString
+    val modelType  = if (caseObject) TYPE_SINGLETON(TYPE_REF(modelName)) else TYPE_REF(modelName)
+    val queryParameterType = RootClass.newClass("QueryParameter") TYPE_OF modelType
+
+
+    if (caseObject) {
+      VAL(s"${modelName}QueryParameter", queryParameterType).withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+        REF("QueryParameter") APPLYTYPE StringClass DOT "transform" APPLY {
+          LAMBDA(PARAM(WILDCARD).tree) ==> LIT("")
+        }
+      }
+    } else {
+      val propertyRenders = for (property <- properties) yield {
+        REF("QueryParameter") DOT "render" APPLYTYPE property.support.fullQualified APPLY(
+          INFIX_CHAIN("+", REF("key"), LIT("." + property.name)),
+          REF("value") DOT property.name
+        )
+      }
+      OBJECTDEF(s"${modelName}QueryParameter")
+        .withParents(queryParameterType)
+        .withFlags(Flags.IMPLICIT) :=
+        BLOCK {
+          DEF("render", StringClass)
+            .withParams(PARAM("key", StringClass).tree, PARAM("value", modelType).tree)
+            .withFlags(Flags.OVERRIDE) :=
+            BLOCK {
+              REF("QueryParameter") DOT "concatAll" APPLY SEQ(propertyRenders)
+            }
+        }
     }
 
   }

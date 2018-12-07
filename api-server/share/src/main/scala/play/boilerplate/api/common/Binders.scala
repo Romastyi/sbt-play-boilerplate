@@ -2,10 +2,9 @@ package play.boilerplate.api.common
 
 import play.api.mvc.QueryStringBindable
 
-import language.experimental.macros
+import scala.language.experimental.macros
 import scala.reflect.ClassTag
 
-// TODO Must be a part of server api (not client api!)
 object Binders {
 
   /**
