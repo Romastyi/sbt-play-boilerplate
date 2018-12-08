@@ -110,14 +110,11 @@ lazy val `api-client-consul` = Project("api-client-consul", file("api-client/con
   )
   .dependsOn(`api-client-core`)
 
-def clientApiProject(suffix: String, playVersion: String): Project = {
+def clientApiProject(suffix: String): Project = {
   Project(s"api-client-$suffix", file(s"api-client/$suffix"))
     .settings(common: _ *)
     .settings(
       scalaVersion := "2.11.12",
-      libraryDependencies ++= Seq(
-        "com.typesafe.play" %% "play-ws" % playVersion % "provided"
-      ),
       unmanagedSourceDirectories in Compile += {
         baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
       },
@@ -128,11 +125,20 @@ def clientApiProject(suffix: String, playVersion: String): Project = {
     .dependsOn(`api-client-core`)
 }
 
-lazy val `api-client-play23` = clientApiProject("play23", "2.3.10")
-lazy val `api-client-play24` = clientApiProject("play24", "2.4.11")
-lazy val `api-client-play25` = clientApiProject("play25", "2.5.18")
-lazy val `api-client-play26` = clientApiProject("play26", "2.6.20" )
-  .settings(crossScalaVersions := List("2.11.12", "2.12.4"))
+lazy val `api-client-play23` = clientApiProject("play23")
+  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.3.10" % "provided")
+lazy val `api-client-play24` = clientApiProject("play24")
+  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.4.11" % "provided")
+lazy val `api-client-play25` = clientApiProject("play25")
+  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.18" % "provided")
+lazy val `api-client-play26` = clientApiProject("play26")
+  .settings(
+    crossScalaVersions := List("2.11.12", "2.12.4"),
+    libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play-ws-standalone" % "1.1.12",
+      "com.typesafe.play" %% "play-ws-standalone-json" % "1.1.12"
+    )
+  )
 
 // Server API libraries
 

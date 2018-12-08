@@ -105,7 +105,7 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
     val parameterType = RootClass.newClass(baseClassName) TYPE_OF enumValueType
 
     VAL(enumClass.nameString + baseClassName, parameterType).withFlags(Flags.IMPLICIT, Flags.LAZY) := {
-      REF("QueryParameter") APPLYTYPE StringClass DOT "transform" APPLY {
+      REF(baseClassName) APPLYTYPE StringClass DOT "transform" APPLY {
         WILDCARD DOT "toString"
       }
     }

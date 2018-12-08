@@ -20,12 +20,8 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF(ctx.settings.jsonImportPrefix), "_"),
       IMPORT(REF(ctx.settings.servicePackageName), ctx.settings.serviceClassName),
       IMPORT(REF(ctx.settings.serviceClassName), "_"),
-      IMPORT(REF("play.api.data.validation"), "_"),
-      IMPORT(REF("play.api.http.HeaderNames"), "_"),
-      IMPORT(REF("play.api.libs.ws"), "_"),
       IMPORT(REF("play.api.libs.json"), "_"),
       IMPORT(REF("play.api.libs.functional.syntax"), "_"),
-      IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("play.boilerplate.api.client.dsl"), "_"),
       IMPORT(REF("play.boilerplate.api.client.dsl.Compat"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
@@ -153,7 +149,7 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val opType = operation.httpMethod.toString.toLowerCase
-    val wsRequestWithAccept = REF("request") DOT "withHttpHeaders" APPLY (REF("ACCEPT") INFIX ("->", LIT("application/json")))
+    val wsRequestWithAccept = REF("request") DOT "withHttpHeaders" APPLY (LIT("Accept") INFIX ("->", LIT("application/json")))
     val wsRequestWithHeaderParams = if (headerParams.isEmpty) {
       wsRequestWithAccept
     } else {
@@ -374,6 +370,7 @@ class ClientCodeGenerator extends CodeGenerator {
       }
       Seq(
         CASECLASSDEF(credentialsClassName)
+          .withFlags(Flags.FINAL)
           .withParams(params: _ *)
           .withParents(TYPE_REF("Credentials") TYPE_OF TYPE_REF(ctx.settings.clientClassName)).empty
       )
