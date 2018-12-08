@@ -47,7 +47,7 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   def dependencies(schema: Schema)(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {
     Seq(
-      InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName)),
+      InjectionProvider.Dependency("service", TYPE_REF(ctx.settings.serviceClassName) TYPE_OF TYPE_REF("Future")),
       InjectionProvider.Dependency("ec", TYPE_REF("ExecutionContext"), isImplicit = true)
     ) ++ securityDependencies(schema)
   }
@@ -143,11 +143,9 @@ class ControllerCodeGenerator extends CodeGenerator {
 
     val answerMethod = generateAnswer(operation)
 
-    val ERROR = REF("service") DOT "onError" APPLY (REF("operationUuid"), REF("cause"))
-
-    val ANSWER_WITH_EXCEPTION_HANDLE = methodCall INFIX "recoverWith" APPLY BLOCK {
-      CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> ERROR
-    } INFIX "collect" APPLY answerMethod.tree INFIX "recover" APPLY BLOCK {
+    val ANSWER_WITH_EXCEPTION_HANDLE = methodCall INFIX "collect" APPLY {
+      answerMethod.tree
+    } INFIX "recover" APPLY BLOCK {
       CASE(REF("cause") withType RootClass.newClass("Throwable")) ==>
         REF("InternalServerError") APPLY (REF("cause") DOT "getMessage")
     }

@@ -16,7 +16,7 @@ class ServiceCodeGenerator extends CodeGenerator {
   def generateImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {
     Seq(
       IMPORT(REF(ctx.settings.modelPackageName), "_"),
-      IMPORT(REF("scala.concurrent"), "Future")
+      IMPORT(REF("scala.language"), "higherKinds")
     ) ++
       securityImports(schema) ++
       ctx.settings.loggerProvider.imports ++
@@ -37,13 +37,13 @@ class ServiceCodeGenerator extends CodeGenerator {
     if (methods.nonEmpty) {
 
       val serviceTree = TRAITDEF(ctx.settings.serviceClassName)
+        .withTypeParams(F_TYPEVAR)
         .withParents(ctx.settings.loggerProvider.parents)
         .withSelf("self", ctx.settings.loggerProvider.selfTypes: _ *) :=
         BLOCK {
           IMPORT(REF(ctx.settings.serviceClassName), "_") +: filterNonEmptyTree(
             ctx.settings.loggerProvider.loggerDefs ++
-            methods.map(_.tree).toIndexedSeq :+
-            generateOrErrorMethod
+            methods.map(_.tree).toIndexedSeq
           )
         }
 
@@ -75,7 +75,7 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
-    val methodTree = DEF(operation.operationId, FUTURE(methodType))
+    val methodTree = DEF(operation.operationId, F_OF_TYPE(methodType))
       .withParams(bodyParams.map(_._2.valDef) ++ methodParams.map(_._2.valDef) ++ securityParams)
       .empty
 
@@ -92,30 +92,6 @@ class ServiceCodeGenerator extends CodeGenerator {
       methodParams.flatMap(_._2.additionalDef)
 
     Method(tree, filterNonEmptyTree(additionalDef))
-
-  }
-
-  def generateOrErrorMethod(implicit ctx: GeneratorContext): Tree = {
-
-    val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
-    val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
-
-    val methodTree = DEF("onError", FUTURE(TYPE_REF(UnexpectedResult)))
-      .withParams(operationId, cause) :=
-      BLOCK(
-        VAL("message") := INFIX_CHAIN("+",
-          INTERP(StringContext_s, LIT("["), REF("operationId") , LIT("] Unexpected error: ")),
-          REF("cause") DOT "getMessage"
-        ),
-        ctx.settings.loggerProvider.error(REF("message"), REF("cause")),
-        REF("Future") DOT "successful" APPLY (REF(UnexpectedResult) APPLY (REF("body") := REF("message")))
-      )
-
-    methodTree.withDoc(
-      "Error handler\n ",
-      DocTag.Param("operationId", "Operation where error was occurred"),
-      DocTag.Param("cause"      , "An occurred error")
-    )
 
   }
 

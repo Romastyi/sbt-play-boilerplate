@@ -58,7 +58,10 @@ class ClientCodeGenerator extends CodeGenerator {
         generateImports(schema)
       } inPackage ctx.settings.clientPackageName
 
-      val parents = Seq(TYPE_REF(ctx.settings.serviceClassName), TYPE_REF("ClientHelpers")) ++
+      val parents = Seq(
+        TYPE_REF(ctx.settings.serviceClassName) TYPE_OF TYPE_REF("Future"),
+        TYPE_REF("ClientHelpers")
+      ) ++
         ctx.settings.loggerProvider.parents
 
       val methodImplicits = distinctTreeByName(filterNonEmptyTree(methods.flatMap(_.implicits)))
@@ -297,9 +300,9 @@ class ClientCodeGenerator extends CodeGenerator {
   def generateOrErrorMethod(implicit ctx: GeneratorContext): Tree = {
 
     val operationId: ValDef = PARAM("operationId", StringClass.toType).tree
-    val cause      : ValDef = PARAM("cause", RootClass.newClass("Throwable")).tree
+    val exception  : ValDef = PARAM("ex", RootClass.newClass("Throwable")).tree
 
-    val exceptionsCase = REF("cause") MATCH(
+    val exceptionsCase = REF("ex") MATCH(
       CASE(REF("JsonParsingError") UNAPPLY(ID("cause"), ID("body"), ID("code"), ID("contentType"))) ==> BLOCK(
         {
           val message = INTERP(StringContext_s,
@@ -343,8 +346,7 @@ class ClientCodeGenerator extends CodeGenerator {
     )
 
     val methodTree = DEF("onError", FUTURE(TYPE_REF(UnexpectedResult)))
-      .withFlags(Flags.OVERRIDE)
-      .withParams(operationId, cause) :=
+      .withParams(operationId, exception) :=
       BLOCK(
         exceptionsCase
       )
@@ -352,7 +354,7 @@ class ClientCodeGenerator extends CodeGenerator {
     methodTree.withDoc(
       "Error handler\n ",
       DocTag.Param("operationId", "Operation where error was occurred"),
-      DocTag.Param("cause"      , "An occurred error")
+      DocTag.Param("ex"         , "An occurred error")
     )
 
   }

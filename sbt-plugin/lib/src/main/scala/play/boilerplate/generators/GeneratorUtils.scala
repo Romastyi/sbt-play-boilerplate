@@ -16,6 +16,9 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final def IDENTITY(tpe: Type): Tree = REF("identity")
   final def FUTURE(tpe: Type)  : Type = TYPE_REF("Future") TYPE_OF tpe
 
+  final val F_TYPEVAR = TYPEVAR("F").withTypeParams(TYPEVAR("_"))
+  final def F_OF_TYPE(tpe: Type): Type = TYPE_REF("F") TYPE_OF tpe
+
   final val MIME_TYPE_JSON = "application/json"
   final val MIME_TYPE_TEXT = "text/plain"
 
