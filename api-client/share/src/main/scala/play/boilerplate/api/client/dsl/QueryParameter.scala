@@ -2,6 +2,8 @@ package play.boilerplate.api.client.dsl
 
 import java.util.UUID
 
+import org.joda.time.{DateTime, LocalDate, LocalTime}
+
 trait QueryParameter[A] { self =>
 
   def render(key: String, value: A): String
@@ -56,6 +58,19 @@ object QueryParameter {
 
   implicit val uuidQueryParameter: QueryParameter[UUID] =
     QueryParameter[String].transform(_.toString)
+
+  // Joda
+
+  def jodaLocalDateParameter(pattern: String): QueryParameter[LocalDate] =
+    QueryParameter[String].transform(_.toString(pattern))
+
+  def jodaLocalTimeParameter(pattern: String): QueryParameter[LocalTime] =
+    QueryParameter[String].transform(_.toString(pattern))
+
+  def jodaDateTimeParameter(pattern: String): QueryParameter[DateTime] =
+    QueryParameter[String].transform(_.toString(pattern))
+
+  // Generic
 
   implicit def optionQueryParameter[A : QueryParameter]: QueryParameter[Option[A]] = {
     new QueryParameter[Option[A]] {

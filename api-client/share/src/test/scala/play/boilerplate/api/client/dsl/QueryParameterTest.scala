@@ -2,6 +2,8 @@ package play.boilerplate.api.client.dsl
 
 import java.util.UUID
 
+import org.joda.time.format.DateTimeFormat
+import org.joda.time.{DateTime, LocalDate, LocalTime}
 import org.scalatest.{FlatSpec, Matchers}
 
 class QueryParameterTest extends FlatSpec with Matchers {
@@ -18,6 +20,15 @@ class QueryParameterTest extends FlatSpec with Matchers {
     QueryParameter.render("param1", false) shouldBe "param1=false"
     val uuid = UUID.randomUUID()
     QueryParameter.render("param1", uuid) shouldBe ("param1=" + uuid.toString)
+  }
+
+  it should "Joda types" in {
+    implicit val jodaLocalDate: QueryParameter[LocalDate] = QueryParameter.jodaLocalDateParameter("yyyy-MM-dd")
+    implicit val jodaLocalTime: QueryParameter[LocalTime] = QueryParameter.jodaLocalTimeParameter("HH:mm:ss")
+    implicit val jodaDateTime: QueryParameter[DateTime] = QueryParameter.jodaDateTimeParameter("yyyy-MM-dd HH:mm:ss")
+    QueryParameter.render("param1", LocalDate.parse("31.12.2018", DateTimeFormat.forPattern("dd.MM.yyyy"))) shouldBe "param1=2018-12-31"
+    QueryParameter.render("param1", LocalTime.parse("12-59-59", DateTimeFormat.forPattern("HH-mm-ss"))) shouldBe "param1=12:59:59"
+    QueryParameter.render("param1", DateTime.parse("31.12.2018 12-59-59", DateTimeFormat.forPattern("dd.MM.yyyy HH-mm-ss"))) shouldBe "param1=2018-12-31 12:59:59"
   }
 
   it should "list of values" in {

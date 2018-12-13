@@ -106,7 +106,14 @@ object CustomTypeSupport {
               .withParents(parent)
               .tree
           },
-          pathBindable  = EmptyTree
+          pathBindable  = EmptyTree,
+          queryParameter = {
+            val queryParameterType = RootClass.newClass("QueryParameter") TYPE_OF LocalDateClass
+            VAL(s"JodaLocalDateQueryParameter", queryParameterType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+              RootClass.newClass("QueryParameter") DOT "jodaLocalDateParameter" APPLY LIT(pattern)
+            }
+          },
+          pathParameter = EmptyTree
         )
         TypeSupport(LocalDateClass, LocalDateClass, defs :: Nil)
     }}
@@ -158,7 +165,14 @@ object CustomTypeSupport {
               .withParents(parent)
               .tree
           },
-          pathBindable  = EmptyTree
+          pathBindable = EmptyTree,
+          queryParameter = {
+            val queryParameterType = RootClass.newClass("QueryParameter") TYPE_OF DateTimeClass
+            VAL(s"JodaDateTimeQueryParameter", queryParameterType) withFlags(Flags.IMPLICIT, Flags.LAZY) := {
+              RootClass.newClass("QueryParameter") DOT "jodaDateTimeParameter" APPLY LIT(pattern)
+            }
+          },
+          pathParameter = EmptyTree
         )
         TypeSupport(DateTimeClass, DateTimeClass, defs :: Nil)
     }}
