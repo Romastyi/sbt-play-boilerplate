@@ -8,6 +8,8 @@ final case class GeneratorContext private (settings: GeneratorSettings,
                                            currentModel: Option[Model],
                                            inService: Boolean,
                                            inClient: Boolean,
+                                           inController: Boolean,
+                                           inRoutes: Boolean,
                                            modelsInOneFile: Boolean) {
 
   def addCurrentPath(path: String*): GeneratorContext = copy(currentPath = currentPath ++ path)
@@ -15,6 +17,8 @@ final case class GeneratorContext private (settings: GeneratorSettings,
   def setCurrentModel(value: Option[Model]): GeneratorContext = copy(currentModel = value)
   def setInService(value: Boolean): GeneratorContext = copy(inService = value)
   def setInClient(value: Boolean): GeneratorContext = copy(inClient = value)
+  def setInController(value: Boolean): GeneratorContext = copy(inController = value)
+  def setInRoutes(value: Boolean): GeneratorContext = copy(inRoutes = value)
   def setModelsInOneFile(value: Boolean): GeneratorContext = copy(modelsInOneFile = value)
 
   def isCurrentInterface(definition: Definition): Boolean = {
@@ -33,6 +37,8 @@ object GeneratorContext {
       currentModel = None,
       inService = false,
       inClient = false,
+      inController = false,
+      inRoutes = false,
       modelsInOneFile = false
     )
   }

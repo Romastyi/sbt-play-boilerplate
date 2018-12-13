@@ -37,7 +37,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.api.libs.functional.syntax"), "_"),
       IMPORT(REF("play.api.mvc"), "_"),
       IMPORT(REF("play.boilerplate.api.server.dsl"), "_"),
-      IMPORT(REF("scala.concurrent"), "ExecutionContext")
+      IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
       securityImports(schema) ++
       ctx.settings.injectionProvider.imports ++
@@ -59,7 +59,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methods = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInClient(true))
+    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInController(true))
 
     if (methods.nonEmpty) {
 

@@ -14,7 +14,7 @@ trait EnumerationsSupport {
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
     val fullClassName = if (ctx.currentModel.nonEmpty && enum.inline) {
       composeName(ctx.settings.modelPackageName, pathClassName)
-    } else if ((ctx.inService || ctx.inClient) && enum.inline) {
+    } else if ((ctx.inService || ctx.inClient || ctx.inController || ctx.inRoutes) && enum.inline) {
       composeName(ctx.settings.servicePackageName, ctx.settings.serviceClassName, pathClassName)
     } else {
       val packageName = if (ctx.isModel) {

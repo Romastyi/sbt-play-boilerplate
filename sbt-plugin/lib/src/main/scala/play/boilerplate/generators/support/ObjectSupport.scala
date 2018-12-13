@@ -21,7 +21,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val pathClassName = (ctx.currentPath.map(_.capitalize) :+ className).mkString("")
     if (ctx.currentModel.nonEmpty && obj.inline) {
       composeName(ctx.settings.modelPackageName, pathClassName)
-    } else if ((ctx.inService || ctx.inClient) && obj.inline) {
+    } else if ((ctx.inService || ctx.inClient || ctx.inController || ctx.inRoutes) && obj.inline) {
       composeName(ctx.settings.servicePackageName, ctx.settings.serviceClassName, pathClassName)
     } else {
       val packageName = if (ctx.isModel) {
