@@ -96,6 +96,7 @@ lazy val plugin = project
 lazy val `api-client-core` = Project("api-client-core", file("api-client/core"))
   .settings(common: _ *)
   .settings(
+    name := """play-boilerplate-api-client-core""",
     scalaVersion := "2.11.12",
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "com.typesafe" % "config" % "1.3.1"
@@ -104,6 +105,7 @@ lazy val `api-client-core` = Project("api-client-core", file("api-client/core"))
 lazy val `api-client-consul` = Project("api-client-consul", file("api-client/consul"))
   .settings(common: _ *)
   .settings(
+    name := """play-boilerplate-api-client-consul""",
     scalaVersion := "2.11.12",
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "com.ecwid.consul" % "consul-api" % "1.2.4"
@@ -114,6 +116,7 @@ def clientApiProject(suffix: String): Project = {
   Project(s"api-client-$suffix", file(s"api-client/$suffix"))
     .settings(common: _ *)
     .settings(
+      name := s"""play-boilerplate-api-client-$suffix""",
       scalaVersion := "2.11.12",
       unmanagedSourceDirectories in Compile += {
         baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
@@ -146,6 +149,7 @@ def serverApiProject(suffix: String, playVersion: String): Project = {
   Project(s"api-server-$suffix", file(s"api-server/$suffix"))
     .settings(common: _ *)
     .settings(
+      name := s"""play-boilerplate-api-server-$suffix""",
       scalaVersion := "2.11.12",
       libraryDependencies ++= Seq(
         "com.typesafe.play" %% "play" % playVersion % "provided"
