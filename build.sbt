@@ -38,7 +38,7 @@ def PluginVersion(organization: String,
 
 lazy val common = Seq(
   organization := "com.github.romastyi",
-  version := "0.1.6",
+  version := "0.2.1-SNAPSHOT",
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -46,8 +46,11 @@ lazy val common = Seq(
     "-unchecked",
     "-Xfatal-warnings"
   ),
-  resolvers += sonatypeRepo(isSnapshot.value)
+  resolvers += sonatypeRepo(isSnapshot.value),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 ) ++ sonatypePublish
+
+// SBT plugin
 
 lazy val sbtCommon = common ++ Seq(
   crossSbtVersions := List("0.13.16", "1.0.4"),
@@ -61,20 +64,19 @@ lazy val sbtCommon = common ++ Seq(
 )
 
 lazy val lib = project
-  .in(file("lib"))
+  .in(file("sbt-plugin/lib"))
   .settings(common: _ *)
   .settings(
     name := """sbt-play-boilerplate-lib""",
     crossScalaVersions := List("2.10.6", "2.12.4"),
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.3",
-      "io.swagger" % "swagger-parser" % "1.0.32",
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+      "io.swagger" % "swagger-parser" % "1.0.32"
     )
   )
 
 lazy val plugin = project
-  .in(file("plugin"))
+  .in(file("sbt-plugin/plugin"))
   .settings(sbtCommon: _ *)
   .settings(
     name := """sbt-play-boilerplate""",
@@ -89,60 +91,104 @@ lazy val plugin = project
   )
   .dependsOn(lib)
 
-lazy val `api-core` = Project("api-core", file("api-core"))
+// Client API libraries
+
+lazy val `api-client-core` = Project("api-client-core", file("api-client/core"))
   .settings(common: _ *)
   .settings(
-    name := """play-boilerplate-api-core""",
+    name := """play-boilerplate-api-client-core""",
     scalaVersion := "2.11.12",
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "com.typesafe" % "config" % "1.3.1"
   )
 
-lazy val `api-consul` = Project("api-consul", file("api-consul"))
+lazy val `api-client-consul` = Project("api-client-consul", file("api-client/consul"))
   .settings(common: _ *)
   .settings(
-    name := """play-boilerplate-api-consul""",
+    name := """play-boilerplate-api-client-consul""",
     scalaVersion := "2.11.12",
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "com.ecwid.consul" % "consul-api" % "1.2.4"
   )
-  .dependsOn(`api-core`)
+  .dependsOn(`api-client-core`)
 
-def apiProject(suffix: String, playVersion: String): Project = {
-  Project(s"api-$suffix", file(s"api-$suffix"))
+def clientApiProject(suffix: String): Project = {
+  Project(s"api-client-$suffix", file(s"api-client/$suffix"))
     .settings(common: _ *)
     .settings(
-      name := s"""play-boilerplate-api-$suffix""",
+      name := s"""play-boilerplate-api-client-$suffix""",
       scalaVersion := "2.11.12",
-      libraryDependencies ++= Seq(
-        "com.typesafe.play" %% "play" % playVersion % "provided",
-        "com.typesafe.play" %% "play-ws" % playVersion % "provided"
-      ),
       unmanagedSourceDirectories in Compile += {
-        baseDirectory.value / ".." / "api" / "src" / "main" / "scala"
+        baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
+      },
+      unmanagedSourceDirectories in Test += {
+        baseDirectory.value / ".." / "share" / "src" / "test" / "scala"
       }
     )
-    .dependsOn(`api-core`)
+    .dependsOn(`api-client-core`)
 }
 
-lazy val `api-play23` = apiProject("play23", "2.3.10")
+lazy val `api-client-play23` = clientApiProject("play23")
+  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.3.10" % "provided")
+lazy val `api-client-play24` = clientApiProject("play24")
+  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.4.11" % "provided")
+lazy val `api-client-play25` = clientApiProject("play25")
+  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.18" % "provided")
+lazy val `api-client-play26` = clientApiProject("play26")
+  .settings(
+    crossScalaVersions := List("2.11.12", "2.12.4"),
+    libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play-ws-standalone" % "1.1.12",
+      "com.typesafe.play" %% "play-ws-standalone-json" % "1.1.12"
+    )
+  )
+
+// Server API libraries
+
+def serverApiProject(suffix: String, playVersion: String): Project = {
+  Project(s"api-server-$suffix", file(s"api-server/$suffix"))
+    .settings(common: _ *)
+    .settings(
+      name := s"""play-boilerplate-api-server-$suffix""",
+      scalaVersion := "2.11.12",
+      libraryDependencies ++= Seq(
+        "com.typesafe.play" %% "play" % playVersion % "provided"
+      ),
+      unmanagedSourceDirectories in Compile += {
+        baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
+      }
+    )
+}
+
+lazy val `api-server-play23` = serverApiProject("play23", "2.3.10")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play-23" % "0.5.6" % "provided")
-lazy val `api-play24` = apiProject("play24", "2.4.11")
+  .dependsOn(`api-client-play23`)
+lazy val `api-server-play24` = serverApiProject("play24", "2.4.11")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.13" % "provided")
-lazy val `api-play25` = apiProject("play25", "2.5.18")
+  .dependsOn(`api-client-play24`)
+lazy val `api-server-play25` = serverApiProject("play25", "2.5.18")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.15" % "provided")
-lazy val `api-play26` = apiProject("play26", "2.6.20" )
+  .dependsOn(`api-client-play25`)
+lazy val `api-server-play26` = serverApiProject("play26", "2.6.20" )
   .settings(
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.17" % "provided"
   )
+  .dependsOn(`api-client-play26`)
+
+// ---
 
 lazy val root = project
   .in(file("."))
   .settings(
     skip in publish := true
   )
-  .aggregate(lib, plugin, `api-core`, `api-play23`, `api-play24`, `api-play25`, `api-play26`)
+  .aggregate(
+    lib, plugin,
+    `api-client-core`, `api-client-consul`,
+    `api-client-play23`, `api-client-play24`, `api-client-play25`, `api-client-play26`,
+    `api-server-play23`, `api-server-play24`, `api-server-play25`, `api-server-play26`
+  )
 
 publishArtifact := false
 
