@@ -5,7 +5,7 @@ object Compat extends AbstractCompat {
   override type WSResponse = play.api.libs.ws.WSResponse
 
   implicit class WSRequestOps(val request: WSRequest) extends AnyVal {
-    def withHttpHeaders(headers: (String, String)*): WSRequest = request.withHeaders(headers: _ *)
+    def addHttpHeaders(headers: (String, String)*): WSRequest = request.withHeaders(headers: _ *)
   }
 
 }
