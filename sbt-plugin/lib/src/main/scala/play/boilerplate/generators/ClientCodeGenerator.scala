@@ -152,11 +152,11 @@ class ClientCodeGenerator extends CodeGenerator {
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
     val opType = operation.httpMethod.toString.toLowerCase
-    val wsRequestWithAccept = REF("request") DOT "withHttpHeaders" APPLY (LIT("Accept") INFIX ("->", LIT("application/json")))
+    val wsRequestWithAccept = REF("request") DOT "addHttpHeaders" APPLY (LIT("Accept") INFIX ("->", LIT("application/json")))
     val wsRequestWithHeaderParams = if (headerParams.isEmpty) {
       wsRequestWithAccept
     } else {
-      wsRequestWithAccept DOT "withHttpHeaders" APPLY SEQARG(REF("_render_header_params") APPLY (headerParams: _*))
+      wsRequestWithAccept DOT "addHttpHeaders" APPLY SEQARG(REF("_render_header_params") APPLY (headerParams: _*))
     }
 
     val credentials = {
