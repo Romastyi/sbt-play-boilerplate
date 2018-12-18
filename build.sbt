@@ -79,7 +79,7 @@ lazy val plugin = project
   .in(file("sbt-plugin/plugin"))
   .settings(sbtCommon: _ *)
   .settings(
-    name := """sbt-play-boilerplate""",
+    name := """sbt-play-boilerplate-plugin""",
     sbtPlugin := true,
     sourceGenerators in Compile += Def.task(PluginVersion(
       organization.value,
@@ -178,7 +178,7 @@ lazy val `api-server-play26` = serverApiProject("play26", "2.6.20" )
 
 // ---
 
-lazy val root = Project("sbt-play-boilerplate-root", file("."))
+lazy val root = Project("sbt-play-boilerplate", file("."))
   .settings(
     skip in publish := true
   )
