@@ -150,6 +150,10 @@ class ControllerCodeGenerator extends CodeGenerator {
         REF("InternalServerError") APPLY (REF("cause") DOT "getMessage")
     }
 
+    val ANSWER_WITH_ACCEPT_CHECK = if (ctx.settings.strictAcceptHeaderCheck) {
+      generateAcceptCheck(operation, ANSWER_WITH_EXCEPTION_HANDLE)
+    } else ANSWER_WITH_EXCEPTION_HANDLE
+
     val methodValues = Seq(
       VAL("r").withFlags(Flags.IMPLICIT) := REF("request")
     ) ++
@@ -162,7 +166,7 @@ class ControllerCodeGenerator extends CodeGenerator {
 
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
-        filterNonEmptyTree(Seq(operationUuid, traceLog)) ++ methodValues :+ ANSWER_WITH_EXCEPTION_HANDLE
+        filterNonEmptyTree(Seq(operationUuid, traceLog)) ++ methodValues :+ ANSWER_WITH_ACCEPT_CHECK
       }
 
     val methodTree =
@@ -219,7 +223,7 @@ class ControllerCodeGenerator extends CodeGenerator {
   }
 
   private def composeResponseWithMimeType(status: Tree, mimeType: String): Tree = {
-    status APPLY REF("response") DOT "as" APPLY LIT(mimeType)
+    status APPLY REF("response") DOT "as" APPLY LIT(mimeType + "; charset=utf-8")
   }
 
   final def generateAnswer(operation: Operation)(implicit ctx: GeneratorContext): Method = {
@@ -303,6 +307,25 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
+  private def acceptsMimeType(mimeType: String): Tree = {
+    REF("acceptsMimeType") APPLY LIT(mimeType)
+  }
+
+  private def generateAcceptCheck(operation: Operation, tree: Tree)(implicit ctx: GeneratorContext): Tree = {
+    val supportedMimeTypes = operation.produces.flatMap(
+      mimeType => getMimeTypeSupport.lift(mimeType)
+    ).map(_.mimeType)
+    if (supportedMimeTypes.nonEmpty) {
+      IF (INFIX_CHAIN("||", supportedMimeTypes.map(acceptsMimeType))) THEN BLOCK {
+        tree
+      } ELSE BLOCK {
+        THROW(IllegalArgumentExceptionClass, s"Invalid 'Accept' header value. Must be one of:\n${supportedMimeTypes.mkString("\n")}")
+      }
+    } else {
+      tree
+    }
+  }
+
   private def generateResponse(status: Tree, traceCode: Tree, tpe: Type, produces: Iterable[MimeTypeSupport], default: Tree)(implicit ctx: GeneratorContext): Tree = {
     if (produces.isEmpty) {
       default
@@ -311,7 +334,7 @@ class ControllerCodeGenerator extends CodeGenerator {
         produces.toIndexedSeq.map { support =>
           new (Tree => Tree) {
             override def apply(v1: Tree): Tree = {
-              IF (REF("acceptsMimeType") APPLY LIT(support.mimeType)) THEN BLOCK(
+              IF (acceptsMimeType(support.mimeType)) THEN BLOCK(
                 VAL("response") := support.serialize(tpe)(REF("answer")),
                 {
                   val message = INFIX_CHAIN("+",

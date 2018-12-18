@@ -30,7 +30,15 @@ class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSynta
     val mimeTypeSupport = Map(
       MIME_TYPE_TEXT -> MimeTypeSupport(MIME_TYPE_TEXT, REQUEST_AS_TEXT, tpe => ident => tpe APPLY ident, _ => ident => ident DOT "toString()", identity)
     )
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", "", injectionProvider = injection.ScaldiInjectionProvider, securityProviders = List(security), supportedMimeTypes = mimeTypeSupport))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
+      "petStore.v1.yaml",
+      "test",
+      "",
+      injectionProvider = injection.ScaldiInjectionProvider,
+      securityProviders = List(security),
+      supportedMimeTypes = mimeTypeSupport,
+      strictAcceptHeaderCheck = true
+    ))
     val gen = new ControllerCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

@@ -34,6 +34,8 @@ abstract class GeneratorSettings(val fileName: String,
   def customTypeSupport: CustomTypeSupport
   def supportedMimeTypes: Map[String, MimeTypeSupport]
 
+  def strictAcceptHeaderCheck: Boolean
+
 }
 
 case class DefaultGeneratorSettings(_fileName: String,
@@ -44,7 +46,8 @@ case class DefaultGeneratorSettings(_fileName: String,
                                     override val injectionProvider: InjectionProvider = InjectionProvider.defaultInConstructor,
                                     override val loggerProvider: LoggerProvider = LoggerProvider.defaultPlayLogger,
                                     override val customTypeSupport: CustomTypeSupport = CustomTypeSupport.empty,
-                                    override val supportedMimeTypes: Map[String, MimeTypeSupport] = Map.empty)
+                                    override val supportedMimeTypes: Map[String, MimeTypeSupport] = Map.empty,
+                                    override val strictAcceptHeaderCheck: Boolean = false)
   extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
 
   override def modelPackageName: String = composeName(basePackageName, "model")
