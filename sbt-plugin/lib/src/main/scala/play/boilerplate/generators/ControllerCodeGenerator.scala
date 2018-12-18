@@ -151,7 +151,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val methodValues = Seq(
-      VAL(WILDCARD).withFlags(Flags.IMPLICIT) := REF("request")
+      VAL("r").withFlags(Flags.IMPLICIT) := REF("request")
     ) ++
       headerParams.map(_._2) ++
       actionSecurity.securityValues.map(_._2) ++
@@ -218,6 +218,10 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
+  private def composeResponseWithMimeType(status: Tree, mimeType: String): Tree = {
+    status APPLY REF("response") DOT "as" APPLY LIT(mimeType)
+  }
+
   final def generateAnswer(operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
     def traceMessage(code: Tree, content: Option[Tree]): Tree = {
@@ -256,7 +260,7 @@ class ControllerCodeGenerator extends CodeGenerator {
           val default = BLOCK(
             VAL("response") := TYPE_TO_JSON(body)(REF("answer")),
             traceMessage(traceCode, Some(LOG_JSON(REF("response")))),
-            status APPLY REF("response")
+            composeResponseWithMimeType(status, MIME_TYPE_JSON)
           )
           CASE(REF(className) UNAPPLY (ID("answer"), ID("code"))) ==>
             generateResponse(status, traceCode, body, supportedProduces, default)
@@ -264,7 +268,7 @@ class ControllerCodeGenerator extends CodeGenerator {
           val default = BLOCK(
             VAL("response") := TYPE_TO_JSON(body)(REF("answer")),
             traceMessage(traceCode, Some(LOG_JSON(REF("response")))),
-            status APPLY REF("response")
+            composeResponseWithMimeType(status, MIME_TYPE_JSON)
           )
           CASE(REF(className) UNAPPLY ID("answer")) ==>
             generateResponse(status, traceCode, body, supportedProduces, default)
@@ -316,7 +320,7 @@ class ControllerCodeGenerator extends CodeGenerator {
                   )
                   ctx.settings.loggerProvider.trace(message)
                 },
-                status APPLY REF("response")
+                composeResponseWithMimeType(status, support.mimeType)
               ) ELSE {
                 v1
               }

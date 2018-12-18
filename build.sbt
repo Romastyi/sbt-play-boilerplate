@@ -178,8 +178,7 @@ lazy val `api-server-play26` = serverApiProject("play26", "2.6.20" )
 
 // ---
 
-lazy val root = project
-  .in(file("."))
+lazy val root = Project("sbt-play-boilerplate-root", file("."))
   .settings(
     skip in publish := true
   )

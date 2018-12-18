@@ -186,6 +186,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     watchSources ++= collectSchemas(Keys.generatorsSources.value),
     sourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.sources.toSeq),
     resourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.resources.toSeq),
+    mappings in (Compile, packageSrc) ++= (managedSources in Compile).value.map(s => (s,s.getName)),
     // Default generators
     Keys.generators := Seq(Generators.json, Generators.model),
     // Generators code-gen settings
