@@ -175,9 +175,13 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
   }
 
-  private def generatorsCleanImpl(sourceManagedDir: File, destPackage: String): Unit = {
+  private def generatedSources(sourceManagedDir: File, destPackage: String): Seq[File] = {
     val files = sourceManagedDir / GeneratorUtils.classNameToPath(destPackage, "", "") ** ("*.scala" -- "routes*")
-    IO.deleteFilesEmptyDirs(files.get)
+    files.get
+  }
+
+  private def generatorsCleanImpl(sourceManagedDir: File, destPackage: String): Unit = {
+    IO.deleteFilesEmptyDirs(generatedSources(sourceManagedDir, destPackage))
   }
 
   override val requires: Plugins = plugins.JvmPlugin
@@ -187,7 +191,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     watchSources ++= collectSchemas(Keys.generatorsSources.value),
     sourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.sources.toSeq),
     resourceGenerators in Compile += Keys.generatorsCodeGen.taskValue.map(_.resources.toSeq),
-    mappings in (Compile, packageSrc) ++= (managedSources in Compile).value.map(s => (s,s.getName)),
+    mappings in (Compile, packageSrc) ++= generatedSources((sourceManaged in Compile).value, Keys.generatorDestPackage.value).map(s => (s, s.getName)),
     // Default generators
     Keys.generators := Seq(Generators.json, Generators.model),
     // Generators code-gen settings
