@@ -252,9 +252,11 @@ class ControllerCodeGenerator extends CodeGenerator {
         case DefaultResponse => None
         case StatusResponse(code) => Some(code)
       }
-      val (traceCode, status) = statusCode.flatMap { code =>
+      val (traceCode, status) = statusCode.map { code =>
         getStatusByCode(code).map {
           name => (LIT(code.toString + " " + name): Tree, REF(name): Tree)
+        }.getOrElse {
+          (LIT(code), REF("Status") APPLY LIT(code))
         }
       }.getOrElse {
         (REF("code"), REF("Status") APPLY REF("code"))

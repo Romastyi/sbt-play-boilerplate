@@ -162,7 +162,13 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     410 -> "Gone",
     415 -> "UnsupportedMediaType",
     // Server error
-    500 -> "InternalServerError"
+    500 -> "InternalServerError",
+    501 -> "NotImplemented",
+    502 -> "BadGateway",
+    503 -> "ServiceUnavailable",
+    504 -> "GatewayTimeout",
+    505 -> "HttpVersionNotSupported",
+    507 -> "InsufficientStorage"
   )
 
   def codeIsOk(code: Int): Boolean = code >= 200 && code < 300
