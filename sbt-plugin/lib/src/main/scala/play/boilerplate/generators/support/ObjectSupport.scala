@@ -323,34 +323,37 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectDefs(objectClass: Symbol, params: Seq[ObjectProperty], parents: Seq[Symbol])
+  def generateObjectDefs(objectClass: Symbol, properties: Seq[ObjectProperty], parents: Seq[Symbol], withPropertiesDefs: Boolean = true)
                         (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
 
-    val objectDef = if (params.isEmpty) {
+    val objectDef = if (properties.isEmpty) {
       CASEOBJECTDEF(objectClass).withParents(parents).tree
     } else {
-      CASECLASSDEF(objectClass).withFlags(Flags.FINAL).withParams(params.map(_.param)).withParents(parents).tree
+      CASECLASSDEF(objectClass).withFlags(Flags.FINAL).withParams(properties.map(_.param)).withParents(parents).tree
     }
 
-    val ObjectJson(reads, writes) = generateObjectJson(objectClass, params)
+    val ObjectJson(reads, writes) = generateObjectJson(objectClass, properties)
 
     val objectDefs = TypeSupportDefs(
       symbol = objectClass,
       definition = objectDef,
       jsonReads  = reads,
       jsonWrites = writes,
-      queryBindable = generateObjectQueryBindable(objectClass, params),
+      queryBindable = generateObjectQueryBindable(objectClass, properties),
       pathBindable  = EmptyTree,
-      queryParameter = generateObjectQueryParameter(objectClass, params),
+      queryParameter = generateObjectQueryParameter(objectClass, properties),
       pathParameter  = EmptyTree
     )
 
-    val paramsDefs = params.flatMap(_.support.defs)
-      .groupBy(_.symbol.nameString)
-      .mapValues(_.head)
-      .values.toSeq
+    val propertiesDefs = if (withPropertiesDefs) {
+      properties.flatMap(_.support.defs)
+        .groupBy(_.symbol.nameString)
+        .mapValues(_.head)
+        .values
+        .toSeq
+    } else Nil
 
-    paramsDefs :+ objectDefs
+    propertiesDefs :+ objectDefs
 
   }
 
@@ -399,7 +402,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
         if (properties.size > MaxJsonArity) {
           val tupleDefs = for ((tupleProps, idx) <- properties.grouped(MaxJsonArity).toIndexedSeq.zipWithIndex) yield {
             val tupleClass = RootClass.newClass(s"${modelName}Tuple${idx + 1}")
-            (idx + 1, tupleClass, tupleProps, generateObjectDefs(tupleClass, tupleProps, Nil))
+            (idx + 1, tupleClass, tupleProps, generateObjectDefs(tupleClass, tupleProps, Nil, withPropertiesDefs = false))
           }
           val tupleWrites = tupleDefs.flatMap { case (_, _, _, definitions) =>
             definitions.flatMap(i => Seq(i.definition, i.jsonWrites))
