@@ -6,6 +6,17 @@ import play.boilerplate.parser.backend.swagger.SwaggerBackend
 
 class JsonCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxString {
 
+  "Json generator" should "empty definitions." in {
+
+    val schema = SwaggerBackend.parseSchema("empty_definitions.yaml").get
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("empty_definitions.yaml", "test", ""))
+    val gen = new JsonCodeGenerator().generate(schema)(ctx)
+    printCodeFile(gen)
+
+    true should be (true)
+
+  }
+
   "Json generator: enums support." should "Inline definition." in {
 
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").get

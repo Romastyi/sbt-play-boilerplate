@@ -1,0 +1,17 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: test
+host: petstore.swagger.wordnik.com
+basePath: /api
+schemes:
+  - http
+paths:
+  /path:
+    get:
+      operationId: get
+      responses:
+        200:
+          description:
+definitions:
+

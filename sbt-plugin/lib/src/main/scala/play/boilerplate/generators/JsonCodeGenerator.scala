@@ -18,27 +18,23 @@ class JsonCodeGenerator extends CodeGenerator {
       .mapValues(defs => filterNonEmptyTree(Seq(defs.head.jsonReads, defs.head.jsonWrites)))
       .values.flatten
 
-    if (methods.nonEmpty) {
+    val imports = BLOCK(
+      IMPORT(REF(ctx.settings.modelPackageName), "_"),
+      IMPORT(REF("play.api.data.validation"), "_"),
+      IMPORT(REF("play.api.libs.json"), "_"),
+      IMPORT(REF("play.api.libs.functional.syntax"), "_")
+    ) inPackage ctx.settings.jsonPackageName
 
-      val imports = BLOCK(
-        IMPORT(REF(ctx.settings.modelPackageName), "_"),
-        IMPORT(REF("play.api.data.validation"), "_"),
-        IMPORT(REF("play.api.libs.json"), "_"),
-        IMPORT(REF("play.api.libs.functional.syntax"), "_")
-      ) inPackage ctx.settings.jsonPackageName
-
-      val objDef = OBJECTDEF(ctx.settings.jsonObjectName) := BLOCK(methods)
-
-      SourceCodeFile(
-        packageName = ctx.settings.jsonPackageName,
-        className = ctx.settings.jsonObjectName,
-        header = treeToString(imports),
-        impl = treeToString(objDef)
-      ) :: Nil
-
-    } else {
-      Nil
+    val objDef = OBJECTDEF(ctx.settings.jsonObjectName) := {
+      if (methods.nonEmpty) BLOCK(methods) else EmptyTree
     }
+
+    SourceCodeFile(
+      packageName = ctx.settings.jsonPackageName,
+      className = ctx.settings.jsonObjectName,
+      header = treeToString(imports),
+      impl = treeToString(objDef)
+    ) :: Nil
 
   }
 
