@@ -67,6 +67,22 @@ trait DefinitionsSupport
     }
   }
 
+  def collectTypeContainers(definition: Definition): Seq[String] = {
+    definition match {
+      case OptionDefinition(_, base) =>
+        "OptionOf" +: collectTypeContainers(base)
+      case ArrayDefinition(_, _, items, _, _, _, _) =>
+        "ListOf" +: collectTypeContainers(items)
+      case MapDefinition(_, _, additionalProperties) =>
+        "MapOf" +: collectTypeContainers(additionalProperties)
+      case ref: RefDefinition =>
+        collectTypeContainers(ref.ref)
+      case _ =>
+        Nil
+    }
+
+  }
+
   private def customListQueryBinder(tpe: Type, separator: Char): Tree = {
     val queryBindableType = RootClass.newClass("QueryStringBindable") TYPE_OF (ListClass TYPE_OF tpe)
     val tpeName = stringToValidIdentifier(tpe.safeToString, skipNotValidChars = true)

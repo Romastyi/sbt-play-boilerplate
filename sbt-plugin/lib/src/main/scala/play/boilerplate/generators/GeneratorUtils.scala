@@ -104,7 +104,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   def getMethodParam(param: Parameter)(implicit ctx: GeneratorContext): (String, MethodParam) = {
     val paramName = decapitalize(param.name)
-    val defaultValue = getDefaultValue(param)
+    val defaultValue = getDefaultValue(param).filter(_ => isOptional(param))
     val support = getTypeSupport(param.ref, DefinitionContext.default.copy(canBeOption = defaultValue.isEmpty))
     val valDef = defaultValue match {
       case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
@@ -137,6 +137,12 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
       case _ =>
         None
     }
+  }
+
+  def isOptional(parameter: Parameter): Boolean = isOptional(parameter.ref)
+  def isOptional(definition: Definition): Boolean = definition match {
+    case _: OptionDefinition => true
+    case _ => false
   }
 
   private val statusByCode = Map(

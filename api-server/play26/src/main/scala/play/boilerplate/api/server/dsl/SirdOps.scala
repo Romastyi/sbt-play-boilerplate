@@ -1,30 +1,22 @@
 package play.boilerplate.api.server.dsl
 
-import play.api.mvc.PathBindable
-import play.api.routing.sird.PathBindableExtractor
+import play.api.mvc.{PathBindable, QueryStringBindable}
+import play.api.routing.sird.{PathBindableExtractor, QueryString, QueryStringParameterExtractor}
 
 object SirdOps {
 
   /**
-    * An List[T] extractors.
+    * Path parameter extractor
     */
-  def listOf[T](separator: Char)(implicit pb: PathBindable[T]): PathBindableExtractor[List[T]] = {
-    implicit val pl: PathBindable[List[T]] = new PathBindable[List[T]] {
-      override def bind(key: String, values: String): Either[String, List[T]] = {
-        Right(
-          for {
-            rawValue <- values.trim.split(separator).toList
-            bound <- pb.bind("anon", rawValue).right.toOption
-          } yield bound
-        )
-      }
-      override def unbind(key: String, values: List[T]): String = {
-        (for (value <- values) yield {
-          pb.unbind("anon", value).replaceAll("anon=", "")
-        }).mkString(separator.toString)
-      }
+  def pathOf[T](implicit pb: PathBindable[T]): PathBindableExtractor[T] = new PathBindableExtractor[T]
+
+  /**
+    * Query parameter extractor
+    */
+  def queryOf[T](paramName: String)(implicit qb: QueryStringBindable[T]): QueryStringParameterExtractor[T] = new QueryStringParameterExtractor[T] {
+    override def unapply(qs: QueryString): Option[T] = qb.bind(paramName, qs).collect {
+      case Right(value) => value
     }
-    new PathBindableExtractor[List[T]]
   }
 
 }

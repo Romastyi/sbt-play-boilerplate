@@ -167,7 +167,7 @@ trait ParameterParser { this: ModelParser with PropertyParser with ReferencePars
         properties = properties,
         name = objectName,
         title = None,
-        description = Some(s"Class, that composed query parameters: ${properties.keys.mkString(", ")}"),
+        description = Some(s"Class, that composed query parameters: ${properties.keys.map(p => objectName + "." + p).mkString(", ")}"),
         readOnly = true,
         allowEmptyValue = false
       )

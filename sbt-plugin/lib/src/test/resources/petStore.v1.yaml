@@ -195,7 +195,7 @@ paths:
       operationId: additional
       description:
       parameters:
-        - name: params
+        - name: paramsBody
           description:
           in: body
           required: true
