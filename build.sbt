@@ -129,7 +129,10 @@ def clientApiProject(suffix: String): Project = {
 }
 
 lazy val `api-client-play23` = clientApiProject("play23")
-  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.3.10" % "provided")
+  .settings(
+    resolvers += Resolver.typesafeRepo("releases"),
+    libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.3.10" % "provided"
+  )
 lazy val `api-client-play24` = clientApiProject("play24")
   .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.4.11" % "provided")
 lazy val `api-client-play25` = clientApiProject("play25")

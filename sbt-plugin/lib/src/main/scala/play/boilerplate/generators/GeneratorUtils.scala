@@ -62,7 +62,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     operation.security.headOption.map(s => getSecurityProvider(s.schemaName)).getOrElse(SecurityProvider.default)
   }
 
-  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], doc: DocElement)
+  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], isOptional: Boolean, doc: DocElement)
 
   def getBodyParameters(path: Path, operation: Operation)
                        (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
@@ -74,7 +74,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         val fullQualified = PARAM(paramName, support.fullQualified).empty
         val implicits = support.jsonReads ++ support.jsonWrites
         val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, implicits, None, doc)
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, implicits, None, isOptional = false, doc)
     }.distinctBy(_._1).toIndexedSeq
   }
 
@@ -104,7 +104,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   def getMethodParam(param: Parameter)(implicit ctx: GeneratorContext): (String, MethodParam) = {
     val paramName = decapitalize(param.name)
-    val defaultValue = getDefaultValue(param).filter(_ => isOptional(param))
+    val defaultValue = getDefaultValue(param)
     val support = getTypeSupport(param.ref, DefinitionContext.default.copy(canBeOption = defaultValue.isEmpty))
     val valDef = defaultValue match {
       case Some(default) => PARAM(paramName, support.tpe) := support.constructor(default)
@@ -112,7 +112,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
     val fullQualified = PARAM(paramName, support.fullQualified).empty
     val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-    paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), doc)
+    paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), isOptional(param), doc)
   }
 
   def getParamImplicits(param: Parameter, support: TypeSupport)(implicit ctx: GeneratorContext): Seq[Tree] = {

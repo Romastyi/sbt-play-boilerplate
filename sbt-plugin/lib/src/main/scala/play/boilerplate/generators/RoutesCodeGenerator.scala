@@ -63,7 +63,7 @@ abstract class RoutesCodeGenerator(prefix: String) extends CodeGenerator {
   def generateMethodCall(path: Path, operation: Operation)(implicit ctx: GeneratorContext): String = {
 
     val ps = getMethodParameters(path, operation, withHeaders = false).map {
-      case (n, MethodParam(_, fullQualified, _, _, defaultValue, _)) =>
+      case (n, MethodParam(_, fullQualified, _, _, defaultValue, _, _)) =>
         s"$n: ${treeToString(fullQualified.tpt)}" + defaultValue.map(
           literal => " ?= " + treeToString(literal)
         ).getOrElse("")
