@@ -12,13 +12,19 @@ Moreover, you can do it directly within an `sbt` project.
 ## Compatibility
 
 This code generator is designed specifically for [Swagger 2.0 specification](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md). Moreover, it relies on [Play! Framework](http://www.playframework.com) for Json marshalling/unmarshalling, server- and client-side code.
-Generated server- and client-side code is compatible with 2.6.x, 2.5.x, 2.4.x, 2.3.x _Play! Framework_ versions. 
+
+| Plugin version | Play 2.3.x | Play 2.4.x | Play 2.5.x | Play 2.6.x |
+|:--------------:|:----------:|:----------:|:----------:|:----------:|
+| 0.1.x          | ✔          | ✔          | ✔          | ✔          |  
+| 0.2.x          | ✔ *        | ✔          | ✔          | ✔          |
+
+*) Deprecated. Support will be removed in future releases.
 
 ## Install
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.1.2")`
+`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.2.1")`
 
 Enable it in your `build.sbt` like this:
 

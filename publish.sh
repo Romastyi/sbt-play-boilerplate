@@ -17,7 +17,7 @@ case $1 in
     ;;
 esac
 
-echo "Artifacts will published with '$PUBLISH_COMMAND' command."
+echo "Artifacts will be published with '$PUBLISH_COMMAND' command."
 
 sbt "project lib" "+ $PUBLISH_COMMAND"
 
