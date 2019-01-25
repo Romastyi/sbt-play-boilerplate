@@ -38,7 +38,7 @@ def PluginVersion(organization: String,
 
 lazy val common = Seq(
   organization := "com.github.romastyi",
-  version := "0.2.1",
+  version := "0.2.2-SNAPSHOT",
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -128,11 +128,6 @@ def clientApiProject(suffix: String): Project = {
     .dependsOn(`api-client-core`)
 }
 
-lazy val `api-client-play23` = clientApiProject("play23")
-  .settings(
-    resolvers += Resolver.typesafeRepo("releases"),
-    libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.3.10" % "provided"
-  )
 lazy val `api-client-play24` = clientApiProject("play24")
   .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.4.11" % "provided")
 lazy val `api-client-play25` = clientApiProject("play25")
@@ -163,16 +158,13 @@ def serverApiProject(suffix: String, playVersion: String): Project = {
     )
 }
 
-lazy val `api-server-play23` = serverApiProject("play23", "2.3.10")
-  .settings(libraryDependencies += "org.scaldi" %% "scaldi-play-23" % "0.5.6" % "provided")
-  .dependsOn(`api-client-play23`)
 lazy val `api-server-play24` = serverApiProject("play24", "2.4.11")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.13" % "provided")
   .dependsOn(`api-client-play24`)
 lazy val `api-server-play25` = serverApiProject("play25", "2.5.18")
   .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.15" % "provided")
   .dependsOn(`api-client-play25`)
-lazy val `api-server-play26` = serverApiProject("play26", "2.6.20" )
+lazy val `api-server-play26` = serverApiProject("play26", "2.6.21" )
   .settings(
     crossScalaVersions := List("2.11.12", "2.12.4"),
     libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.17" % "provided"
@@ -188,8 +180,8 @@ lazy val root = Project("sbt-play-boilerplate", file("."))
   .aggregate(
     lib, plugin,
     `api-client-core`, `api-client-consul`,
-    `api-client-play23`, `api-client-play24`, `api-client-play25`, `api-client-play26`,
-    `api-server-play23`, `api-server-play24`, `api-server-play25`, `api-server-play26`
+    `api-client-play24`, `api-client-play25`, `api-client-play26`,
+    `api-server-play24`, `api-server-play25`, `api-server-play26`
   )
 
 publishArtifact := false
