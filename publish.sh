@@ -25,12 +25,10 @@ sbt "project plugin" "^ $PUBLISH_COMMAND"
 
 sbt "project api-client-core"   "+ $PUBLISH_COMMAND" \
     "project api-client-consul" "+ $PUBLISH_COMMAND" \
-    "project api-client-play23" "+ $PUBLISH_COMMAND" \
     "project api-client-play24" "+ $PUBLISH_COMMAND" \
     "project api-client-play25" "+ $PUBLISH_COMMAND" \
     "project api-client-play26" "+ $PUBLISH_COMMAND"
 
-sbt "project api-server-play23" "+ $PUBLISH_COMMAND" \
-    "project api-server-play24" "+ $PUBLISH_COMMAND" \
+sbt "project api-server-play24" "+ $PUBLISH_COMMAND" \
     "project api-server-play25" "+ $PUBLISH_COMMAND" \
     "project api-server-play26" "+ $PUBLISH_COMMAND"
