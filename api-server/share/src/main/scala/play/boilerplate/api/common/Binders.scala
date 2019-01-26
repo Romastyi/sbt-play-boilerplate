@@ -24,7 +24,7 @@ object Binders {
 
     def bindList(values: String): Seq[A] = {
       for {
-        rawValue <- values.trim.split(separator).toList
+        rawValue <- Some(values.trim).filter(_.nonEmpty).map(_.split(separator).toList).getOrElse(Nil)
         bound <- binder.bind("anon", Map("anon" -> Seq(rawValue)))
         value <- bound.right.toOption
       } yield value

@@ -14,11 +14,13 @@ trait StringUtils {
     }
   }
 
-  def sanitizeFileName(fileName: String): String = {
+  def getFileName(fileName: String): String = {
     val sep = if (separatorChar == 92.toChar) "\\\\" else separator
-    fileName.split(sep)
-      .toList
-      .last
+    fileName.split(sep).toList.last
+  }
+
+  def sanitizeFileName(fileName: String): String = {
+    getFileName(fileName)
       .replace(".yaml", "")
       .replace(".json", "")
   }
