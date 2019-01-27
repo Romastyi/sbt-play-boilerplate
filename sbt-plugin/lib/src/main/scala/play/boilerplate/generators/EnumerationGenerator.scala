@@ -8,18 +8,18 @@ import treehuggerDSL._
 import scala.language.postfixOps
 
 trait EnumerationGenerator {
-  def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport
+  def getEnumerationSupport(fullClassName: String, items: Iterable[String], description: String): TypeSupport
 }
 
 sealed trait CommonEnumerations extends EnumerationGenerator {
 
-  def enumerationValueType(enumClass: Symbol): Type = {
+  private def enumerationValueType(enumClass: Symbol): Type = {
     TYPE_REF(enumClass DOT "Value")
   }
 
-  def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef
+  protected def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef
 
-  def generateEnumReads(enumClass: Symbol): ValDef = {
+  private def generateEnumReads(enumClass: Symbol): ValDef = {
 
     val enumValueType = enumerationValueType(enumClass)
     val readsType = RootClass.newClass("Reads") TYPE_OF enumValueType
@@ -66,11 +66,11 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
 
   }
 
-  def generateEnumQueryBindable(enumClass: Symbol): Tree = {
+  private def generateEnumQueryBindable(enumClass: Symbol): Tree = {
     generateEnumBindable(enumClass, "QueryStringBindable")
   }
 
-  def generateEnumPathBindable(enumClass: Symbol): Tree = {
+  private def generateEnumPathBindable(enumClass: Symbol): Tree = {
     generateEnumBindable(enumClass, "PathBindable")
   }
 
@@ -91,11 +91,11 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
 
   }
 
-  def generateEnumQueryParameter(enumClass: Symbol): Tree = {
+  private def generateEnumQueryParameter(enumClass: Symbol): Tree = {
     generateEnumParameter(enumClass, "QueryParameter")
   }
 
-  def generateEnumPathParameter(enumClass: Symbol): Tree = {
+  private def generateEnumPathParameter(enumClass: Symbol): Tree = {
     generateEnumParameter(enumClass, "PathParameter")
   }
 
@@ -112,10 +112,10 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
 
   }
 
-  def generateEnumDefs(enumClass: Symbol, items: Iterable[String]): Seq[TypeSupportDefs] = {
+  private def generateEnumDefs(enumClass: Symbol, items: Iterable[String], description: String): Seq[TypeSupportDefs] = {
     TypeSupportDefs(
       symbol     = enumClass,
-      definition = generateEnumeration(enumClass, items),
+      definition = generateEnumeration(enumClass, items).withDoc(description),
       jsonReads  = generateEnumReads(enumClass),
       jsonWrites = generateEnumWrites(enumClass),
       queryBindable = generateEnumQueryBindable(enumClass),
@@ -125,13 +125,13 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
     ) :: Nil
   }
 
-  override def getEnumerationSupport(fullClassName: String, items: Iterable[String]): TypeSupport = {
+  override def getEnumerationSupport(fullClassName: String, items: Iterable[String], description: String): TypeSupport = {
     val enumClassName = fullClassName.split('.').last
     val enumClass = RootClass.newClass(enumClassName)
     TypeSupport(
       tpe = enumerationValueType(enumClass),
       fullQualified = enumerationValueType(RootClass.newClass(fullClassName)),
-      defs = generateEnumDefs(enumClass, items),
+      defs = generateEnumDefs(enumClass, items, description),
       constructor = l => RootClass.newClass(fullClassName) DOT "withName" APPLY l
     )
   }
@@ -140,7 +140,7 @@ sealed trait CommonEnumerations extends EnumerationGenerator {
 
 object VanillaEnumerations extends CommonEnumerations {
 
-  override def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
+  override protected def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
     val EnumerationClass = RootClass.newClass("Enumeration")
     OBJECTDEF(enumClass) withParents EnumerationClass := BLOCK {
       items.map { item =>
@@ -153,7 +153,7 @@ object VanillaEnumerations extends CommonEnumerations {
 
 object SealedTraitEnumerations extends CommonEnumerations {
 
-  override def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
+  override protected def generateEnumeration(enumClass: Symbol, items: Iterable[String]): ImplDef = {
     val NoSuchElementExceptionClass = RootClass.newClass("NoSuchElementException")
     val valueTpe = TYPE_REF("Value")
     val traitDef: Tree = TRAITDEF("Value").withFlags(Flags.SEALED) withParents orderedType(valueTpe) := BLOCK(

@@ -25,7 +25,11 @@ trait EnumerationsSupport {
       composeName(packageName, className)
     }
     val withDefinition = ctx.currentPath.isEmpty || enum.inline
-    val support = ctx.settings.enumGenerator.getEnumerationSupport(fullClassName, enum.items)
+    val description = enum.description.getOrElse {
+      s"Enumeration ${fullClassName.split('.').last}. Values:\n" +
+      enum.items.map(i => " - `" + i + "`").mkString("\n")
+    }
+    val support = ctx.settings.enumGenerator.getEnumerationSupport(fullClassName, enum.items, description)
     support.copy(
       defs = support.defs.map { defs =>
         if (withDefinition) {

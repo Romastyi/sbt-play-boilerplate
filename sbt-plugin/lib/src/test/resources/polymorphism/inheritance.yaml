@@ -29,30 +29,38 @@ paths:
               $ref: '#/definitions/ExtendedErrorModel'
 definitions:
   ErrorModel:
+    description: Generic error
     type: object
     required:
-    - message
-    - code
+      - message
+      - code
     properties:
       message:
+        description: Error message
         type: string
       code:
+        description: Error code
         type: integer
         minimum: 100
         maximum: 600
   OtherModel:
+    description: Other information
     type: object
     required:
-    - extended
+      - extended
     properties:
       extended:
+        description: Extended message
         type: string
   SimpleModel:
+    description: Simple object
     type: object
     properties:
       field:
+        description: Something string
         type: string
   ExtendedErrorModel:
+    description: Extended error model
     allOf:
     - $ref: '#/definitions/ErrorModel'
     - $ref: '#/definitions/OtherModel'
@@ -61,19 +69,23 @@ definitions:
       - rootCause
       properties:
         rootCause:
+          description: Root cause of error
           type: string
     - type: object
       required:
       - code2
       properties:
         code2:
+          description: Other code
           type: integer
           format: int32
   ExtendedErrorModel2:
+    description: Other extended error model
     allOf:
     - type: object
       required:
       - rootCause
       properties:
         rootCause:
+          description: Root cause of error
           type: string

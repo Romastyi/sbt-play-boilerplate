@@ -40,9 +40,9 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val params = generateClassParams(obj.properties)(newCtx)
     val withDefinition = ctx.currentPath.isEmpty || obj.inline
     val support = if (context.canBeInterface && ctx.isCurrentInterface(obj) && !obj.inline) {
-      generateInterface(fullClassName, params)(newCtx)
+      generateInterface(fullClassName, params, obj.description)(newCtx)
     } else {
-      generateObject(obj, fullClassName, params, Nil, context, withDefinition)(newCtx)
+      generateObject(obj, fullClassName, params, Nil, context, withDefinition, obj.description)(newCtx)
     }
     support.copy(
       defs = support.defs.map { defs =>
@@ -86,7 +86,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     val ownParams = generateClassParams(ownProperties)(newCtx)
     val allParams: Seq[ObjectProperty] = parentsParams ++ ownParams
     val withDefinition = ctx.currentPath.isEmpty || complex.inline
-    val support = generateObject(complex, fullClassName, allParams, parents, context, withDefinition)(newCtx)
+    val support = generateObject(complex, fullClassName, allParams, parents, context, withDefinition, complex.description)(newCtx)
     support.copy(
       defs = support.defs.map { defs =>
         if (withDefinition) {
@@ -98,33 +98,40 @@ trait ObjectSupport { this: DefinitionsSupport =>
     )
   }
 
-  def generateInterface(fullClassName: String,
-                        params: Seq[ObjectProperty])
-                       (implicit ctx: GeneratorContext): TypeSupport = {
+  private def generateInterface(fullClassName: String,
+                                params: Seq[ObjectProperty],
+                                description: Option[String])
+                               (implicit ctx: GeneratorContext): TypeSupport = {
     val parts = fullClassName.split('.')
     val interfaceName = composeInterfaceName(parts.last)
     TypeSupport(
       tpe = RootClass.newClass(interfaceName),
       fullQualified = RootClass.newClass((parts.init :+ interfaceName).mkString(".")),
-      defs = Seq(generateInterfaceDefs(RootClass.newClass(interfaceName), params, ctx.currentModel.map(_.children).getOrElse(Nil)))
+      defs = Seq(generateInterfaceDefs(
+        interfaceName = RootClass.newClass(interfaceName),
+        params = params,
+        children = ctx.currentModel.map(_.children).getOrElse(Nil),
+        description = description
+      ))
     )
   }
 
-  def generateObject(definition: Definition,
-                     fullClassName: String,
-                     params: Seq[ObjectProperty],
-                     parents: Seq[Symbol],
-                     context: DefinitionContext,
-                     withDefinition: Boolean)
-                    (implicit ctx: GeneratorContext): TypeSupport = {
+  private def generateObject(definition: Definition,
+                             fullClassName: String,
+                             params: Seq[ObjectProperty],
+                             parents: Seq[Symbol],
+                             context: DefinitionContext,
+                             withDefinition: Boolean,
+                             description: Option[String])
+                            (implicit ctx: GeneratorContext): TypeSupport = {
     val objectClassName = fullClassName.split('.').last
     val objectClass = RootClass.newClass(objectClassName)
     val interfaces = if (ctx.isCurrentInterface(definition)) {
-      generateInterface(fullClassName, params).defs
+      generateInterface(fullClassName, params, description).defs
     } else {
       Nil
     }
-    val objectDefs = generateObjectDefs(objectClass, params, parents ++ interfaces.map(_.symbol))
+    val objectDefs = generateObjectDefs(objectClass, params, parents ++ interfaces.map(_.symbol), description)
     TypeSupport(
       tpe = objectClass,
       fullQualified = RootClass.newClass(fullClassName),
@@ -199,9 +206,10 @@ trait ObjectSupport { this: DefinitionsSupport =>
                             isOpt: Boolean,
                             isOverride: Boolean,
                             defaultValue: Option[Literal],
-                            constraints: Seq[Constraint]) {
+                            constraints: Seq[Constraint],
+                            description: Option[String]) {
     val ident: String = stringToValidIdentifier(name, skipNotValidChars = true)
-    def method: DefDef = DEF(ident, support.tpe).empty
+    def method: Tree = DEF(ident, support.tpe).empty.withDoc(description.getOrElse(""))
     def param : ValDef = {
       val p0 = if (isOverride) VAL(ident, support.tpe).withFlags(Flags.OVERRIDE) else PARAM(ident, support.tpe)
       defaultValue match {
@@ -226,25 +234,38 @@ trait ObjectSupport { this: DefinitionsSupport =>
     def writes: Tree = {
       PAREN(REF("JsPath") INFIX ("\\", LIT(name))) DOT (if (isOpt) "writeNullable" else "write") APPLYTYPE noOptType
     }
+    def docElement: DocElement = DocTag.Param(name, description.getOrElse(""))
   }
 
   case class ObjectJson(reads: Tree, writes: Tree)
   case class ObjectPropertyJson(ident: String, reads: Enumerator, writes: Tree)
 
-  def generateClassParams(properties: Map[String, Definition])
-                         (implicit ctx: GeneratorContext): Seq[ObjectProperty] = {
+  private def generateClassParams(properties: Map[String, Definition])
+                                 (implicit ctx: GeneratorContext): Seq[ObjectProperty] = {
     for ((name, prop) <- properties.toSeq) yield {
       val support = getTypeSupport(prop)
       val (noOptType, isOpt) = prop match {
         case OptionDefinition(_, base) => (getTypeSupport(base).tpe, true)
         case _ => (support.tpe, false)
       }
-      ObjectProperty(name, support, noOptType, isOpt, isOverride = false, getDefaultValue(prop), collectPropertyConstraints(prop))
+      ObjectProperty(
+        name = name,
+        support = support,
+        noOptType = noOptType,
+        isOpt = isOpt,
+        isOverride = false,
+        defaultValue = getDefaultValue(prop),
+        constraints = collectPropertyConstraints(prop),
+        description = prop.description
+      )
     }
   }
 
-  def generateInterfaceDefs(interfaceName: Symbol, params: Seq[ObjectProperty], children: Seq[Definition])
-                           (implicit ctx: GeneratorContext): TypeSupportDefs = {
+  private def generateInterfaceDefs(interfaceName: Symbol,
+                                    params: Seq[ObjectProperty],
+                                    children: Seq[Definition],
+                                    description: Option[String])
+                                   (implicit ctx: GeneratorContext): TypeSupportDefs = {
 
     val decl0 = TRAITDEF(interfaceName)
     val decl1 = if (ctx.modelsInOneFile) decl0.withFlags(Flags.SEALED) else decl0
@@ -255,7 +276,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
     TypeSupportDefs(
       symbol = interfaceName,
-      definition = definition,
+      definition = definition.withDoc(description.getOrElse("")),
       jsonReads = generateInterfaceReads(interfaceName, children),
       jsonWrites = generateInterfaceWrites(interfaceName, children),
       queryBindable = EmptyTree,
@@ -266,7 +287,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateInterfaceReads(interfaceName: Symbol, children: Seq[Definition])(implicit ctx: GeneratorContext): Tree = {
+  private def generateInterfaceReads(interfaceName: Symbol, children: Seq[Definition])
+                                    (implicit ctx: GeneratorContext): Tree = {
 
     val readsType = RootClass.newClass("Reads") TYPE_OF interfaceName
     val ValidationErrorClass = RootClass.newClass("ValidationError")
@@ -295,7 +317,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateInterfaceWrites(interfaceName: Symbol, children: Seq[Definition])(implicit ctx: GeneratorContext): Tree = {
+  private def generateInterfaceWrites(interfaceName: Symbol, children: Seq[Definition])
+                                     (implicit ctx: GeneratorContext): Tree = {
 
     val jsValue = RootClass.newClass("JsValue")
     val jsObject = RootClass.newClass("JsObject")
@@ -323,8 +346,12 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectDefs(objectClass: Symbol, properties: Seq[ObjectProperty], parents: Seq[Symbol], withPropertiesDefs: Boolean = true)
-                        (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
+  private def generateObjectDefs(objectClass: Symbol,
+                                 properties: Seq[ObjectProperty],
+                                 parents: Seq[Symbol],
+                                 description: Option[String],
+                                 withPropertiesDefs: Boolean = true)
+                                (implicit ctx: GeneratorContext): Seq[TypeSupportDefs] = {
 
     val objectDef = if (properties.isEmpty) {
       CASEOBJECTDEF(objectClass).withParents(parents).tree
@@ -332,11 +359,18 @@ trait ObjectSupport { this: DefinitionsSupport =>
       CASECLASSDEF(objectClass).withFlags(Flags.FINAL).withParams(properties.map(_.param)).withParents(parents).tree
     }
 
+    val objectDefWithDoc = if (withPropertiesDefs) {
+      objectDef.withDoc(
+        description.toIndexedSeq,
+        properties.map(_.docElement): _ *
+      )
+    } else objectDef
+
     val ObjectJson(reads, writes) = generateObjectJson(objectClass, properties)
 
     val objectDefs = TypeSupportDefs(
       symbol = objectClass,
-      definition = objectDef,
+      definition = objectDefWithDoc,
       jsonReads  = reads,
       jsonWrites = writes,
       queryBindable = generateObjectQueryBindable(objectClass, properties),
@@ -357,8 +391,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectJson(objectClass: Symbol, properties: Seq[ObjectProperty])
-                        (implicit ctx: GeneratorContext): ObjectJson = {
+  private def generateObjectJson(objectClass: Symbol, properties: Seq[ObjectProperty])
+                                (implicit ctx: GeneratorContext): ObjectJson = {
 
     val caseObject = properties.isEmpty
     val modelName  = objectClass.nameString
@@ -371,8 +405,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectReads(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
-                         (implicit ctx: GeneratorContext): Tree = {
+  private def generateObjectReads(modelName: String, modelType: Type, properties: Seq[ObjectPropertyJson])
+                                 (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
     val readsType  = RootClass.newClass("Reads") TYPE_OF modelType
@@ -389,8 +423,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectProperty])
-                          (implicit ctx: GeneratorContext): Tree = {
+  private def generateObjectWrites(modelName: String, modelType: Type, properties: Seq[ObjectProperty])
+                                  (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
     val writesType = RootClass.newClass("Writes") TYPE_OF modelType
@@ -402,7 +436,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
         if (properties.size > MaxJsonArity) {
           val tupleDefs = for ((tupleProps, idx) <- properties.grouped(MaxJsonArity).toIndexedSeq.zipWithIndex) yield {
             val tupleClass = RootClass.newClass(s"${modelName}Tuple${idx + 1}")
-            (idx + 1, tupleClass, tupleProps, generateObjectDefs(tupleClass, tupleProps, Nil, withPropertiesDefs = false))
+            (idx + 1, tupleClass, tupleProps, generateObjectDefs(tupleClass, tupleProps, Nil, None, withPropertiesDefs = false))
           }
           val tupleWrites = tupleDefs.flatMap { case (_, _, _, definitions) =>
             definitions.flatMap(i => Seq(i.definition, i.jsonWrites))
@@ -439,8 +473,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectQueryBindable(objectClass: Symbol, properties: Seq[ObjectProperty])
-                                 (implicit ctx: GeneratorContext): Tree = {
+  private def generateObjectQueryBindable(objectClass: Symbol, properties: Seq[ObjectProperty])
+                                         (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
     val modelName  = objectClass.nameString
@@ -466,8 +500,8 @@ trait ObjectSupport { this: DefinitionsSupport =>
 
   }
 
-  def generateObjectQueryParameter(objectClass: Symbol, properties: Seq[ObjectProperty])
-                                  (implicit ctx: GeneratorContext): Tree = {
+  private def generateObjectQueryParameter(objectClass: Symbol, properties: Seq[ObjectProperty])
+                                          (implicit ctx: GeneratorContext): Tree = {
 
     val caseObject = properties.isEmpty
     val modelName  = objectClass.nameString

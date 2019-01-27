@@ -50,6 +50,10 @@ paths:
           type: array
           items:
             type: string
+            description: >
+              Pet tags:
+                - `young`
+                - `mature`
             enum:
               - young
               - mature
@@ -277,6 +281,7 @@ definitions:
         items:
           $ref: '#/definitions/PetTag'
   LogLevel:
+    description: Error level
     type: string
     enum: &LOGLEVEL
       - trace
@@ -285,37 +290,49 @@ definitions:
       - warning
       - fatal
   errorModel:
+    description: Error during request handling
     required:
       - code
       - uuid
       - message
     properties:
       code:
+        description: Error code
         type: integer
         format: int32
         minimum: 0
       message:
+        description: Error message
         type: string
       level:
+        description: Error level
         type: string
         enum: *LOGLEVEL
       uuid:
+        description: Error unique id (UUID)
         type: string
         format: uuid
       obj:
+        description: Extended error description
         type: object
         required:
           - message
           - code
         properties:
           message:
+            description: Request error message
             type: string
           code:
+            description: Request error code
             type: integer
             minimum: 100
             maximum: 600
   PetTag:
     type: string
+    description: >
+      Pet tags:
+        - `young`
+        - `mature`
     enum: &PETTAG
       - young
       - mature
