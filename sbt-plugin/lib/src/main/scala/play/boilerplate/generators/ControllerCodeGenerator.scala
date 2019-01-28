@@ -59,7 +59,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methods = for {
       path <- schema.paths
       (_, operation) <- path.operations.toSeq.sortBy(_._1)
-    } yield generateMethod(path, operation)(ctx.addCurrentPath(operation.operationId).setInController(true))
+    } yield generateMethod(schema, path, operation)(ctx.addCurrentPath(operation.operationId).setInController(true))
 
     if (methods.nonEmpty) {
 
@@ -77,6 +77,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       } else {
         (EmptyTree, EmptyTree)
       }
+      val importCompat = IMPORT(REF("Compat"), "_")
 
       val parents = Seq(baseControllerType, TYPE_REF("ControllerMixins")) ++
         securityParents(schema) ++
@@ -86,7 +87,11 @@ class ControllerCodeGenerator extends CodeGenerator {
         .withParents(parents)
         .withSelf("self", securitySelfTypes(schema): _ *) :=
         BLOCK {
-          filterNonEmptyTree(importCompanion +: (ctx.settings.loggerProvider.loggerDefs ++ methods.map(_.tree).toIndexedSeq))
+          filterNonEmptyTree(
+            Seq(importCompanion, importCompat) ++
+              ctx.settings.loggerProvider.loggerDefs ++
+              methods.map(_.tree).toIndexedSeq
+          )
         }
 
       // --- DI
@@ -105,40 +110,54 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
+  private def paramGetter(param: Parameter, accessor: Tree): (String, ValDef) = {
+    val paramName = decapitalize(param.name)
+    val valDef = VAL(paramName) := {
+      if (isOptional(param)) accessor
+      else accessor DOT "getOrElse" APPLY THROW(IllegalArgumentExceptionClass, s"""Value of parameter "${param.name}" is not specified""")
+    }
+    paramName -> valDef
+  }
+
   case class Method(tree: Tree, implicits: Seq[Tree])
 
-  def generateMethod(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
+  def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
     val methodName = operation.operationId
+    val bodyContentType = getBodyContentType(schema, path, operation)
+    val supportedConsumes = operation.consumes.filter(supportedMimeTypes)
 
-    val supportedConsumes = operation.consumes.flatMap(mimeType => getMimeTypeSupport.lift(mimeType))
-    val bodyValues = generateValuesFromBody(operation, supportedConsumes)
-    val methodParams = getMethodParameters(path, operation, withHeaders = false)
-    val headerParams = (path.parameters ++ operation.parameters).toIndexedSeq.collect {
+    if (bodyContentType != NoContent && supportedConsumes.isEmpty) {
+      throw new RuntimeException(s"There is no supported consumers for operation (operationId: ${operation.operationId}).")
+    }
+
+    val bodyValues = generateValuesFromBody(operation, supportedConsumes.flatMap(mimeType => getMimeTypeSupport.lift(mimeType)))
+    val methodParams = getMethodParameters(path, operation, withHeaders = false, withFormData = false)
+    val fullParamsList = getFullParametersList(path, operation)
+    val headerParams = fullParamsList.collect {
       case param: HeaderParameter =>
-        val paramName = decapitalize(param.name)
-        val value = REF("request") DOT "headers" DOT "get" APPLY LIT(param.name)
-        val valDef = VAL(paramName) := {
-          param.ref match {
-            case _: OptionDefinition =>
-              value
-            case _ =>
-              value DOT "get"
-          }
+        paramGetter(param, REF("request") DOT "headers" DOT "get" APPLY LIT(param.name))
+    }.distinctBy(_._1)
+    val formDataParams = fullParamsList.collect {
+      case param: FormParameter =>
+        val accessor = param.baseDef match {
+          case _: FileDefinition =>"file"
+          case _: StringDefinition => if (bodyContentType == FormUrlencoded) "formValue" else "dataPart"
+          case _ => throw new RuntimeException(s"Unsupported type for formData parameter (operationId: ${operation.operationId}, parameter: ${param.name}).")
         }
-        paramName -> valDef
+        paramGetter(param, REF("request") DOT "body" DOT accessor APPLY LIT(param.name))
     }.distinctBy(_._1)
 
     val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
 
-    val (actionType, parser) = if (operation.consumes.isEmpty || bodyValues.isEmpty) {
+    val (actionType, parser) = if (bodyContentType == NoContent) {
       (ACTION_EMPTY, PARSER_EMPTY)
     } else {
       (ACTION_ANYCONTENT, PARSER_ANYCONTENT)
     }
 
     val methodCall = REF("service") DOT methodName APPLY {
-      (bodyValues.map(_.valName) ++ headerParams.map(_._1) ++ methodParams.map(_._1) ++ actionSecurity.securityValues.map(_._1)).map(REF(_))
+      (bodyValues.map(_.valName) ++ headerParams.map(_._1) ++ methodParams.map(_._1) ++ formDataParams.map(_._1) ++ actionSecurity.securityValues.map(_._1)).map(REF(_))
     }
 
     val answerMethod = generateAnswer(operation)
@@ -158,6 +177,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       VAL("r").withFlags(Flags.IMPLICIT) := REF("request")
     ) ++
       headerParams.map(_._2) ++
+      formDataParams.map(_._2) ++
       actionSecurity.securityValues.map(_._2) ++
       bodyValues.map(_.valDef)
 

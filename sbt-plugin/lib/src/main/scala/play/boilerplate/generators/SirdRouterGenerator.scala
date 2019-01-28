@@ -217,7 +217,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
   }
 
   private def composeQueryParams(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Seq[QueryInterp] = {
-    (path.parameters ++ operation.parameters).toIndexedSeq.collect {
+    getFullParametersList(path, operation).collect {
       case param: QueryParameter => param
     }.zipWithIndex.map { case (param, idx) =>
       queryParamInterpSym(param, operation.operationId, idx)
@@ -226,7 +226,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
   def generateMethodCall(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Tree = {
 
-    val parameters = getMethodParameters(path, operation, withHeaders = false).map {
+    val parameters = getMethodParameters(path, operation, withHeaders = false, withFormData = false).map {
       case (name, methodParam) if methodParam.defaultValue.nonEmpty && methodParam.isOptional =>
         REF(name) DOT "getOrElse" APPLY methodParam.defaultValue.get
       case (name, _) =>
