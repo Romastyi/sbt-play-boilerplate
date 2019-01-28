@@ -22,6 +22,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   final val MIME_TYPE_JSON = "application/json"
   final val MIME_TYPE_TEXT = "text/plain"
+  final val MIME_TYPE_MULTIPART_FORMDATA = "multipart/form-data"
+  final val MIME_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded"
 
   final val ACTION_ANYCONTENT: Type = TYPE_REF("Action") TYPE_OF "AnyContent"
   final val ACTION_EMPTY     : Type = TYPE_REF("Action") TYPE_OF UnitClass
@@ -45,6 +47,10 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   val defaultJsonSupport: MimeTypeSupport = MimeTypeSupport(MIME_TYPE_JSON, REQUEST_AS_JSON, JSON_TO_TYPE, TYPE_TO_JSON, LOG_JSON)
 
+  def supportedMimeTypes(implicit ctx: GeneratorContext): Set[String] = {
+    Set(MIME_TYPE_JSON, MIME_TYPE_FORM_URLENCODED, MIME_TYPE_MULTIPART_FORMDATA) ++ ctx.settings.supportedMimeTypes.keySet
+  }
+
   def getMimeTypeSupport(implicit ctx: GeneratorContext): PartialFunction[String, MimeTypeSupport] = {
     Map(MIME_TYPE_JSON -> defaultJsonSupport) ++ ctx.settings.supportedMimeTypes
   }
@@ -62,11 +68,40 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     operation.security.headOption.map(s => getSecurityProvider(s.schemaName)).getOrElse(SecurityProvider.default)
   }
 
+  def getFullParametersList(path: Path, operation: Operation): Seq[Parameter] =
+    (path.parameters ++ operation.parameters).toIndexedSeq
+
+  sealed trait BodyContentType
+  case object NoContent extends BodyContentType
+  case object SimpleContent extends BodyContentType
+  case object MultipartFormData extends BodyContentType
+  case object FormUrlencoded extends BodyContentType
+
+  def getBodyContentType(schema: Schema, path: Path, operation: Operation): BodyContentType = {
+    val consumes = (schema.consumes ++ operation.consumes).toSet
+    val fullParamList = getFullParametersList(path, operation)
+    val formDataParameters = fullParamList.collect {
+      case formData: FormParameter => formData
+    }
+    if (formDataParameters.nonEmpty) {
+      val hasFiles = formDataParameters.exists { _.baseDef match {
+        case _: FileDefinition => true
+        case _ => false
+      }}
+      if (consumes(MIME_TYPE_FORM_URLENCODED) && !hasFiles) FormUrlencoded else MultipartFormData
+    } else {
+      val bodyParameters = fullParamList.collect {
+        case param: BodyParameter => param
+      }
+      if (bodyParameters.nonEmpty) SimpleContent else NoContent
+    }
+  }
+
   case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], isOptional: Boolean, doc: DocElement)
 
   def getBodyParameters(path: Path, operation: Operation)
                        (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
-    (path.parameters ++ operation.parameters).collect {
+    getFullParametersList(path, operation).collect {
       case param: BodyParameter =>
         val paramName = decapitalize(param.name)
         val support = getTypeSupport(param.ref)
@@ -78,11 +113,12 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }.distinctBy(_._1).toIndexedSeq
   }
 
-  def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true)
+  def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true, withFormData: Boolean = true)
                          (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
-    (path.parameters ++ operation.parameters).toIndexedSeq
+    getFullParametersList(path, operation)
       .filter {
         case _: HeaderParameter => withHeaders
+        case _: FormParameter   => withFormData
         case _: PathParameter   => true
         case _: QueryParameter  => true
         case _: BodyParameter   => false
@@ -94,7 +130,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         case _: HeaderParameter => 1
         case _: PathParameter   => 2
         case _: QueryParameter  => 3
-        case _ => 4
+        case _: FormParameter   => 4
+        case _ => 5
       }
       .map { param =>
         getMethodParam(param)
