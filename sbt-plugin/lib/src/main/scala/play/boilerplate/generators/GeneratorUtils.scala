@@ -16,6 +16,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final def IDENTITY(tpe: Type): Tree = REF("identity")
   final def FUTURE(tpe: Type)  : Type = TYPE_REF("Future") TYPE_OF tpe
   final def PAIR(key: Tree, value: Tree): Tree = key INFIX ("->", value)
+  final def RANDOM_UUID: Tree = REF("java.util.UUID") DOT "randomUUID()"
+  final def RANDOM_UUID_STRING: Tree = REF("java.util.UUID") DOT "randomUUID()" DOT "toString"
 
   final val F_TYPEVAR = TYPEVAR("F").withTypeParams(TYPEVAR("_"))
   final def F_OF_TYPE(tpe: Type): Type = TYPE_REF("F") TYPE_OF tpe
@@ -68,8 +70,9 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     operation.security.headOption.map(s => getSecurityProvider(s.schemaName)).getOrElse(SecurityProvider.default)
   }
 
-  def getFullParametersList(path: Path, operation: Operation): Seq[Parameter] =
+  def getFullParametersList(path: Path, operation: Operation): Seq[Parameter] = {
     (path.parameters ++ operation.parameters).toIndexedSeq
+  }
 
   sealed trait BodyContentType
   case object NoContent extends BodyContentType
@@ -103,7 +106,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
                        (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
     getFullParametersList(path, operation).collect {
       case param: BodyParameter =>
-        val paramName = decapitalize(param.name)
+        val paramName = getParameterIdentifier(param)
         val support = getTypeSupport(param.ref)
         val valDef = PARAM(paramName, support.tpe).empty
         val fullQualified = PARAM(paramName, support.fullQualified).empty
@@ -115,9 +118,10 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true, withFormData: Boolean = true)
                          (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
-    getFullParametersList(path, operation)
+
+    val operationParams = getFullParametersList(path, operation)
       .filter {
-        case _: HeaderParameter => withHeaders
+        case h: HeaderParameter => withHeaders && !isTraceIdHeaderParameter(h)
         case _: FormParameter   => withFormData
         case _: PathParameter   => true
         case _: QueryParameter  => true
@@ -127,20 +131,37 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
           false
       }
       .sortBy { //the order must be verified...
-        case _: HeaderParameter => 1
-        case _: PathParameter   => 2
-        case _: QueryParameter  => 3
-        case _: FormParameter   => 4
+        case _: PathParameter   => 1
+        case _: QueryParameter  => 2
+        case _: FormParameter   => 3
+        case _: HeaderParameter => 4
         case _ => 5
       }
       .map { param =>
         getMethodParam(param)
       }
       .distinctBy(_._1)
+
+    val traceIdParam = if (ctx.settings.useTraceId && withHeaders) {
+      Seq(traceIdValName -> MethodParam(
+        valDef = PARAM(traceIdValName, StringClass).empty,
+        fullQualified = PARAM(traceIdValName, StringClass).empty,
+        additionalDef = Nil,
+        implicits = Nil,
+        defaultValue = None,
+        isOptional = false,
+        doc = DocTag.Param(traceIdValName, "Request Trace ID,")
+      ))
+    } else {
+      Nil
+    }
+
+    operationParams ++ traceIdParam
+
   }
 
   def getMethodParam(param: Parameter)(implicit ctx: GeneratorContext): (String, MethodParam) = {
-    val paramName = decapitalize(param.name)
+    val paramName = getParameterIdentifier(param)
     val defaultValue = getDefaultValue(param)
     val support = getTypeSupport(param.ref, DefinitionContext.default.copy(canBeOption = defaultValue.isEmpty))
     val valDef = defaultValue match {
@@ -182,10 +203,28 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     case _ => false
   }
 
+  // TraceID
+
+  final val traceIdValName = "traceId"
+  final val traceIdValRef = REF(traceIdValName)
+
+  def findHeaderParameter(path: Path, operation: Operation, headerName: String): Option[HeaderParameter] = {
+    getFullParametersList(path, operation).find {
+      case h: HeaderParameter if h.name == headerName => true
+      case _ => false
+    }.collect {
+      case h: HeaderParameter => h
+    }
+  }
+
+  def isTraceIdHeaderParameter(param: HeaderParameter)(implicit ctx: GeneratorContext): Boolean = {
+    ctx.settings.useTraceId && ctx.settings.traceIdHeader == Some(param.name)
+  }
+
   /*
    * final case class UnexpectedResult(body: String = "", code: Int = 200) extends ...
    */
-  val UnexpectedResult = TypeName("UnexpectedResult")
+  final val UnexpectedResult = TypeName("UnexpectedResult")
 
   def getOperationResponseTraitName(operationId: String): String = {
     operationId.capitalize + "Response"

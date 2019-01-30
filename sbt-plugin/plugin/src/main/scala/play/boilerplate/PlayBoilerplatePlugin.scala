@@ -56,6 +56,8 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val customTypeSupport: SettingKey[CustomTypeSupport] = settingKey("customTypeSupport")
     val supportedMimeTypes: SettingKey[Map[String, MimeTypeSupport]] = settingKey("supportedMimeTypes")
     val strictAcceptHeaderCheck: SettingKey[Boolean] = settingKey("strictAcceptHeaderCheck")
+    val useTraceId: SettingKey[Boolean] = settingKey("useTraceId")
+    val traceIdHeader: SettingKey[Option[String]] = settingKey("traceIdHeader")
 
     val generatorsSources: TaskKey[Seq[SchemasWatcher]] = taskKey("generatorsSources")
     val generatorsCodeGen: TaskKey[GeneratedFiles] = taskKey("generatorsCodeGen")
@@ -202,6 +204,8 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.customTypeSupport  := CustomTypeSupport.empty,
     Keys.supportedMimeTypes := Map.empty,
     Keys.strictAcceptHeaderCheck := false,
+    Keys.useTraceId := false,
+    Keys.traceIdHeader := None,
     Keys.generatorSettings  := new Keys.GenSettings {
       def apply(fileName: String, basePackageName: String, codeProvidedPackage: String) =
         DefaultGeneratorSettings(
@@ -214,7 +218,9 @@ object PlayBoilerplatePlugin extends AutoPlugin {
           loggerProvider = Keys.loggerProvider.value,
           customTypeSupport = Keys.customTypeSupport.value,
           supportedMimeTypes = Keys.supportedMimeTypes.value,
-          strictAcceptHeaderCheck = Keys.strictAcceptHeaderCheck.value
+          strictAcceptHeaderCheck = Keys.strictAcceptHeaderCheck.value,
+          useTraceId = Keys.useTraceId.value,
+          traceIdHeader = Keys.traceIdHeader.value
         )
     },
     // Generation sources and others

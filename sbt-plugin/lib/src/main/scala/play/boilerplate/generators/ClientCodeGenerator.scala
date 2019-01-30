@@ -148,7 +148,7 @@ class ClientCodeGenerator extends CodeGenerator {
       }
       val parts: Seq[Tree] = formDataParams.flatMap { param =>
         val paramKey = LIT(param.name)
-        val paramRef = REF(decapitalize(param.name))
+        val paramRef = REF(getParameterIdentifier(param))
         val paramVal = if (isOptional(param)) paramRef else SOME(paramRef)
         param.baseDef match {
           case _: StringDefinition =>
@@ -173,7 +173,7 @@ class ClientCodeGenerator extends CodeGenerator {
         case _: StringDefinition => true
         case _ => throw new RuntimeException(s"Unsupported type for formData parameter (operationId: ${operation.operationId}, parameter: ${param.name}).")
       }}.map { param =>
-        val paramName = decapitalize(param.name)
+        val paramName = getParameterIdentifier(param)
         PAIR(LIT(param.name), if (isOptional(param)) REF(paramName) DOT "toSeq" else SEQ(REF(paramName)))
       }
       BodyContent(
@@ -193,10 +193,12 @@ class ClientCodeGenerator extends CodeGenerator {
     val securityParams = actionSecurity.securityParamsDef
 
     val headerParams: Seq[Tree] = getFullParametersList(path, operation).collect {
-      case param: HeaderParameter =>
-        val paramName = decapitalize(param.name)
-        val ref = if (isOptional(param)) SOME(REF(paramName)) else REF(paramName)
+      case param: HeaderParameter if !isTraceIdHeaderParameter(param) =>
+        val paramName = getParameterIdentifier(param)
+        val ref = if (isOptional(param)) REF(paramName) else SOME(REF(paramName))
         LIT(param.name) INFIX ("->", ref)
+    } ++ ctx.settings.effectiveTraceIdHeader.toIndexedSeq.map { headerName =>
+      LIT(headerName) INFIX ("->", SOME(traceIdValRef))
     }
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)

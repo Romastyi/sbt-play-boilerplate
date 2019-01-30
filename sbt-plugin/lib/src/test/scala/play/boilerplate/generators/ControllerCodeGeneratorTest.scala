@@ -37,7 +37,9 @@ class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSynta
       injectionProvider = injection.ScaldiInjectionProvider,
       securityProviders = List(security),
       supportedMimeTypes = mimeTypeSupport,
-      strictAcceptHeaderCheck = true
+      strictAcceptHeaderCheck = true,
+      useTraceId = true,
+      traceIdHeader = Some("X-TraceID")
     ))
     val gen = new ControllerCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)

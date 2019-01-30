@@ -2,6 +2,8 @@ package play.boilerplate.generators
 
 import java.io.File.{separator, separatorChar}
 
+import play.boilerplate.parser.model.Parameter
+
 trait StringUtils {
 
   def decapitalize(s: String): String = {
@@ -54,6 +56,10 @@ trait StringUtils {
 
     sb.mkString
 
+  }
+
+  def getParameterIdentifier(param: Parameter): String = {
+    decapitalize(stringToValidIdentifier(param.name, skipNotValidChars = true))
   }
 
   def padTo(n: Int, s: String): String = s + " " * (n - s.length max 0)

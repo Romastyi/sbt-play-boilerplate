@@ -72,6 +72,16 @@ paths:
           type: integer
           format: int32
           default: -1
+        - name: X-TraceID
+          in: header
+          description: TraceID header
+          required: false
+          type: string
+        - name: X-Tag
+          in: header
+          description: Custom header
+          required: false
+          type: string
       responses:
         '200':
           description: pet response
@@ -89,6 +99,7 @@ paths:
             $ref: '#/definitions/errorModel'
       security:
       - session:
+        - ""
     post:
       description: Creates a new pet in the store.  Duplicates are allowed
       operationId: addPet
@@ -101,6 +112,11 @@ paths:
           required: true
           schema:
             $ref: '#/definitions/NewPet'
+        - name: X-TraceID
+          in: header
+          description: TraceID header
+          required: false
+          type: string
       responses:
         '200':
           description: pet response
@@ -122,6 +138,11 @@ paths:
         required: true
         type: integer
         format: int64
+      - name: X-TraceID
+        in: header
+        description: TraceID header
+        required: false
+        type: string
     get:
       description: Returns a user based on a single ID, if the user does not have access to the pet
       operationId: findPetById
@@ -165,6 +186,11 @@ paths:
           enum:
             - young
             - mature
+        - name: X-TraceID
+          in: header
+          description: TraceID header
+          required: false
+          type: string
       responses:
         200:
           description: pet response
@@ -195,6 +221,11 @@ paths:
         required: true
         type: string
         pattern: '^(\d{2}-\d{2})$'
+      - name: X-TraceID
+        in: header
+        description: TraceID header
+        required: false
+        type: string
     post:
       operationId: additional
       description:

@@ -35,6 +35,9 @@ abstract class GeneratorSettings(val fileName: String,
   def supportedMimeTypes: Map[String, MimeTypeSupport]
 
   def strictAcceptHeaderCheck: Boolean
+  def useTraceId: Boolean
+  def traceIdHeader: Option[String]
+  final def effectiveTraceIdHeader: Option[String] = traceIdHeader.filter(_ => useTraceId)
 
 }
 
@@ -47,7 +50,9 @@ case class DefaultGeneratorSettings(_fileName: String,
                                     override val loggerProvider: LoggerProvider = LoggerProvider.defaultPlayLogger,
                                     override val customTypeSupport: CustomTypeSupport = CustomTypeSupport.empty,
                                     override val supportedMimeTypes: Map[String, MimeTypeSupport] = Map.empty,
-                                    override val strictAcceptHeaderCheck: Boolean = false)
+                                    override val strictAcceptHeaderCheck: Boolean = false,
+                                    override val useTraceId: Boolean = false,
+                                    override val traceIdHeader: Option[String] = None)
   extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
 
   override def modelPackageName: String = composeName(basePackageName, "model")

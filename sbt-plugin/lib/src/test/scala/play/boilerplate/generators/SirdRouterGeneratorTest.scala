@@ -19,7 +19,13 @@ class SirdRouterGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
   "Full support" should "Parse petStore.v1.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
+      "petStore.v1.yaml",
+      "test",
+      "",
+      useTraceId = true,
+      traceIdHeader = Some("X-TraceID")
+    ))
     val gen = SirdRouterGenerator("api/1/").generate(schema)(ctx)
     printCodeFile(gen)
 

@@ -13,7 +13,15 @@ class ClientCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
     val security = new Play2AuthSecurityProvider("User", "AuthConfig", "session") {
       override def parseAuthority(scopes: Seq[SecurityProvider.SecurityScope]): Seq[forest.Tree] = Nil
     }
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", "", injectionProvider = injection.ScaldiInjectionProvider, securityProviders = List(security)))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
+      "petStore.v1.yaml",
+      "test",
+      "",
+      injectionProvider = injection.ScaldiInjectionProvider,
+      securityProviders = List(security),
+      useTraceId = true,
+      traceIdHeader = Some("X-TraceID")
+    ))
     val gen = new ClientCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

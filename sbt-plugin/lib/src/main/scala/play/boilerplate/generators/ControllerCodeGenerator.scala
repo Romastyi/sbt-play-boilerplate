@@ -111,7 +111,7 @@ class ControllerCodeGenerator extends CodeGenerator {
   }
 
   private def paramGetter(param: Parameter, accessor: Tree): (String, ValDef) = {
-    val paramName = decapitalize(param.name)
+    val paramName = getParameterIdentifier(param)
     val valDef = VAL(paramName) := {
       if (isOptional(param)) accessor
       else accessor DOT "getOrElse" APPLY THROW(IllegalArgumentExceptionClass, s"""Value of parameter "${param.name}" is not specified""")
@@ -135,7 +135,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methodParams = getMethodParameters(path, operation, withHeaders = false, withFormData = false)
     val fullParamsList = getFullParametersList(path, operation)
     val headerParams = fullParamsList.collect {
-      case param: HeaderParameter =>
+      case param: HeaderParameter if !isTraceIdHeaderParameter(param)=>
         paramGetter(param, REF("request") DOT "headers" DOT "get" APPLY LIT(param.name))
     }.distinctBy(_._1)
     val formDataParams = fullParamsList.collect {
@@ -157,7 +157,12 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
 
     val methodCall = REF("service") DOT methodName APPLY {
-      (bodyValues.map(_.valName) ++ headerParams.map(_._1) ++ methodParams.map(_._1) ++ formDataParams.map(_._1) ++ actionSecurity.securityValues.map(_._1)).map(REF(_))
+      (bodyValues.map(_.valName) ++
+        methodParams.map(_._1) ++
+        formDataParams.map(_._1) ++
+        headerParams.map(_._1) ++
+        Seq(traceIdValName).filter(_ => ctx.settings.useTraceId) ++
+        actionSecurity.securityValues.map(_._1)).map(REF(_))
     }
 
     val answerMethod = generateAnswer(operation)
@@ -173,20 +178,29 @@ class ControllerCodeGenerator extends CodeGenerator {
       generateAcceptCheck(operation, ANSWER_WITH_EXCEPTION_HANDLE)
     } else ANSWER_WITH_EXCEPTION_HANDLE
 
-    val methodValues = Seq(
-      VAL("r").withFlags(Flags.IMPLICIT) := REF("request")
-    ) ++
+    val traceIdVal = VAL(traceIdValName) := {
+      ctx.settings.effectiveTraceIdHeader match {
+        case Some(headerName) =>
+          REF("request") DOT "headers" DOT "get" APPLY LIT(headerName) DOT "getOrElse" APPLY RANDOM_UUID_STRING
+        case None =>
+          RANDOM_UUID_STRING
+      }
+    }
+
+    val methodValues = actionSecurity.securityValues.map(_._2) ++
       headerParams.map(_._2) ++
       formDataParams.map(_._2) ++
-      actionSecurity.securityValues.map(_._2) ++
       bodyValues.map(_.valDef)
-
-    val operationUuid = VAL("operationUuid") := INFIX_CHAIN("+", LIT(operation.operationId + "-"), REF("java.util.UUID") DOT "randomUUID()")
-    val traceLog = ctx.settings.loggerProvider.trace(INTERP(StringContext_s, LIT("["), REF("operationUuid"), LIT("] Request IN ...")))
 
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
-        filterNonEmptyTree(Seq(operationUuid, traceLog)) ++ methodValues :+ ANSWER_WITH_ACCEPT_CHECK
+        filterNonEmptyTree(Seq(
+          VAL("r").withFlags(Flags.IMPLICIT) := REF("request"),
+          traceIdVal,
+          traceLog(operation, LIT("Request IN ..."))
+        )) ++
+          methodValues :+
+          ANSWER_WITH_ACCEPT_CHECK
       }
 
     val methodTree =
@@ -206,6 +220,11 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
+  private def traceLog(operation: Operation, args: Tree*)(implicit ctx: GeneratorContext): Tree = {
+    val traceHeader = INTERP(StringContext_s, LIT("[operationId: " + operation.operationId + ", traceId: "), traceIdValRef, LIT("] "))
+    ctx.settings.loggerProvider.trace(INFIX_CHAIN("+", traceHeader +: args))
+  }
+
   case class BodyValue(valName: String, valDef: ValDef, implicits: Seq[Tree])
 
   final def generateValuesFromBody(operation: Operation, consumes: Iterable[MimeTypeSupport])
@@ -221,17 +240,11 @@ class ControllerCodeGenerator extends CodeGenerator {
           val resolvers = consumes.map { support =>
             support.requestBody INFIX "map" APPLY
               LAMBDA(PARAM("body").tree) ==> BLOCK(
-                {
-                  val traceMessage = INFIX_CHAIN("+",
-                    INTERP(StringContext_s, LIT("["), REF("operationUuid"), LIT("] Request body:\n")),
-                    support.logContent(REF("body"))
-                  )
-                  ctx.settings.loggerProvider.trace(traceMessage)
-                },
+                traceLog(operation, LIT("Request body:\n"), support.logContent(REF("body"))),
                 support.deserialize(tpe)(REF("body"))
               )
           }
-          val valName = decapitalize(bp.name)
+          val valName = getParameterIdentifier(bp)
           val valDef = VAL(valName) :=
             INFIX_CHAIN("orElse", resolvers) INFIX "getOrElse" APPLY BLOCK {
               THROW(IllegalArgumentExceptionClass, "Invalid body format")
@@ -249,16 +262,12 @@ class ControllerCodeGenerator extends CodeGenerator {
   final def generateAnswer(operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
     def traceMessage(code: Tree, content: Option[Tree]): Tree = {
-      val message = content match {
+      content match {
         case Some(body) =>
-          INFIX_CHAIN("+",
-            INTERP(StringContext_s, LIT("["), REF("operationUuid"), LIT("] Response body (Status: "), code, LIT("):\n")),
-            body
-          )
+          traceLog(operation, LIT("Response body (Status: "), code, LIT("):\n"), body)
         case None =>
-          INTERP(StringContext_s, LIT("["), REF("operationUuid"), LIT("] Response body (Status: "), code, LIT(")"))
+          traceLog(operation, LIT("Response body (Status: "), code, LIT(")"))
       }
-      ctx.settings.loggerProvider.trace(message)
     }
 
     val supportedProduces = operation.produces.filterNot(_ == MIME_TYPE_JSON).flatMap(
@@ -289,7 +298,7 @@ class ControllerCodeGenerator extends CodeGenerator {
             composeResponseWithMimeType(status, MIME_TYPE_JSON)
           )
           CASE(REF(className) UNAPPLY (ID("answer"), ID("code"))) ==>
-            generateResponse(status, traceCode, body, supportedProduces, default)
+            generateResponse(operation, status, traceCode, body, supportedProduces, default)
         case (Some(body), None) =>
           val default = BLOCK(
             VAL("response") := TYPE_TO_JSON(body)(REF("answer")),
@@ -297,21 +306,21 @@ class ControllerCodeGenerator extends CodeGenerator {
             composeResponseWithMimeType(status, MIME_TYPE_JSON)
           )
           CASE(REF(className) UNAPPLY ID("answer")) ==>
-            generateResponse(status, traceCode, body, supportedProduces, default)
+            generateResponse(operation, status, traceCode, body, supportedProduces, default)
         case (None, Some(_)) =>
           val default = BLOCK(
             traceMessage(traceCode, None),
             status
           )
           CASE(REF(className) UNAPPLY ID("code")) ==>
-            generateResponse(status, traceCode, UnitClass, Nil, default)
+            generateResponse(operation, status, traceCode, UnitClass, Nil, default)
         case (None, None) =>
           val default = BLOCK(
             traceMessage(traceCode, None),
             status
           )
           CASE(REF(className)) ==>
-            generateResponse(status, traceCode, UnitClass, Nil, default)
+            generateResponse(operation, status, traceCode, UnitClass, Nil, default)
       }
       Method(tree, bodyType.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
     }
@@ -348,7 +357,13 @@ class ControllerCodeGenerator extends CodeGenerator {
     }
   }
 
-  private def generateResponse(status: Tree, traceCode: Tree, tpe: Type, produces: Iterable[MimeTypeSupport], default: Tree)(implicit ctx: GeneratorContext): Tree = {
+  private def generateResponse(operation: Operation,
+                               status: Tree,
+                               traceCode: Tree,
+                               tpe: Type,
+                               produces: Iterable[MimeTypeSupport],
+                               default: Tree)
+                              (implicit ctx: GeneratorContext): Tree = {
     if (produces.isEmpty) {
       default
     } else {
@@ -358,13 +373,7 @@ class ControllerCodeGenerator extends CodeGenerator {
             override def apply(v1: Tree): Tree = {
               IF (acceptsMimeType(support.mimeType)) THEN BLOCK(
                 VAL("response") := support.serialize(tpe)(REF("answer")),
-                {
-                  val message = INFIX_CHAIN("+",
-                    INTERP(StringContext_s, LIT("["), REF("operationUuid"), LIT("] Response body (Status: "), traceCode, LIT("):\n")),
-                    support.logContent(REF("response"))
-                  )
-                  ctx.settings.loggerProvider.trace(message)
-                },
+                traceLog(operation, LIT("Response body (Status: "), traceCode, LIT("):\n"), support.logContent(REF("response"))),
                 composeResponseWithMimeType(status, support.mimeType)
               ) ELSE {
                 v1
