@@ -127,7 +127,7 @@ trait ModelParser { this: PropertyParser with ReferenceParser =>
       case ref: RefModel =>
         ModelFactory.build(findReferenceDef(schema, ref.get$ref()))
       case m =>
-        throw ParserException(s"Unsupported parameter type (${m.getClass.getName}).")
+        throw ParserException(s"Unsupported parameter type (class: ${m.getClass.getName}).")
     }
 
   }

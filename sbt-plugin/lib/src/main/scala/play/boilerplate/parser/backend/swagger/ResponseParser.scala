@@ -1,5 +1,6 @@
 package play.boilerplate.parser.backend.swagger
 
+import io.swagger.models.utils.PropertyModelConverter
 import io.swagger.models.{Response => SwaggerResponse}
 import play.boilerplate.parser.backend.ParserException
 import play.boilerplate.parser.model._
@@ -28,8 +29,9 @@ trait ResponseParser { this: PropertyParser =>
 
     respCode -> Response(
       code = respCode,
-      schema = Option(response.getSchema).map { model =>
-        getPropertyDef(schema, code, model, canBeOption = false)
+      schema = Option(response.getResponseSchema).map { model =>
+        val property = new PropertyModelConverter().modelToProperty(model)
+        getPropertyDef(schema, code, property, canBeOption = false)
       },
       headers = headers
     )

@@ -71,7 +71,7 @@ lazy val lib = project
     crossScalaVersions := List("2.10.6", "2.12.4"),
     libraryDependencies ++= Seq(
       "com.eed3si9n" %% "treehugger" % "0.4.3",
-      "io.swagger" % "swagger-parser" % "1.0.32"
+      "io.swagger" % "swagger-parser" % "1.0.41"
     )
   )
 
