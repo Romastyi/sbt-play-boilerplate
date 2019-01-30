@@ -29,9 +29,14 @@ trait ResponseParser { this: PropertyParser =>
 
     respCode -> Response(
       code = respCode,
+      description = Option(response.getDescription),
       schema = Option(response.getResponseSchema).map { model =>
         val property = new PropertyModelConverter().modelToProperty(model)
-        getPropertyDef(schema, code, property, canBeOption = false)
+        val responseName = respCode match {
+          case DefaultResponse => "Default"
+          case StatusResponse(intCode) => HttpStatus.getStatusByCode(intCode)
+        }
+        getPropertyDef(schema, responseName, property, canBeOption = false)
       },
       headers = headers
     )

@@ -114,32 +114,48 @@ class ServiceCodeGenerator extends CodeGenerator {
       .withParents(traits)
       .withFlags(Flags.FINAL)
       .empty
+      .withDoc(
+        Seq("Response for unexpected result of request."),
+        DocTag.Param("body", "Response body."),
+        DocTag.Param("code", "Response code (default: 500)."),
+        DocTag.Param("contentType", "Response Content-Type (default: text/plain).")
+      )
 
     operationResults.flatMap(_.tree) ++ Seq(UnexpectedResultDef)
 
   }
 
   case class Responses(traitName: String, tree: Seq[Tree])
+  case class ResponseParam(paramDef: ValDef, paramDoc: DocTag)
 
   def generateOperationResults(operation: Operation, models: Map[String, Model])
                               (implicit ctx: GeneratorContext): Responses = {
 
     val traitName = getOperationResponseTraitName(operation.operationId)
 
-    val sealedTrait = TRAITDEF(traitName).withFlags(Flags.SEALED).empty
+    val sealedTrait = TRAITDEF(traitName).withFlags(Flags.SEALED).empty.withDoc(
+      Seq(s"Response to operation '${operation.operationId}'.")
+    )
 
     val hasOk = operation.responses.keys.exists {
-      case StatusResponse(code) if codeIsOk(code) => true
+      case StatusResponse(code) if HttpStatus.codeIsOk(code) => true
       case _ => false
     }
 
     val responses = for ((code, response) <- operation.responses.toSeq) yield {
       val className = getResponseClassName(operation.operationId, code)
       val bodyType  = getResponseBodyType(response)
-      val params = bodyType.map(body => PARAM("body", body.tpe).tree).toSeq ++ {
+      val params = bodyType.map(body => ResponseParam(
+        paramDef = PARAM("body", body.tpe).tree,
+        paramDoc = DocTag.Param("body", response.schema.flatMap(_.description).getOrElse(""))
+      )).toSeq ++ {
         code match {
           case DefaultResponse =>
-            Seq(PARAM("code", IntClass) := LIT(if (hasOk) 500 else 200))
+            val defaultCode = if (hasOk) 500 else 200
+            Seq(ResponseParam(
+              paramDef = PARAM("code", IntClass) := LIT(defaultCode),
+              paramDoc = DocTag.Param("code", s"Response code (default: $defaultCode)")
+            ))
           case _ =>
             Nil
         }
@@ -147,9 +163,12 @@ class ServiceCodeGenerator extends CodeGenerator {
       val classDef = if (params.isEmpty) {
         CASEOBJECTDEF(className).withParents(traitName).empty
       } else {
-        CASECLASSDEF(className).withParams(params).withParents(traitName).withFlags(Flags.FINAL).empty
+        CASECLASSDEF(className).withParams(params.map(_.paramDef)).withParents(traitName).withFlags(Flags.FINAL).empty
       }
-      bodyType.map(_.definitions).getOrElse(Nil) :+ classDef
+      bodyType.map(_.definitions).getOrElse(Nil) :+ classDef.withDoc(
+        Seq(response.description.getOrElse("")),
+        params.map(_.paramDoc): _ *
+      )
     }
 
     Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq)
