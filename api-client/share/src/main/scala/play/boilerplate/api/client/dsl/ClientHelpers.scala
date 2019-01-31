@@ -1,11 +1,15 @@
 package play.boilerplate.api.client.dsl
 
-import play.api.libs.json.JsValue
+import com.fasterxml.jackson.core.JsonParseException
+import play.api.libs.json.{JsResultException, JsValue, Reads}
 
 import scala.language.implicitConversions
+import scala.util.Try
 import scala.util.control.NoStackTrace
 
 trait ClientHelpers {
+
+  import Compat._
 
   case class JsonParsingError(cause: Throwable, body: String, code: Int, contentType: String) extends Throwable with NoStackTrace {
     override def getMessage: String = {
@@ -24,6 +28,16 @@ trait ClientHelpers {
       "Unexpected response: " + code + " " + body
     }
   }
+
+  protected def parseResponseAsJson[A](response: WSResponse)(implicit rs: Reads[A]): A = {
+    Try(response.json.as[A]).recover({
+      case cause: JsonParseException => throw JsonParsingError(cause, response.body, response.status, getContentType(response))
+      case cause: JsResultException => throw JsonValidationError(cause, response.json, response.status, getContentType(response))
+      case cause => throw UnexpectedResponseError(cause, response.body, response.status, getContentType(response))
+    }).get
+  }
+
+  protected def getContentType(response: WSResponse): String = response.header("Content-Type").getOrElse("text/plain")
 
   protected def _render_path_param[A : PathParameter](key: String, value: A): String = {
     PathParameter.render(value)

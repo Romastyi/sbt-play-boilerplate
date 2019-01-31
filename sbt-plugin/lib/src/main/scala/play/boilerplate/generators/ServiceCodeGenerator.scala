@@ -105,16 +105,16 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     val traits = operationResults.map(_.traitName)
 
-    val UnexpectedResultDef = CASECLASSDEF(UnexpectedResult)
-      .withParams(
-        PARAM("body", StringClass).empty,
-        PARAM("code", IntClass) := LIT(500),
-        PARAM("contentType", StringClass) := LIT(MIME_TYPE_TEXT)
-      )
-      .withParents(traits)
-      .withFlags(Flags.FINAL)
-      .empty
-      .withDoc(
+    val UnexpectedResultDef = {
+      CASECLASSDEF(UnexpectedResultClassName)
+        .withParams(
+          PARAM("body", StringClass).empty,
+          PARAM("code", IntClass) := LIT(500),
+          PARAM("contentType", StringClass) := LIT(MIME_TYPE_TEXT)
+        )
+        .withParents(traits)
+        .withFlags(Flags.FINAL) := BLOCK(headersMethodDef.withFlags(Flags.OVERRIDE) := NIL)
+    }.withDoc(
         Seq("Response for unexpected result of request."),
         DocTag.Param("body", "Response body."),
         DocTag.Param("code", "Response code (default: 500)."),
@@ -126,14 +126,19 @@ class ServiceCodeGenerator extends CodeGenerator {
   }
 
   case class Responses(traitName: String, tree: Seq[Tree])
-  case class ResponseParam(paramDef: ValDef, paramDoc: DocTag)
+
+  private def headersMethodDef: DefTreeStart = {
+    DEF("headers", TYPE_SEQ(TYPE_TUPLE(StringClass, StringClass)))
+  }
 
   def generateOperationResults(operation: Operation, models: Map[String, Model])
                               (implicit ctx: GeneratorContext): Responses = {
 
     val traitName = getOperationResponseTraitName(operation.operationId)
 
-    val sealedTrait = TRAITDEF(traitName).withFlags(Flags.SEALED).empty.withDoc(
+    val sealedTrait = (TRAITDEF(traitName).withFlags(Flags.SEALED) := BLOCK {
+      headersMethodDef.empty
+    }).withDoc(
       Seq(s"Response to operation '${operation.operationId}'.")
     )
 
@@ -145,30 +150,52 @@ class ServiceCodeGenerator extends CodeGenerator {
     val responses = for ((code, response) <- operation.responses.toSeq) yield {
       val className = getResponseClassName(operation.operationId, code)
       val bodyType  = getResponseBodyType(response)
-      val params = bodyType.map(body => ResponseParam(
+      val fullParamsList = bodyType.map(body => ResponseParam(
+        headerName = None,
+        paramName = "body",
         paramDef = PARAM("body", body.tpe).tree,
-        paramDoc = DocTag.Param("body", response.schema.flatMap(_.description).getOrElse(""))
+        paramDoc = DocTag.Param("body", response.schema.flatMap(_.description).getOrElse("")),
+        isOptional = false
       )).toSeq ++ {
         code match {
           case DefaultResponse =>
             val defaultCode = if (hasOk) 500 else 200
             Seq(ResponseParam(
+              headerName = None,
+              paramName = "code",
               paramDef = PARAM("code", IntClass) := LIT(defaultCode),
-              paramDoc = DocTag.Param("code", s"Response code (default: $defaultCode)")
+              paramDoc = DocTag.Param("code", s"Response code (default: $defaultCode)"),
+              isOptional = false
             ))
           case _ =>
             Nil
         }
+      } ++ getResponseParameters(response)
+      val headersList = fullParamsList.collect { case ResponseParam(Some(headerName), paramName, _, _, isOptional) =>
+        PAIR(LIT(headerName), if (isOptional) REF(paramName) else SOME(REF(paramName)))
       }
-      val classDef = if (params.isEmpty) {
-        CASEOBJECTDEF(className).withParents(traitName).empty
+      val headerMethodImpl = if (headersList.isEmpty) {
+        headersMethodDef.withFlags(Flags.OVERRIDE) := NIL
       } else {
-        CASECLASSDEF(className).withParams(params.map(_.paramDef)).withParents(traitName).withFlags(Flags.FINAL).empty
+        headersMethodDef.withFlags(Flags.OVERRIDE) := BLOCK(
+          LIST(headersList) INFIX "collect" APPLY BLOCK {
+            CASE(PAREN(ID("key"), SOME(ID("value")))) ==>
+              PAIR(REF("key"), REF("value"))
+          }
+        )
       }
-      bodyType.map(_.definitions).getOrElse(Nil) :+ classDef.withDoc(
+      val classDef = if (fullParamsList.isEmpty) {
+        CASEOBJECTDEF(className).withParents(traitName)
+      } else {
+        CASECLASSDEF(className).withParams(fullParamsList.map(_.paramDef)).withParents(traitName).withFlags(Flags.FINAL)
+      }
+      val classTree = (classDef := BLOCK {
+        headerMethodImpl
+      }).withDoc(
         Seq(response.description.getOrElse("")),
-        params.map(_.paramDoc): _ *
+        fullParamsList.map(_.paramDoc): _ *
       )
+      bodyType.map(_.definitions).getOrElse(Nil) :+ classTree
     }
 
     Responses(traitName, sealedTrait +: responses.flatten.toIndexedSeq)

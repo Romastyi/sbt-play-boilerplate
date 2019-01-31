@@ -26,6 +26,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final val MIME_TYPE_TEXT = "text/plain"
   final val MIME_TYPE_MULTIPART_FORMDATA = "multipart/form-data"
   final val MIME_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded"
+  final val MIME_TYPE_APPLICATION_OCTET_STREAM = "application/octet-stream"
 
   final val ACTION_ANYCONTENT: Type = TYPE_REF("Action") TYPE_OF "AnyContent"
   final val ACTION_EMPTY     : Type = TYPE_REF("Action") TYPE_OF UnitClass
@@ -116,19 +117,17 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }.distinctBy(_._1).toIndexedSeq
   }
 
-  def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true, withFormData: Boolean = true)
-                         (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
+  private def getMethodParameters(fullParametersList: Seq[Parameter], withHeaders: Boolean, withFormData: Boolean)
+                                 (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
 
-    val operationParams = getFullParametersList(path, operation)
+    val operationParams = fullParametersList
       .filter {
         case h: HeaderParameter => withHeaders && !isTraceIdHeaderParameter(h)
         case _: FormParameter   => withFormData
         case _: PathParameter   => true
         case _: QueryParameter  => true
         case _: BodyParameter   => false
-        case x =>
-          println(s"Unmanaged parameter type for parameter '${x.name}' (operationId: ${operation.operationId}), please contact the developer to implement it XD")
-          false
+        case _: RefParameter    => false
       }
       .sortBy { //the order must be verified...
         case _: PathParameter   => 1
@@ -157,6 +156,42 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
 
     operationParams ++ traceIdParam
+
+  }
+
+  def getMethodParameters(path: Path, operation: Operation, withHeaders: Boolean = true, withFormData: Boolean = true)
+                         (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
+    getMethodParameters(getFullParametersList(path, operation), withHeaders = withHeaders, withFormData = withFormData)
+  }
+
+  case class ResponseParam(headerName: Option[String], paramName: String, paramDef: ValDef, paramDoc: DocElement, isOptional: Boolean)
+
+  def getResponseParameters(response: Response)(implicit ctx: GeneratorContext): Seq[ResponseParam] = {
+
+    val headerParams = for ((headerName, headerParam) <- response.headers.toIndexedSeq if !isTraceIdHeaderParameter(headerParam)) yield {
+      val (paramName, methodParam) = getMethodParam(headerParam)
+      ResponseParam(
+        headerName = Some(headerName),
+        paramName = paramName,
+        paramDef = methodParam.valDef,
+        paramDoc = DocTag.Param(paramName, headerParam.description.getOrElse("")),
+        isOptional = isOptional(headerParam)
+      )
+    }
+
+    val traceIdParam = if (ctx.settings.useTraceId) {
+      Seq(ResponseParam(
+        headerName = ctx.settings.traceIdHeader,
+        paramName = traceIdValName,
+        paramDef = PARAM(traceIdValName, StringClass).empty,
+        paramDoc = DocTag.Param(traceIdValName, "Request Trace ID,"),
+        isOptional = false
+      ))
+    } else {
+      Nil
+    }
+
+    headerParams ++ traceIdParam
 
   }
 
@@ -217,14 +252,16 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
   }
 
-  def isTraceIdHeaderParameter(param: HeaderParameter)(implicit ctx: GeneratorContext): Boolean = {
-    ctx.settings.useTraceId && ctx.settings.traceIdHeader == Some(param.name)
+  def isTraceIdHeaderParameter(param: Parameter)(implicit ctx: GeneratorContext): Boolean = param match {
+    case h: HeaderParameter => ctx.settings.useTraceId && ctx.settings.traceIdHeader == Some(h.name)
+    case _ => false
   }
 
   /*
    * final case class UnexpectedResult(body: String = "", code: Int = 200) extends ...
    */
-  final val UnexpectedResult = TypeName("UnexpectedResult")
+  final val UnexpectedResultClassName = "UnexpectedResult"
+  final val UnexpectedResultClass = TypeName("UnexpectedResult")
 
   def getOperationResponseTraitName(operationId: String): String = {
     operationId.capitalize + "Response"

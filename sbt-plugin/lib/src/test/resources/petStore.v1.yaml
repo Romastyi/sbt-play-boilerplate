@@ -89,6 +89,14 @@ paths:
             type: array
             items:
               $ref: '#/definitions/pet'
+          headers:
+            X-TraceID:
+              description: TraceID header
+              type: string
+            X-Tag:
+              description: Custom header
+              type: string
+              required: false
         400:
           description:
           schema:

@@ -7,7 +7,7 @@ final case class StatusResponse(code: Int) extends ResponseCode
 case class Response(code: ResponseCode,
                     description: Option[String],
                     schema: Option[Definition],
-                    headers: Map[String, Definition]
+                    headers: Map[String, Parameter]
                     /*examples: Map[String, AnyRef]*/
                    ) extends WithResolve[Response] {
 

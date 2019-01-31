@@ -24,7 +24,7 @@ trait ResponseParser { this: PropertyParser =>
       .map(_.asScala.toMap)
       .getOrElse(Map.empty)
       .map { case (name, prop) =>
-        name -> getPropertyDef(schema, name, prop)
+        name -> HeaderParameterFactory.build(getPropertyDef(schema, name, prop), Some(name))
       }
 
     respCode -> Response(
