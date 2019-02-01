@@ -258,11 +258,11 @@ class ControllerCodeGenerator extends CodeGenerator {
   private val responseValName = "response"
   private val responseValRef = REF(responseValName)
 
-  private def generateResponseCase(className: String, unapplyParams: Seq[Ident], code: Tree): CaseDef = {
+  private def generateResponseCase(className: String, unapplyParams: Seq[Ident], code: Ident => Tree): CaseDef = {
     if (unapplyParams.nonEmpty) {
-      CASE((REF(className) UNAPPLY unapplyParams) withBinder responseValName) ==> code
+      CASE((REF(className) UNAPPLY unapplyParams) withBinder responseValName) ==> code(responseValRef)
     } else {
-      CASE(ID(responseValName) withType className) ==> code
+      CASE(REF(className)) ==> code(REF(className))
     }
   }
 
@@ -281,12 +281,16 @@ class ControllerCodeGenerator extends CodeGenerator {
   private val responseBodyValName = "responseBody"
   private val responseBodyValRef = REF(responseBodyValName)
 
-  private def composeResponseWithMimeType(status: Tree, content: Ident, mimeType: Tree): Tree = {
-    status APPLY content DOT "withHeaders" APPLY SEQARG(responseValRef DOT "headers") DOT "as" APPLY mimeType
+  private def composeResponseStatus(responseVal: Ident, status: Tree): Tree = {
+    status DOT "withHeaders" APPLY SEQARG(responseVal DOT "headers")
   }
 
-  private def composeResponseWithMimeType(status: Tree, mimeType: String): Tree = {
-    composeResponseWithMimeType(status, responseBodyValRef, LIT(mimeType + "; charset=utf-8"))
+  private def composeResponseWithMimeType(responseVal: Ident, status: Tree, content: Ident, mimeType: Tree): Tree = {
+    status APPLY content DOT "withHeaders" APPLY SEQARG(responseVal DOT "headers") DOT "as" APPLY mimeType
+  }
+
+  private def composeResponseWithMimeType(responseVal: Ident, status: Tree, mimeType: String): Tree = {
+    composeResponseWithMimeType(responseVal, status, responseBodyValRef, LIT(mimeType + "; charset=utf-8"))
   }
 
   private def STATUS_WITH_CODE(code: Tree): Tree = REF("Status") APPLY code
@@ -326,46 +330,42 @@ class ControllerCodeGenerator extends CodeGenerator {
       val unapplyParams = params.map(_ => WILDCARD)
       val tree = (bodyType.map(_.tpe), Some(IntClass).filter(_ => responseCode == DefaultResponse)) match {
         case (Some(body), Some(_)) =>
-          val default = BLOCK(
-            VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
-            traceMessage(traceCode, Some(LOG_JSON(responseBodyValRef))),
-            composeResponseWithMimeType(status, MIME_TYPE_JSON)
-          )
           generateResponseCase(
             className,
             contentValId +: codeValId +: unapplyParams,
-            generateResponse(operation, status, traceCode, body, supportedProduces, default)
+            responseVal => generateResponse(operation, responseVal, status, traceCode, body, supportedProduces, BLOCK(
+              VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
+              traceMessage(traceCode, Some(LOG_JSON(responseBodyValRef))),
+              composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON)
+            ))
           )
         case (Some(body), None) =>
-          val default = BLOCK(
-            VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
-            traceMessage(traceCode, Some(LOG_JSON(responseBodyValRef))),
-            composeResponseWithMimeType(status, MIME_TYPE_JSON)
-          )
           generateResponseCase(
             className,
             contentValId +: unapplyParams,
-            generateResponse(operation, status, traceCode, body, supportedProduces, default)
+            responseVal => generateResponse(operation, responseVal, status, traceCode, body, supportedProduces, BLOCK(
+              VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
+              traceMessage(traceCode, Some(LOG_JSON(responseBodyValRef))),
+              composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON)
+            ))
           )
         case (None, Some(_)) =>
-          val default = BLOCK(
-            traceMessage(traceCode, None),
-            status
-          )
           generateResponseCase(
             className,
             codeValId +: unapplyParams,
-            generateResponse(operation, status, traceCode, UnitClass, Nil, default)
+            responseVal => generateResponse(operation, responseVal, status, traceCode, UnitClass, Nil, BLOCK(
+              traceMessage(traceCode, None),
+              composeResponseStatus(responseVal, status)
+            ))
           )
         case (None, None) =>
-          val default = BLOCK(
-            traceMessage(traceCode, None),
-            status
-          )
           generateResponseCase(
             className,
             unapplyParams,
-            generateResponse(operation, status, traceCode, UnitClass, Nil, default)
+            responseVal => generateResponse(operation, responseVal, status, traceCode, UnitClass, Nil, BLOCK(
+              traceMessage(traceCode, None),
+              composeResponseStatus(responseVal, status)
+            ))
           )
       }
       Method(tree, bodyType.map(s => s.jsonReads ++ s.jsonWrites).getOrElse(Nil))
@@ -374,9 +374,9 @@ class ControllerCodeGenerator extends CodeGenerator {
     val UnexpectedResultCase = generateResponseCase(
       UnexpectedResultClassName,
       Seq(contentValId, codeValId, contentTypeValId),
-      BLOCK(
+      responseVal => BLOCK(
         traceMessage(codeValRef, Some(contentValRef)),
-        composeResponseWithMimeType(STATUS_WITH_CODE(codeValRef), contentValRef, contentTypeValRef)
+        composeResponseWithMimeType(responseVal, STATUS_WITH_CODE(codeValRef), contentValRef, contentTypeValRef)
       )
     )
 
@@ -408,6 +408,7 @@ class ControllerCodeGenerator extends CodeGenerator {
   }
 
   private def generateResponse(operation: Operation,
+                               responseVal: Ident,
                                status: Tree,
                                traceCode: Tree,
                                tpe: Type,
@@ -424,7 +425,7 @@ class ControllerCodeGenerator extends CodeGenerator {
               IF (acceptsMimeType(support.mimeType)) THEN BLOCK(
                 VAL(responseBodyValName) := support.serialize(tpe)(contentValRef),
                 traceLog(operation, LIT("Response body (Status: "), traceCode, LIT("):\n"), support.logContent(responseBodyValRef)),
-                composeResponseWithMimeType(status, support.mimeType)
+                composeResponseWithMimeType(responseVal, status, support.mimeType)
               ) ELSE {
                 v1
               }
