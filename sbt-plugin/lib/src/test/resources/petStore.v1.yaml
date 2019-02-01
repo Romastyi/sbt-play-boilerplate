@@ -58,6 +58,12 @@ paths:
               - young
               - mature
           collectionFormat: csv
+        - name: tags4
+          in: query
+          description: tags to filter by
+          required: false
+          type: string
+          pattern: '[A-Z]+'
         - name: pager.drop
           in: query
           description: number of results to skip from the beginning

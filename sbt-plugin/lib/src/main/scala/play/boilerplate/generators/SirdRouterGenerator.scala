@@ -64,8 +64,10 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
       val companionObj = OBJECTDEF(routerClassName) := {
         if (companionDefs.nonEmpty) {
+          val needController = routesCases.exists(_.needController)
+          val importController = Seq(IMPORT(REF(ctx.settings.controllerClassName), "_")).filter(_ => needController)
           BLOCK(
-            IMPORT(REF(ctx.settings.controllerClassName), "_") +: companionDefs
+            importController ++ companionDefs
           )
         } else EmptyTree
       }
@@ -86,7 +88,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
   }
 
-  private case class RoutesCase(definitions: Seq[Tree], companionDefs: Seq[Tree], caseDef: CaseDef)
+  private case class RoutesCase(definitions: Seq[Tree], companionDefs: Seq[Tree], caseDef: CaseDef, needController: Boolean)
 
   private def composeRoutesCases(basePath: String, path: Path, operation: Operation)
                                 (implicit ctx: GeneratorContext): RoutesCase = {
@@ -97,20 +99,21 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
     val queryParams = queryInterp.map(_.interp)
     val queryDefs   = filterNonEmptyTree(queryInterp.map(_.definition))
     val methodCall  = generateMethodCall(path, operation)
-    val companionDefs = filterNonEmptyTree(url.extractors.map(_.definition)) ++
-      filterNonEmptyTree(queryInterp.flatMap(_.extractor).map(_.definition))
+    val companionExtractors = url.extractors ++ queryInterp.flatMap(_.extractor)
+    val companionDefs = filterNonEmptyTree(companionExtractors.map(_.definition))
 
     val fullUrl = INFIX_CHAIN("&", url.interp +: queryParams)
 
     RoutesCase(
       definitions = queryDefs,
       companionDefs = companionDefs,
-      caseDef = CASE(REF(httpMethod) UNAPPLY fullUrl) ==> methodCall
+      caseDef = CASE(REF(httpMethod) UNAPPLY fullUrl) ==> methodCall,
+      needController = companionExtractors.exists(_.needController)
     )
 
   }
 
-  private case class ParamExtractor(definition: Tree, name: String)
+  private case class ParamExtractor(definition: Tree, name: String, needController: Boolean)
 
   private def getParamExtractor(param: Parameter, methodCall: String, extractorBaseType: String, f: (String, Type, TypeApply) => Tree)
                                (implicit ctx: GeneratorContext): Option[ParamExtractor] = {
@@ -124,7 +127,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
       val extractorType = RootClass.newClass(extractorBaseType) TYPE_OF valueType
       val extractorCont = (if (needOption) Seq("OptionOf") else Nil) ++ collectTypeContainers(param)
       val extractorName = methodCall + extractorCont.mkString("") + stringToValidIdentifier(baseSupport.tpe.safeToString, skipNotValidChars = true)
-      Some(ParamExtractor(f(extractorName, extractorType, REF(methodCall) APPLYTYPE valueType), extractorName))
+      Some(ParamExtractor(f(extractorName, extractorType, REF(methodCall) APPLYTYPE valueType), extractorName, needController = true))
     } else {
       None
     }
@@ -138,11 +141,35 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
     })
   }
 
+  private def getExtendedPathParamExtractor(operationId: String, param: PathParameter)(implicit ctx: GeneratorContext): Option[ParamExtractor] = {
+    param.baseDef match {
+      case s: StringDefinition => s.pattern.map { pattern =>
+        val extractorType = RootClass.newClass("PathBindableExtractor") TYPE_OF StringClass
+        val extractorName = operationId + "PathOf" + stringToValidIdentifier(param.name.capitalize, skipNotValidChars = true)
+        ParamExtractor(VAL(extractorName, extractorType) := REF("pathOfRx") APPLY LIT(pattern.replaceAllLiterally("$", "$$")), extractorName, needController = false)
+      }
+      case _ =>
+        None
+    }
+  }
+
   private def getQueryParamExtractor(param: QueryParameter)(implicit ctx: GeneratorContext): Option[ParamExtractor] = {
     getParamExtractor(param, "queryOf", "QueryStringParameterExtractor", {
       case (extractorName, extractorType, methodCall) =>
         DEF(extractorName, extractorType).withParams(PARAM("paramName", StringClass).tree) := methodCall APPLY REF("paramName")
     })
+  }
+
+  private def getExtendedQueryParamExtractor(operationId: String, param: QueryParameter)(implicit ctx: GeneratorContext): Option[ParamExtractor] = {
+    param.baseDef match {
+      case s: StringDefinition => s.pattern.map { pattern =>
+        val extractorType = RootClass.newClass("QueryStringParameterExtractor") TYPE_OF StringClass
+        val extractorName = operationId + "QueryOf" + stringToValidIdentifier(param.name.capitalize, skipNotValidChars = true)
+        ParamExtractor(DEF(extractorName, extractorType).withParams(PARAM("paramName", StringClass).tree) := REF("queryOfRx") APPLY (REF("paramName"), LIT(pattern.replaceAllLiterally("$", "$$"))), extractorName, needController = false)
+      }
+      case _ =>
+        None
+    }
   }
 
   private def paramBaseInterp(name: String, param: Definition): String = param match {
@@ -151,7 +178,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
     case _: FloatDefinition => "${float(" + name + ")}"
     case _: DoubleDefinition => "${double(" + name + ")}"
     case _: BooleanDefinition => "${bool(" + name + ")}"
-    case s: StringDefinition => "$" + name + s.pattern.map(p => s"<${p.replaceAllLiterally("$", "$$")}>").getOrElse("")
+    case _: StringDefinition => "$" + name// + s.pattern.map(p => s"<${p.replaceAllLiterally("$", "$$")}>").getOrElse("")
     case _ => "$" + name
   }
 
@@ -175,8 +202,8 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
           throw new RuntimeException(s"Url path parameter '$name' not found for operation (${operation.operationId}).")
         }
 
-        getPathParamExtractor(param) match {
-          case Some(extractor @ ParamExtractor(_ , extractorName)) =>
+        getPathParamExtractor(param) orElse getExtendedPathParamExtractor(operation.operationId, param) match {
+          case Some(extractor @ ParamExtractor(_ , extractorName, _)) =>
             PathPart("${" + extractorName + "(" + name + ")}", Some(extractor))
           case None =>
             PathPart(paramBaseInterp(name, param.baseDef), None)
@@ -200,8 +227,8 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
     val paramName = param.name
 
-    getQueryParamExtractor(param) match {
-      case Some(extractor @ ParamExtractor(_, extractorName)) =>
+    getQueryParamExtractor(param) orElse getExtendedQueryParamExtractor(operationId, param) match {
+      case Some(extractor @ ParamExtractor(_, extractorName, _)) =>
         val valName = operationId + "Q" + idx
         val valDef = VAL(valName) := REF(extractorName) APPLY LIT(paramName)
         QueryInterp(valDef, REF(valName) UNAPPLY REF(paramName), Some(extractor))
