@@ -170,7 +170,12 @@ class ClientCodeGenerator extends CodeGenerator {
     case NoContent =>
       BodyContent(
         params = Nil,
-        serialization = EmptyTree
+        serialization = operation.httpMethod match {
+          case HttpMethod.Put | HttpMethod.Post | HttpMethod.Patch =>
+            REF("Array") DOT "emptyByteArray"
+          case _ =>
+            EmptyTree
+        }
       )
     case SimpleContent =>
       val params = getBodyParameters(path, operation)
