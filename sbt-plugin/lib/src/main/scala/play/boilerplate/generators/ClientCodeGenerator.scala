@@ -284,7 +284,7 @@ class ClientCodeGenerator extends CodeGenerator {
       .withFlags(Flags.OVERRIDE)
       .withParams(bodyContent.params.map(_._2.valDef) ++ methodParams.map(_._2.valDef) ++ securityParams) :=
       BLOCK {
-        locatorValRef DOT "doServiceCall" APPLY(LIT(ctx.settings.serviceName), LIT(operation.operationId)) APPLY {
+        locatorValRef DOT "doServiceCall" APPLY(serviceNameValRef, LIT(operation.operationId)) APPLY {
           LAMBDA(PARAM("uri").tree) ==> BLOCK(
             urlValDef,
             VAL("f") := FOR(

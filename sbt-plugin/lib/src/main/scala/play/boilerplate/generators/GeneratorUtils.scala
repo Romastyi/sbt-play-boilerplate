@@ -263,6 +263,9 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final val UnexpectedResultClassName = "UnexpectedResult"
   final val UnexpectedResultClass = TypeName("UnexpectedResult")
 
+  final val serviceNameValName = "serviceName"
+  final val serviceNameValRef = REF(serviceNameValName)
+
   def getOperationResponseTraitName(operationId: String): String = {
     operationId.capitalize + "Response"
   }

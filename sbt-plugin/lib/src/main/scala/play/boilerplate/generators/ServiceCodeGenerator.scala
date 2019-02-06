@@ -48,7 +48,8 @@ class ServiceCodeGenerator extends CodeGenerator {
         }
 
       val companionTree = OBJECTDEF(ctx.settings.serviceClassName) := BLOCK {
-        generateResponseClasses(schema)(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef)
+        (VAL(serviceNameValName) := LIT(ctx.settings.serviceName)).withDoc("Service name: " + ctx.settings.serviceName) +:
+          (generateResponseClasses(schema)(ctx.setInService(true)) ++ methods.flatMap(_.additionalDef))
       }
 
       SourceCodeFile(
