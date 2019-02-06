@@ -44,7 +44,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
     val companionDefs = distinctTreeByName(routesCases.flatMap(_.companionDefs))
     val definitions = filterNonEmptyTree(routesCases.flatMap(_.definitions))
-    val routes = filterNonEmptyTree(routesCases.map(_.caseDef))
+    val routes = filterNonEmptyTree(routesCases.map(_.commentedCase))
 
     if (routes.nonEmpty) {
 
@@ -88,7 +88,9 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
 
   }
 
-  private case class RoutesCase(definitions: Seq[Tree], companionDefs: Seq[Tree], caseDef: CaseDef, needController: Boolean)
+  private case class RoutesCase(definitions: Seq[Tree], companionDefs: Seq[Tree], caseDef: CaseDef, needController: Boolean, comment: String) {
+    def commentedCase: Commented = caseDef.withComment(comment)
+  }
 
   private def composeRoutesCases(basePath: String, path: Path, operation: Operation)
                                 (implicit ctx: GeneratorContext): RoutesCase = {
@@ -108,7 +110,8 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
       definitions = queryDefs,
       companionDefs = companionDefs,
       caseDef = CASE(REF(httpMethod) UNAPPLY fullUrl) ==> methodCall,
-      needController = companionExtractors.exists(_.needController)
+      needController = companionExtractors.exists(_.needController),
+      comment = RoutesCodeGenerator.composeRoutes(prefix, path, operation, identity).prettyPrint(4,0)
     )
 
   }
