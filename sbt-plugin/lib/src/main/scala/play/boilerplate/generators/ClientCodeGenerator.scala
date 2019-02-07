@@ -66,6 +66,7 @@ class ClientCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.boilerplate.api.client.dsl.Compat"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
+      tracesImports ++
       securityImports(schema) ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
@@ -230,8 +231,8 @@ class ClientCodeGenerator extends CodeGenerator {
   def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
     val bodyContentType = getBodyContentType(schema, path, operation)
-    val bodyContent = getBodyContent(path, operation, bodyContentType)
-    val methodParams = getMethodParameters(path, operation)
+    val BodyContent(bodyParams, bodySerialization) = getBodyContent(path, operation, bodyContentType)
+    val methodParams = bodyParams ++ getMethodParameters(path, operation)
     val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
     val securityParams = actionSecurity.securityParamsDef
 
@@ -241,7 +242,7 @@ class ClientCodeGenerator extends CodeGenerator {
         val ref = if (isOptional(param)) REF(paramName) else SOME(REF(paramName))
         LIT(param.name) INFIX ("->", ref)
     } ++ ctx.settings.effectiveTraceIdHeader.toIndexedSeq.map { headerName =>
-      LIT(headerName) INFIX ("->", SOME(traceIdValRef))
+      LIT(headerName) INFIX ("->", SOME(traceIdValRef(tracerValRef)))
     }
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)
@@ -280,16 +281,15 @@ class ClientCodeGenerator extends CodeGenerator {
       selfValRef DOT "onError" APPLY(LIT(operation.operationId), causeValRef)
     )
 
-    val methodTree = DEF(operation.operationId, FUTURE(methodType))
-      .withFlags(Flags.OVERRIDE)
-      .withParams(bodyContent.params.map(_._2.valDef) ++ methodParams.map(_._2.valDef) ++ securityParams) :=
+    val methodTree = methodDefinition(operation.operationId, FUTURE(methodType), methodParams.map(_._2), securityParams.toIndexedSeq)
+      .withFlags(Flags.OVERRIDE) :=
       BLOCK {
         locatorValRef DOT "doServiceCall" APPLY(serviceNameValRef, LIT(operation.operationId)) APPLY {
           LAMBDA(PARAM("uri").tree) ==> BLOCK(
             urlValDef,
             VAL("f") := FOR(
               VALFROM(requestValName) := beforeRequest,
-              VALFROM(responseValName) := wsRequestWithHeaderParams DOT opType APPLY bodyContent.serialization,
+              VALFROM(responseValName) := wsRequestWithHeaderParams DOT opType APPLY bodySerialization,
               VAL(WILDCARD) := handlerValRef DOT "onSuccess" APPLY(LIT(operation.operationId), responseValRef, credentials),
               VAL("result") := responses.tree
             ) YIELD REF("result"),
@@ -300,7 +300,7 @@ class ClientCodeGenerator extends CodeGenerator {
         }
       }
 
-    val paramDocs = (bodyContent.params.map(_._2) ++ methodParams.map(_._2)).map(_.doc) ++
+    val paramDocs = methodParams.map(_._2.doc) ++
       actionSecurity.securityDocs.map { case (param, description) =>
         DocTag.Param(param, description)
       }
@@ -309,7 +309,7 @@ class ClientCodeGenerator extends CodeGenerator {
       paramDocs: _ *
     )
 
-    val implicits = bodyContent.params.flatMap(_._2.implicits) ++ methodParams.flatMap(_._2.implicits)
+    val implicits = methodParams.flatMap(_._2.implicits)
 
     Method(tree, responses.implicits ++ implicits)
 
@@ -337,7 +337,9 @@ class ClientCodeGenerator extends CodeGenerator {
       val headerParams = getResponseParameters(response).collect {
         case ResponseParam(Some(headerName), _, _, _, isOptional) =>
           val extractor = responseValRef DOT "header" APPLY LIT(headerName)
-          if (isOptional) extractor else extractor DOT "getOrElse" APPLY LIT("")
+          val paramValue = if (isTraceIdHeaderName(headerName)) extractor DOT "map" APPLY tracerCtor else extractor
+          val defaultValue = if (isTraceIdHeaderName(headerName)) tracerEmpty else LIT("")
+          if (isOptional) paramValue else paramValue DOT "getOrElse" APPLY defaultValue
       }
       val fullParamsList = params ++ headerParams
       val caseTree = CASE(pattern) ==> {

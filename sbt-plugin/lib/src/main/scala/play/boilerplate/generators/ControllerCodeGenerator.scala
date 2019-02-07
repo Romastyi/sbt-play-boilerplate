@@ -39,6 +39,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       IMPORT(REF("play.boilerplate.api.server.dsl"), "_"),
       IMPORT(REF("scala.concurrent"), "ExecutionContext", "Future")
     ) ++
+      tracesImports ++
       securityImports(schema) ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
@@ -161,7 +162,6 @@ class ControllerCodeGenerator extends CodeGenerator {
         methodParams.map(_._1) ++
         formDataParams.map(_._1) ++
         headerParams.map(_._1) ++
-        Seq(traceIdValName).filter(_ => ctx.settings.useTraceId) ++
         actionSecurity.securityValues.map(_._1)).map(REF(_))
     }
 
@@ -178,12 +178,12 @@ class ControllerCodeGenerator extends CodeGenerator {
       generateAcceptCheck(operation, ANSWER_WITH_EXCEPTION_HANDLE)
     } else ANSWER_WITH_EXCEPTION_HANDLE
 
-    val traceIdVal = VAL(traceIdValName) := {
+    val tracerVal = VAL(tracerValName, tracerType).withFlags(Flags.IMPLICIT) := {
       ctx.settings.effectiveTraceIdHeader match {
         case Some(headerName) =>
-          REF("request") DOT "headers" DOT "get" APPLY LIT(headerName) DOT "getOrElse" APPLY RANDOM_UUID_STRING
+          REF("request") DOT "headers" DOT "get" APPLY LIT(headerName) DOT "map" APPLY tracerCtor DOT "getOrElse" APPLY tracerRandom
         case None =>
-          RANDOM_UUID_STRING
+          tracerRandom
       }
     }
 
@@ -196,7 +196,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       BLOCK {
         filterNonEmptyTree(Seq(
           VAL("r").withFlags(Flags.IMPLICIT) := REF("request"),
-          traceIdVal,
+          tracerVal,
           traceLog(operation, LIT("Request IN ..."))
         )) ++
           methodValues :+
@@ -204,7 +204,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       }
 
     val methodTree =
-      DEFINFER(methodName) withParams methodParams.map(_._2.valDef) withType actionType := BLOCK {
+      DEF(methodName, actionType) withParams methodParams.map(_._2.paramDef) := BLOCK {
         actionSecurity.actionMethod(parser) APPLY {
           LAMBDA(PARAM("request").empty) ==> BODY_WITH_EXCEPTION_HANDLE
         }
@@ -221,8 +221,7 @@ class ControllerCodeGenerator extends CodeGenerator {
   }
 
   private def traceLog(operation: Operation, args: Tree*)(implicit ctx: GeneratorContext): Tree = {
-    val traceHeader = INTERP(StringContext_s, LIT("[operationId: " + operation.operationId + ", traceId: "), traceIdValRef, LIT("] "))
-    ctx.settings.loggerProvider.trace(INFIX_CHAIN("+", traceHeader +: args))
+    ctx.settings.loggerProvider.trace(traceMsg(INFIX_CHAIN("+", LIT("[operationId: " + operation.operationId + "] ") +: args)))
   }
 
   case class BodyValue(valName: String, valDef: ValDef, implicits: Seq[Tree])

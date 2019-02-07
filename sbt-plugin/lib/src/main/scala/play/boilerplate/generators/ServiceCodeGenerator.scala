@@ -18,6 +18,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       IMPORT(REF(ctx.settings.modelPackageName), "_"),
       IMPORT(REF("scala.language"), "higherKinds")
     ) ++
+      tracesImports ++
       securityImports(schema) ++
       ctx.settings.loggerProvider.imports ++
       Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
@@ -69,18 +70,15 @@ class ServiceCodeGenerator extends CodeGenerator {
 
   def generateMethod(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
 
-    val bodyParams = getBodyParameters(path, operation)
-    val methodParams = getMethodParameters(path, operation)
+    val methodParams = getBodyParameters(path, operation) ++ getMethodParameters(path, operation)
     val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
     val securityParams = actionSecurity.securityParamsDef
 
     val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
 
-    val methodTree = DEF(operation.operationId, F_OF_TYPE(methodType))
-      .withParams(bodyParams.map(_._2.valDef) ++ methodParams.map(_._2.valDef) ++ securityParams)
-      .empty
+    val methodTree = methodDefinition(operation.operationId, F_OF_TYPE(methodType), methodParams.map(_._2), securityParams.toIndexedSeq).empty
 
-    val paramDocs = (bodyParams.map(_._2) ++ methodParams.map(_._2)).map(_.doc) ++
+    val paramDocs = methodParams.map(_._2.doc) ++
       actionSecurity.securityDocs.map { case (param, description) =>
         DocTag.Param(param, description)
       }
@@ -89,8 +87,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       paramDocs: _ *
     )
 
-    val additionalDef = bodyParams.flatMap(_._2.additionalDef) ++
-      methodParams.flatMap(_._2.additionalDef)
+    val additionalDef = methodParams.flatMap(_._2.additionalDef)
 
     Method(tree, filterNonEmptyTree(additionalDef))
 
@@ -173,7 +170,8 @@ class ServiceCodeGenerator extends CodeGenerator {
         }
       } ++ getResponseParameters(response)
       val headersList = fullParamsList.collect { case ResponseParam(Some(headerName), paramName, _, _, isOptional) =>
-        PAIR(LIT(headerName), if (isOptional) REF(paramName) else SOME(REF(paramName)))
+        val paramVal = if (isTraceIdHeaderName(headerName)) traceIdValRef(REF(paramName)) else REF(paramName)
+        PAIR(LIT(headerName), if (isOptional) paramVal else SOME(paramVal))
       }
       val headerMethodImpl = if (headersList.isEmpty) {
         headersMethodDef.withFlags(Flags.OVERRIDE) := NIL

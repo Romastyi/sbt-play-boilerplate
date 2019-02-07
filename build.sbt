@@ -156,6 +156,7 @@ def serverApiProject(suffix: String, playVersion: String): Project = {
         baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
       }
     )
+    .dependsOn(`api-client-core`)
 }
 
 lazy val `api-server-play24` = serverApiProject("play24", "2.4.11")

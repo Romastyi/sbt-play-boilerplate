@@ -101,7 +101,15 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
   }
 
-  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], isOptional: Boolean, doc: DocElement)
+  case class MethodParam(valDef: ValDef, fullQualified: ValDef, additionalDef: Seq[Tree], implicits: Seq[Tree], defaultValue: Option[Tree], isOptional: Boolean, isImplicit: Boolean, doc: DocElement) {
+    def paramDef: ValDef = if (isImplicit) {
+      val implicitVal = valDef.copy(mods = valDef.mods | Flags.IMPLICIT)
+      defaultValue match {
+        case Some(default) => implicitVal.copy(rhs = default)
+        case None => implicitVal
+      }
+    } else valDef
+  }
 
   def getBodyParameters(path: Path, operation: Operation)
                        (implicit ctx: GeneratorContext): Seq[(String, MethodParam)] = {
@@ -113,7 +121,7 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
         val fullQualified = PARAM(paramName, support.fullQualified).empty
         val implicits = support.jsonReads ++ support.jsonWrites
         val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-        paramName -> MethodParam(valDef, fullQualified, support.definitions, implicits, None, isOptional = false, doc)
+        paramName -> MethodParam(valDef, fullQualified, support.definitions, implicits, None, isOptional = false, isImplicit = false, doc)
     }.distinctBy(_._1).toIndexedSeq
   }
 
@@ -142,14 +150,15 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
       .distinctBy(_._1)
 
     val traceIdParam = if (ctx.settings.useTraceId && withHeaders) {
-      Seq(traceIdValName -> MethodParam(
-        valDef = PARAM(traceIdValName, StringClass).empty,
-        fullQualified = PARAM(traceIdValName, StringClass).empty,
+      Seq(tracerValName -> MethodParam(
+        valDef = PARAM(tracerValName, tracerType).empty,
+        fullQualified = PARAM(tracerValName, tracerType).empty,
         additionalDef = Nil,
         implicits = Nil,
-        defaultValue = None,
+        defaultValue = Some(tracerRandom),
         isOptional = false,
-        doc = DocTag.Param(traceIdValName, "Request Trace ID,")
+        isImplicit = true,
+        doc = DocTag.Param(tracerValName, "Request Trace ID")
       ))
     } else {
       Nil
@@ -182,9 +191,9 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     val traceIdParam = if (ctx.settings.useTraceId) {
       Seq(ResponseParam(
         headerName = ctx.settings.traceIdHeader,
-        paramName = traceIdValName,
-        paramDef = PARAM(traceIdValName, StringClass).empty,
-        paramDoc = DocTag.Param(traceIdValName, "Request Trace ID,"),
+        paramName = tracerValName,
+        paramDef = PARAM(tracerValName, tracerType).empty,
+        paramDoc = DocTag.Param(tracerValName, "Request Trace ID"),
         isOptional = false
       ))
     } else {
@@ -205,7 +214,13 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
     val fullQualified = PARAM(paramName, support.fullQualified).empty
     val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-    paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), isOptional(param), doc)
+    paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), isOptional(param), isImplicit = false, doc)
+  }
+
+  def methodDefinition(methodName: String, methodType: Type, methodParams: Seq[MethodParam], securityParams: Seq[ValDef]): DefTreeStart = {
+    val (implicitParams, explicitParams) = methodParams.partition(_.isImplicit)
+    val start = DEF(methodName, methodType).withParams(explicitParams.map(_.paramDef) ++ securityParams)
+    if (implicitParams.nonEmpty) start.withParams(implicitParams.map(_.paramDef)) else start
   }
 
   def getParamImplicits(param: Parameter, support: TypeSupport)(implicit ctx: GeneratorContext): Seq[Tree] = {
@@ -240,8 +255,15 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   // TraceID
 
-  final val traceIdValName = "traceId"
-  final val traceIdValRef = REF(traceIdValName)
+  final val tracesImports: Seq[Import] = Seq(IMPORT(REF("play.boilerplate.api"), "Tracer")) // Nil
+  final val tracerValName: String = "tracer"
+  final val tracerValRef: Ident = REF(tracerValName)
+  final val tracerType: Type = RootClass.newClass("Tracer") // StringClass
+  final val tracerEmpty: Tree = REF("Tracer") DOT "empty" // LIT("")
+  final val tracerRandom: Tree = REF("Tracer") DOT "randomUUID" // RANDOM_UUID_STRING
+  final val tracerCtor: Tree = REF("Tracer") DOT "apply" // IDENTITY(StringClass)
+  final def traceIdValRef(tracer: Ident): Tree = tracer DOT "traceId" // tracer
+  final def traceMsg(msg: Tree): Tree = tracerValRef DOT "applyMsg" APPLY msg // INFIX_CHAIN("+", LIT("[TraceID "), traceIdValRef, LIT("] "), msg)
 
   def findHeaderParameter(path: Path, operation: Operation, headerName: String): Option[HeaderParameter] = {
     getFullParametersList(path, operation).find {
@@ -253,8 +275,12 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   }
 
   def isTraceIdHeaderParameter(param: Parameter)(implicit ctx: GeneratorContext): Boolean = param match {
-    case h: HeaderParameter => ctx.settings.useTraceId && ctx.settings.traceIdHeader == Some(h.name)
+    case h: HeaderParameter => isTraceIdHeaderName(h.name)
     case _ => false
+  }
+
+  def isTraceIdHeaderName(headerName: String)(implicit ctx: GeneratorContext): Boolean = {
+    ctx.settings.useTraceId && ctx.settings.traceIdHeader == Some(headerName)
   }
 
   /*
