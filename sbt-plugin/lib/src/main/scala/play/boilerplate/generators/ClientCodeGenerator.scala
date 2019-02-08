@@ -338,7 +338,7 @@ class ClientCodeGenerator extends CodeGenerator {
         case ResponseParam(Some(headerName), _, _, _, isOptional) =>
           val extractor = responseValRef DOT "header" APPLY LIT(headerName)
           val paramValue = if (isTraceIdHeaderName(headerName)) extractor DOT "map" APPLY tracerCtor else extractor
-          val defaultValue = if (isTraceIdHeaderName(headerName)) tracerEmpty else LIT("")
+          val defaultValue = if (isTraceIdHeaderName(headerName)) tracerRandom else LIT("")
           if (isOptional) paramValue else paramValue DOT "getOrElse" APPLY defaultValue
       }
       val fullParamsList = params ++ headerParams
