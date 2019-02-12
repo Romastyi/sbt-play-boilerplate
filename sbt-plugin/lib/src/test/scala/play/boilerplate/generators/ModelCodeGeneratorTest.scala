@@ -8,7 +8,7 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   "Model generator: enums support." should "Inline definition." in {
 
     val schema = SwaggerBackend.parseSchema("enums/schema_inline.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_inline.yaml", "test", "", enumGenerator = SealedTraitEnumerations))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_inline.yaml", "test", Nil, enumGenerator = SealedTraitEnumerations))
     val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -19,7 +19,7 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   it should "Reuse definition" in {
 
     val schema = SwaggerBackend.parseSchema("enums/schema_reuse.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_reuse.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("enums/schema_reuse.yaml", "test", Nil))
     val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -30,7 +30,7 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   "Model generator: Polymorphism support." should "Inheritance" in {
 
     val schema = SwaggerBackend.parseSchema("polymorphism/inheritance.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", Nil))
     val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -41,7 +41,7 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   "Full support" should "Parse petStore.v1.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v1.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v1.yaml", "test", Nil))
     val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -52,7 +52,7 @@ class ModelCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStri
   it should "Parse petStore.v2.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", Nil))
     val gen = new ModelCodeGenerator(inOneFile = false).generate(schema)(ctx)
     printCodeFile(gen)
 

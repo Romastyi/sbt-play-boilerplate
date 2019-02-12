@@ -43,7 +43,7 @@ class ControllerCodeGenerator extends CodeGenerator {
       securityImports(schema) ++
       ctx.settings.injectionProvider.imports ++
       ctx.settings.loggerProvider.imports ++
-      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
+      ctx.settings.codeProvidedPackages.filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   def dependencies(schema: Schema)(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {

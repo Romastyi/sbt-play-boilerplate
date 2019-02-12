@@ -20,7 +20,7 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
       IMPORT(REF("play.boilerplate.api.server.dsl.SirdOps"), "_")
     ) ++
       ctx.settings.injectionProvider.imports ++
-      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
+      ctx.settings.codeProvidedPackages.filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   def dependencies(implicit ctx: GeneratorContext): Seq[InjectionProvider.Dependency] = {

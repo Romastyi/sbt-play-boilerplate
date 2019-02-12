@@ -15,7 +15,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
   object Keys {
 
     trait GenSettings {
-      def apply(fileName: String, basePackageName: String, codeProvidedPackage: String): GeneratorSettings
+      def apply(fileName: String, basePackageName: String, codeProvidedPackages: Seq[String]): GeneratorSettings
     }
 
     trait SchemasWatcher {
@@ -47,7 +47,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     val generatorSettings: SettingKey[GenSettings] = settingKey("generatorSettings")
     val generatorSourceDir: SettingKey[File] = settingKey("generatorSourceDir")
     val generatorDestPackage: SettingKey[String] = settingKey("generatorDestPackage")
-    val generatorProvidedPackage: SettingKey[String] = settingKey("generatorProvidedPackage")
+    val generatorProvidedPackages: SettingKey[Seq[String]] = settingKey("generatorProvidedPackages")
 
     val enumGenerator: SettingKey[EnumerationGenerator] = settingKey("enumGenerator")
     val securityProviders: SettingKey[Seq[SecurityProvider]] = settingKey("securityProviders")
@@ -162,7 +162,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
                                     sourceManagedDir: File,
                                     resourcesDir: File,
                                     destPackage: String,
-                                    providedPackage: String): Set[File] = {
+                                    providedPackages: Seq[String]): Set[File] = {
 
     generatorsCleanImpl(sourceManagedDir, destPackage)
 
@@ -170,7 +170,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
       swaggerFile <- swaggerFiles
       swaggerFileName = swaggerFile.getAbsolutePath
       schema = SwaggerBackend.parseSchema(swaggerFileName).get
-      context = GeneratorContext.initial(genSettings(swaggerFileName, destPackage, providedPackage))
+      context = GeneratorContext.initial(genSettings.apply(swaggerFileName, destPackage, providedPackages))
       generator <- generators
       codeFile <- generator.generate(schema)(context)
     } yield generateCodeFile(codeFile, sourceManagedDir, resourcesDir)
@@ -207,11 +207,11 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     Keys.useTraceId := false,
     Keys.traceIdHeader := None,
     Keys.generatorSettings  := new Keys.GenSettings {
-      def apply(fileName: String, basePackageName: String, codeProvidedPackage: String) =
+      def apply(fileName: String, basePackageName: String, codeProvidedPackages: Seq[String]) =
         DefaultGeneratorSettings(
           fileName,
           basePackageName,
-          codeProvidedPackage,
+          codeProvidedPackages,
           enumGenerator = Keys.enumGenerator.value,
           securityProviders = Keys.securityProviders.value,
           injectionProvider = Keys.injectionProvider.value,
@@ -226,7 +226,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
     // Generation sources and others
     Keys.generatorSourceDir := (sourceDirectory in Compile).value / "swagger",
     Keys.generatorDestPackage := "test.api",
-    Keys.generatorProvidedPackage := "",
+    Keys.generatorProvidedPackages := Nil,
     // Generation tasks
     Keys.generatorsCodeGen := {
       val cachedFiles = FileFunction.cached(
@@ -241,7 +241,7 @@ object PlayBoilerplatePlugin extends AutoPlugin {
           (sourceManaged in Compile).value,
           (resourceDirectory in Compile).value,
           Keys.generatorDestPackage.value,
-          Keys.generatorProvidedPackage.value
+          Keys.generatorProvidedPackages.value
         )
       }
       val files = cachedFiles(collectSchemas(Keys.generatorsSources.value).toSet)

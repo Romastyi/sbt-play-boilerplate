@@ -21,7 +21,7 @@ class ServiceCodeGenerator extends CodeGenerator {
       tracesImports ++
       securityImports(schema) ++
       ctx.settings.loggerProvider.imports ++
-      Seq(ctx.settings.codeProvidedPackage).filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
+      ctx.settings.codeProvidedPackages.filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {

@@ -9,7 +9,7 @@ class JodaSupportTest extends FlatSpec with Matchers with PrintSyntaxString {
   "Joda types support" should "model" in {
 
     val schema = SwaggerBackend.parseSchema("support/joda-support.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/joda-support.yaml", "test", "").copy(
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/joda-support.yaml", "test", Nil).copy(
       customTypeSupport = {
         CustomTypeSupport.jodaLocalDateSupport() ++
         CustomTypeSupport.jodaDateTimeSupport()
@@ -25,7 +25,7 @@ class JodaSupportTest extends FlatSpec with Matchers with PrintSyntaxString {
   it should "json" in {
 
     val schema = SwaggerBackend.parseSchema("support/joda-support.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/joda-support.yaml", "test", "").copy(
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/joda-support.yaml", "test", Nil).copy(
       customTypeSupport = {
         CustomTypeSupport.jodaLocalDateSupport() ++
         CustomTypeSupport.jodaDateTimeSupport()
@@ -50,7 +50,7 @@ class JodaSupportTest extends FlatSpec with Matchers with PrintSyntaxString {
         StringUtils DOT "substringBefore" APPLY(REF("s"), LIT("T")), LIT(" ")
       ))
     }
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/joda-support.yaml", "test", "").copy(
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/joda-support.yaml", "test", Nil).copy(
       customTypeSupport = {
         CustomTypeSupport.jodaLocalDateSupport(corrector = dateCorrector) ++
         CustomTypeSupport.jodaDateTimeSupport()

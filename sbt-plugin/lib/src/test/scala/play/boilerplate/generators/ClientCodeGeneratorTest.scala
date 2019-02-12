@@ -16,7 +16,7 @@ class ClientCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
       "petStore.v1.yaml",
       "test",
-      "",
+      Nil,
       injectionProvider = injection.ScaldiInjectionProvider,
       securityProviders = List(security),
       useTraceId = true,
@@ -32,7 +32,7 @@ class ClientCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
   it should "Parse petStore.v2.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", "", injectionProvider = injection.GuiceInjectionProvider))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", Nil, injectionProvider = injection.GuiceInjectionProvider))
     val gen = new ClientCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

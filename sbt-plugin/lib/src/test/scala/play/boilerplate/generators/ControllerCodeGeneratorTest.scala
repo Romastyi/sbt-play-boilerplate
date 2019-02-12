@@ -10,7 +10,7 @@ class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSynta
   "Controller generator: Polymorphism support." should "Inheritance" in {
 
     val schema = SwaggerBackend.parseSchema("polymorphism/inheritance.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", Nil))
     val gen = new ControllerCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -33,7 +33,7 @@ class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSynta
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
       "petStore.v1.yaml",
       "test",
-      "",
+      Nil,
       injectionProvider = injection.ScaldiInjectionProvider,
       securityProviders = List(security),
       supportedMimeTypes = mimeTypeSupport,
@@ -51,7 +51,7 @@ class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSynta
   it should "Parse petStore.v2.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", Nil))
     val gen = new ControllerCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

@@ -8,7 +8,7 @@ class RoutesCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
   "Empty routes" should "Parse support/empty_object_as_jsobject.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("support/empty_object_as_jsobject.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", Nil))
     val gen = InjectedRoutesCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -22,7 +22,7 @@ class RoutesCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
       "petStore.v1.yaml",
       "test",
-      "",
+      Nil,
       useTraceId = true,
       traceIdHeader = Some("X-TraceID")
     ))
@@ -36,7 +36,7 @@ class RoutesCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxStr
   it should "Parse petStore.v2.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", Nil))
     val gen = DynamicRoutesCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

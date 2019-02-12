@@ -9,7 +9,7 @@ class CustomTypeSupportTest extends FlatSpec with Matchers with PrintSyntaxStrin
   "Empty object as JsObject:" should "model" in {
 
     val schema = SwaggerBackend.parseSchema("support/empty_object_as_jsobject.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", "").copy(
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", Nil).copy(
       customTypeSupport = CustomTypeSupport.emptyObjectAsJsObject
     ))
     val gen = new ModelCodeGenerator(inOneFile = true).generate(schema)(ctx)
@@ -22,7 +22,7 @@ class CustomTypeSupportTest extends FlatSpec with Matchers with PrintSyntaxStrin
   it should "json" in {
 
     val schema = SwaggerBackend.parseSchema("support/empty_object_as_jsobject.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", "").copy(
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("support/empty_object_as_jsobject.yaml", "test", Nil).copy(
       customTypeSupport = CustomTypeSupport.emptyObjectAsJsObject
     ))
     val gen = new JsonCodeGenerator().generate(schema)(ctx)

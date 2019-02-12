@@ -10,7 +10,7 @@ class ServiceCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
   "Service generator: Polymorphism support." should "Inheritance" in {
 
     val schema = SwaggerBackend.parseSchema("polymorphism/inheritance.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", Nil))
     val gen = new ServiceCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
@@ -27,7 +27,7 @@ class ServiceCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
     val ctx = GeneratorContext.initial(DefaultGeneratorSettings(
       "petStore.v1.yaml",
       "test",
-      "",
+      Nil,
       securityProviders = List(security),
       useTraceId = true,
       traceIdHeader = Some("X-TraceID")
@@ -42,7 +42,7 @@ class ServiceCodeGeneratorTest extends FlatSpec with Matchers with PrintSyntaxSt
   it should "Parse petStore.v2.yaml" in {
 
     val schema = SwaggerBackend.parseSchema("petStore.v2.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", ""))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("petStore.v2.yaml", "test", Nil))
     val gen = new ServiceCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 

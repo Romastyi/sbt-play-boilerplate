@@ -8,7 +8,7 @@ import play.boilerplate.generators.support.CustomTypeSupport
 
 abstract class GeneratorSettings(val fileName: String,
                                  val basePackageName: String,
-                                 val codeProvidedPackage: String) {
+                                 val codeProvidedPackages: Seq[String]) {
 
   def modelPackageName: String
   def modelSingleFileName: String
@@ -43,7 +43,7 @@ abstract class GeneratorSettings(val fileName: String,
 
 case class DefaultGeneratorSettings(_fileName: String,
                                     _basePackageName: String,
-                                    _codeProvidedPackage: String,
+                                    _codeProvidedPackages: Seq[String],
                                     override val enumGenerator: EnumerationGenerator = VanillaEnumerations,
                                     override val securityProviders: Seq[SecurityProvider] = Nil,
                                     override val injectionProvider: InjectionProvider = InjectionProvider.defaultInConstructor,
@@ -53,7 +53,7 @@ case class DefaultGeneratorSettings(_fileName: String,
                                     override val strictAcceptHeaderCheck: Boolean = false,
                                     override val useTraceId: Boolean = false,
                                     override val traceIdHeader: Option[String] = None)
-  extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackage) {
+  extends GeneratorSettings(_fileName, _basePackageName, _codeProvidedPackages.distinct) {
 
   override def modelPackageName: String = composeName(basePackageName, "model")
   override def modelSingleFileName: String = objectNameFromFileName(fileName, "Models")
