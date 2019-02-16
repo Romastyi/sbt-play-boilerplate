@@ -123,11 +123,10 @@ object PlayBoilerplatePlugin extends AutoPlugin {
 
     def scaldi(PlayVersion: String): ModuleID = {
       CrossVersion partialVersion PlayVersion match {
-        case Some((2, 4)) => "org.scaldi" %% "scaldi-play" % "0.5.13"
-        case Some((2, 5)) => "org.scaldi" %% "scaldi-play" % "0.5.15"
-        case Some((2, 6)) => "org.scaldi" %% "scaldi-play" % "0.5.17"
-        // FIXME: This is version for Play 2.6.x
-        case _ => "org.scaldi" %% "scaldi-play" % "0.5.17"
+        case Some((2, minor)) if minor >= 4 && minor <= 7 =>
+          component(s"scaldi-play2$minor")
+        case _ =>
+          component("scaldi-play27")
       }
     }
 

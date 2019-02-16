@@ -1,13 +1,12 @@
-package play.boilerplate.api.server.dsl
+package scaldi.play
 
 import play.api.http.HttpConfiguration
 import play.api.inject.RoutesProvider
 import play.api.routing.Router
-import scaldi.Module
 
-final case class InjectedRoutes(routes: Compat.Routes)
+final case class InjectedRoutes(routes: Router)
 
-final class InjectedRoutesModule extends Module {
+class InjectedRoutesModule extends scaldi.Module {
   bind [Router] to {
     val httpConfig = inject[HttpConfiguration]
     val routes = new InjectedRouter(Router.empty)(injectAllOfType[InjectedRoutes])

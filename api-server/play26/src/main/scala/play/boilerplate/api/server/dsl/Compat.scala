@@ -3,7 +3,6 @@ package play.boilerplate.api.server.dsl
 import play.api.mvc.AnyContent
 
 object Compat extends AbstractCompat {
-  override type Routes = play.api.routing.Router
 
   implicit class AnyContentOps(val body: AnyContent) extends AnyVal {
 
@@ -20,4 +19,5 @@ object Compat extends AbstractCompat {
     }
 
   }
+
 }

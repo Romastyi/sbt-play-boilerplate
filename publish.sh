@@ -34,3 +34,8 @@ sbt "project api-server-play24" "+ $PUBLISH_COMMAND" \
     "project api-server-play25" "+ $PUBLISH_COMMAND" \
     "project api-server-play26" "+ $PUBLISH_COMMAND" \
     "project api-server-play27" "+ $PUBLISH_COMMAND"
+
+sbt "project api-scaldi-play24" "+ $PUBLISH_COMMAND" \
+    "project api-scaldi-play25" "+ $PUBLISH_COMMAND" \
+    "project api-scaldi-play26" "+ $PUBLISH_COMMAND" \
+    "project api-scaldi-play27" "+ $PUBLISH_COMMAND"

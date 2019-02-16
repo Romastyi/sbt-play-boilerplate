@@ -157,9 +157,7 @@ def serverApiProject(suffix: String, playVersion: String): Project = {
     .settings(
       name := s"""play-boilerplate-api-server-$suffix""",
       scalaVersion := "2.11.12",
-      libraryDependencies ++= Seq(
-        "com.typesafe.play" %% "play" % playVersion % "provided"
-      ),
+      libraryDependencies += "com.typesafe.play" %% "play" % playVersion % "provided",
       unmanagedSourceDirectories in Compile += {
         baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
       }
@@ -167,24 +165,51 @@ def serverApiProject(suffix: String, playVersion: String): Project = {
 }
 
 lazy val `api-server-play24` = serverApiProject("play24", "2.4.11")
-  .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.13" % "provided")
   .dependsOn(`api-client-play24`)
 lazy val `api-server-play25` = serverApiProject("play25", "2.5.18")
-  .settings(libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.15" % "provided")
   .dependsOn(`api-client-play25`)
 lazy val `api-server-play26` = serverApiProject("play26", "2.6.21" )
-  .settings(
-    crossScalaVersions := List("2.11.12", "2.12.4"),
-    libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.17" % "provided"
-  )
+  .settings(crossScalaVersions := List("2.11.12", "2.12.4"))
   .dependsOn(`api-client-play26`)
 lazy val `api-server-play27` = serverApiProject("play27", "2.7.0" )
-  .settings(
-    crossScalaVersions := List("2.11.12", "2.12.8"),
-    // FIXME: This is version for Play 2.6.x
-    libraryDependencies += "org.scaldi" %% "scaldi-play" % "0.5.17" % "provided"
-  )
+  .settings(crossScalaVersions := List("2.11.12", "2.12.8"))
   .dependsOn(`api-client-play27`)
+
+def scaldiPlayProject(suffix: String, playVersion: String): Project = {
+  Project(s"api-scaldi-$suffix", file(s"api-scaldi/scaldi-$suffix"))
+    .settings(common: _ *)
+    .settings(
+      name := s"""play-boilerplate-scaldi-$suffix""",
+      scalaVersion := "2.11.12",
+      libraryDependencies += "com.typesafe.play" %% "play" % playVersion % "provided",
+      libraryDependencies += (CrossVersion partialVersion playVersion match {
+        case Some((2, 4)) =>
+          "org.scaldi" %% "scaldi-play" % "0.5.13"
+        case Some((2, 5)) =>
+          "org.scaldi" %% "scaldi-play" % "0.5.15"
+        case Some((2, 6)) =>
+          "org.scaldi" %% "scaldi-play" % "0.5.17"
+        case Some((2, 7)) =>
+          // FIXME: This is version for Play 2.6.x
+          "org.scaldi" %% "scaldi-play" % "0.5.17"
+        case _ =>
+          "org.scaldi" %% "scaldi-play" % "0.5.17"
+      }),
+      unmanagedSourceDirectories in Compile += {
+        baseDirectory.value / ".." / "share" / "src" / "main" / "scala"
+      },
+      unmanagedResourceDirectories in Compile += {
+        baseDirectory.value / ".." / "share" / "src" / "main" / "resources"
+      }
+    )
+}
+
+lazy val `api-scaldi-play24` = scaldiPlayProject("play24", "2.4.11")
+lazy val `api-scaldi-play25` = scaldiPlayProject("play25", "2.5.18")
+lazy val `api-scaldi-play26` = scaldiPlayProject("play26", "2.6.21" )
+  .settings(crossScalaVersions := List("2.11.12", "2.12.4"))
+lazy val `api-scaldi-play27` = scaldiPlayProject("play27", "2.7.0" )
+  .settings(crossScalaVersions := List("2.11.12", "2.12.8"))
 
 // ---
 
@@ -196,7 +221,8 @@ lazy val root = Project("sbt-play-boilerplate", file("."))
     lib, plugin,
     `api-client-core`, `api-client-consul`,
     `api-client-play24`, `api-client-play25`, `api-client-play26`, `api-client-play27`,
-    `api-server-play24`, `api-server-play25`, `api-server-play26`, `api-server-play27`
+    `api-server-play24`, `api-server-play25`, `api-server-play26`, `api-server-play27`,
+    `api-scaldi-play24`, `api-scaldi-play25`, `api-scaldi-play26`, `api-scaldi-play27`
   )
 
 publishArtifact := false
