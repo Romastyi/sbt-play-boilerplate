@@ -102,7 +102,7 @@ class ControllerCodeGenerator extends CodeGenerator {
         packageName = ctx.settings.controllerPackageName,
         className = ctx.settings.controllerClassName,
         header = treeToString(controllerImports),
-        impl = controllerTree + "\n\n" + treeToString(companionObj)
+        impl = treeToString(companionObj) + "\n\n" + controllerTree
       ) :: Nil
 
     } else {

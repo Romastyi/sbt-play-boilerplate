@@ -259,7 +259,6 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
   final val tracerValName: String = "tracer"
   final val tracerValRef: Ident = REF(tracerValName)
   final val tracerType: Type = RootClass.newClass("Tracer") // StringClass
-  final val tracerEmpty: Tree = REF("Tracer") DOT "empty" // LIT("")
   final val tracerRandom: Tree = REF("Tracer") DOT "randomUUID" // RANDOM_UUID_STRING
   final val tracerCtor: Tree = REF("Tracer") DOT "apply" // IDENTITY(StringClass)
   final def traceIdValRef(tracer: Ident): Tree = tracer DOT "traceId" // tracer

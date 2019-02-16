@@ -27,6 +27,9 @@ class ClientCodeGenerator extends CodeGenerator {
   private val requestValName = "request"
   private val requestValRef = REF(requestValName)
 
+  private val requestHeadersValName = "headers"
+  private val requestHeadersValRef = REF(requestHeadersValName)
+
   private val responseValName = "response"
   private val responseValRef = REF(responseValName)
 
@@ -106,14 +109,21 @@ class ClientCodeGenerator extends CodeGenerator {
         ctx.settings.loggerProvider.parents
 
       val methodImplicits = distinctTreeByName(filterNonEmptyTree(methods.flatMap(_.implicits)))
-      val methodDefinitions = filterNonEmptyTree(methods.map(_.tree))
+      val (companionObj, importCompanion) = if (methodImplicits.nonEmpty) {
+        val objDef = OBJECTDEF(ctx.settings.clientClassName) := BLOCK(methodImplicits)
+        (objDef, IMPORT(REF(ctx.settings.clientClassName), "_"))
+      } else {
+        (EmptyTree, EmptyTree)
+      }
+
+      val methodDefinitions = methods.map(_.tree)
 
       val classDef = CLASSDEF(ctx.settings.clientClassName)
         .withParents(parents)
         .withSelf(selfValName) :=
         BLOCK {
-          methodImplicits ++ methodDefinitions ++ Seq(
-            generateOrErrorMethod
+          filterNonEmptyTree(
+            importCompanion +: methodDefinitions :+ generateOrErrorMethod
           )
         }
 
@@ -126,7 +136,7 @@ class ClientCodeGenerator extends CodeGenerator {
         packageName = ctx.settings.clientPackageName,
         className = ctx.settings.clientClassName,
         header = treeToString(clientImports),
-        impl = treeToString(credentialsClass: _ *) + "\n\n" + clientTree
+        impl = treeToString(credentialsClass: _ *) + "\n\n" + treeToString(companionObj) + "\n\n" + clientTree
       ) :: Nil
 
     } else {
@@ -247,15 +257,15 @@ class ClientCodeGenerator extends CodeGenerator {
 
     val urlValDef = composeClientUrl(schema.basePath, path, operation)
 
-    val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
-
-    val opType = operation.httpMethod.toString.toLowerCase
-    val wsRequestWithAccept = requestValRef DOT "addHttpHeaders" APPLY (LIT("Accept") INFIX ("->", LIT(MIME_TYPE_JSON)))
-    val wsRequestWithHeaderParams = if (headerParams.isEmpty) {
-      wsRequestWithAccept
+    val acceptHeader = SEQ(PAIR(LIT("Accept"), LIT(MIME_TYPE_JSON)))
+    val requestHeadersValDef = VAL(requestHeadersValName) := (if (headerParams.isEmpty) {
+      acceptHeader
     } else {
-      wsRequestWithAccept DOT "addHttpHeaders" APPLY SEQARG(REF("_render_header_params") APPLY (headerParams: _*))
-    }
+      INFIX_CHAIN("++", acceptHeader, REF("_render_header_params") APPLY (headerParams: _*))
+    })
+
+    val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
+    val opType = operation.httpMethod.toString.toLowerCase
 
     val credentials = {
       val params = actionSecurity.securityParams
@@ -271,7 +281,7 @@ class ClientCodeGenerator extends CodeGenerator {
     }
     val beforeRequest = handlerValRef DOT "beforeRequest" APPLY(
       LIT(operation.operationId),
-      wsValRef DOT "url" APPLY REF("url"),
+      wsValRef DOT "url" APPLY REF("url") DOT "addHttpHeaders" APPLY SEQARG(requestHeadersValRef),
       credentials
     )
     val responses = generateResponses(responseValRef, operation)
@@ -287,9 +297,10 @@ class ClientCodeGenerator extends CodeGenerator {
         locatorValRef DOT "doServiceCall" APPLY(serviceNameValRef, LIT(operation.operationId)) APPLY {
           LAMBDA(PARAM("uri").tree) ==> BLOCK(
             urlValDef,
+            requestHeadersValDef,
             VAL("f") := FOR(
               VALFROM(requestValName) := beforeRequest,
-              VALFROM(responseValName) := wsRequestWithHeaderParams DOT opType APPLY bodySerialization,
+              VALFROM(responseValName) := requestValRef DOT opType APPLY bodySerialization,
               VAL(WILDCARD) := handlerValRef DOT "onSuccess" APPLY(LIT(operation.operationId), responseValRef, credentials),
               VAL("result") := responses.tree
             ) YIELD REF("result"),
