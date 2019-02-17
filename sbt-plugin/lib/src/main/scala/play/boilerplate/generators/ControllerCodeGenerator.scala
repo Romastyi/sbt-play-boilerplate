@@ -10,6 +10,12 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   import GeneratorUtils._
 
+  private val traceLoggerValName = "traceLogger"
+  private val traceLoggerValRef = REF(traceLoggerValName)
+
+  private val requestValName ="request"
+  private val requestValRef = REF(requestValName)
+
   def securityImports(schema: Schema)(implicit ctx: GeneratorContext): Seq[Import] = {
     getSecurityProviderOfSchema(schema).flatMap(_.controllerImports)
   }
@@ -91,6 +97,7 @@ class ControllerCodeGenerator extends CodeGenerator {
           filterNonEmptyTree(
             Seq(importCompanion, importCompat) ++
               ctx.settings.loggerProvider.loggerDefs ++
+              Seq(VAL(traceLoggerValName) := ctx.settings.loggerProvider.controllerTraceLoggerDef) ++
               methods.map(_.tree).toIndexedSeq
           )
         }
@@ -137,7 +144,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val fullParamsList = getFullParametersList(path, operation)
     val headerParams = fullParamsList.collect {
       case param: HeaderParameter if !isTraceIdHeaderParameter(param)=>
-        paramGetter(param, REF("request") DOT "headers" DOT "get" APPLY LIT(param.name))
+        paramGetter(param, requestValRef DOT "headers" DOT "get" APPLY LIT(param.name))
     }.distinctBy(_._1)
     val formDataParams = fullParamsList.collect {
       case param: FormParameter =>
@@ -146,7 +153,7 @@ class ControllerCodeGenerator extends CodeGenerator {
           case _: StringDefinition => if (bodyContentType == FormUrlencoded) "formValue" else "dataPart"
           case _ => throw new RuntimeException(s"Unsupported type for formData parameter (operationId: ${operation.operationId}, parameter: ${param.name}).")
         }
-        paramGetter(param, REF("request") DOT "body" DOT accessor APPLY LIT(param.name))
+        paramGetter(param, requestValRef DOT "body" DOT accessor APPLY LIT(param.name))
     }.distinctBy(_._1)
 
     val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
@@ -170,8 +177,10 @@ class ControllerCodeGenerator extends CodeGenerator {
     val ANSWER_WITH_EXCEPTION_HANDLE = methodCall INFIX "collect" APPLY {
       answerMethod.tree
     } INFIX "recover" APPLY BLOCK {
-      CASE(REF("cause") withType RootClass.newClass("Throwable")) ==>
+      CASE(REF("cause") withType RootClass.newClass("Throwable")) ==> BLOCK(
+        traceLoggerValRef DOT "logError" APPLY (LIT(operation.operationId), LIT("Unhandled error."), REF("cause")),
         REF("InternalServerError") APPLY (REF("cause") DOT "getMessage")
+      )
     }
 
     val ANSWER_WITH_ACCEPT_CHECK = if (ctx.settings.strictAcceptHeaderCheck) {
@@ -181,7 +190,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val tracerVal = VAL(tracerValName, tracerType).withFlags(Flags.IMPLICIT) := {
       ctx.settings.effectiveTraceIdHeader match {
         case Some(headerName) =>
-          REF("request") DOT "headers" DOT "get" APPLY LIT(headerName) DOT "map" APPLY tracerCtor DOT "getOrElse" APPLY tracerRandom
+          requestValRef DOT "headers" DOT "get" APPLY LIT(headerName) DOT "map" APPLY tracerCtor DOT "getOrElse" APPLY tracerRandom
         case None =>
           tracerRandom
       }
@@ -195,9 +204,9 @@ class ControllerCodeGenerator extends CodeGenerator {
     val BODY_WITH_EXCEPTION_HANDLE =
       BLOCK {
         filterNonEmptyTree(Seq(
-          VAL("r").withFlags(Flags.IMPLICIT) := REF("request"),
+          VAL("r").withFlags(Flags.IMPLICIT) := requestValRef,
           tracerVal,
-          traceLog(operation, LIT("Request IN ..."))
+          traceLoggerValRef DOT "logRequest" APPLY (LIT(operation.operationId), requestValRef)
         )) ++
           methodValues :+
           ANSWER_WITH_ACCEPT_CHECK
@@ -206,7 +215,7 @@ class ControllerCodeGenerator extends CodeGenerator {
     val methodTree =
       DEF(methodName, actionType) withParams methodParams.map(_._2.paramDef) := BLOCK {
         actionSecurity.actionMethod(parser) APPLY {
-          LAMBDA(PARAM("request").empty) ==> BODY_WITH_EXCEPTION_HANDLE
+          LAMBDA(PARAM(requestValName).empty) ==> BODY_WITH_EXCEPTION_HANDLE
         }
       }
 
@@ -220,8 +229,8 @@ class ControllerCodeGenerator extends CodeGenerator {
 
   }
 
-  private def traceLog(operation: Operation, args: Tree*)(implicit ctx: GeneratorContext): Tree = {
-    ctx.settings.loggerProvider.trace(traceMsg(INFIX_CHAIN("+", LIT("[operationId: " + operation.operationId + "] ") +: args)))
+  private def traceLogResponse(operation: Operation, status: Tree, body: Tree, contentType: Tree): Tree = {
+    traceLoggerValRef DOT "logResponse" APPLY (LIT(operation.operationId), status, body, contentType)
   }
 
   case class BodyValue(valName: String, valDef: ValDef, implicits: Seq[Tree])
@@ -239,7 +248,6 @@ class ControllerCodeGenerator extends CodeGenerator {
           val resolvers = consumes.map { support =>
             support.requestBody INFIX "map" APPLY
               LAMBDA(PARAM("body").tree) ==> BLOCK(
-                traceLog(operation, LIT("Request body:\n"), support.logContent(REF("body"))),
                 support.deserialize(tpe)(REF("body"))
               )
           }
@@ -280,6 +288,9 @@ class ControllerCodeGenerator extends CodeGenerator {
   private val responseBodyValName = "responseBody"
   private val responseBodyValRef = REF(responseBodyValName)
 
+  private val statusValName = "status"
+  private val statusValRef = REF(statusValName)
+
   private def composeResponseStatus(responseVal: Ident, status: Tree): Tree = {
     status DOT "withHeaders" APPLY SEQARG(responseVal DOT "headers")
   }
@@ -288,22 +299,15 @@ class ControllerCodeGenerator extends CodeGenerator {
     status APPLY content DOT "withHeaders" APPLY SEQARG(responseVal DOT "headers") DOT "as" APPLY mimeType
   }
 
+  private def getMimeTypeConst(mimeType: String): Tree = LIT(mimeType + "; charset=utf-8")
+
   private def composeResponseWithMimeType(responseVal: Ident, status: Tree, mimeType: String): Tree = {
-    composeResponseWithMimeType(responseVal, status, responseBodyValRef, LIT(mimeType + "; charset=utf-8"))
+    composeResponseWithMimeType(responseVal, status, responseBodyValRef, getMimeTypeConst(mimeType))
   }
 
   private def STATUS_WITH_CODE(code: Tree): Tree = REF("Status") APPLY code
 
   final def generateAnswer(operation: Operation)(implicit ctx: GeneratorContext): Method = {
-
-    def traceMessage(code: Tree, content: Option[Tree]): Tree = {
-      content match {
-        case Some(body) =>
-          traceLog(operation, LIT("Response body (Status: "), code, LIT("):\n"), body)
-        case None =>
-          traceLog(operation, LIT("Response body (Status: "), code, LIT(")"))
-      }
-    }
 
     val supportedProduces = operation.produces.filterNot(_ == MIME_TYPE_JSON).flatMap(
       mimeType => getMimeTypeSupport.lift(mimeType)
@@ -334,8 +338,9 @@ class ControllerCodeGenerator extends CodeGenerator {
             contentValId +: codeValId +: unapplyParams,
             responseVal => generateResponse(operation, responseVal, status, traceCode, body, supportedProduces, BLOCK(
               VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
-              traceMessage(traceCode, Some(LOG_JSON(responseBodyValRef))),
-              composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON)
+              VAL(statusValName) := composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON),
+              traceLogResponse(operation, statusValRef, LOG_JSON(responseBodyValRef), getMimeTypeConst(MIME_TYPE_JSON)),
+              statusValRef
             ))
           )
         case (Some(body), None) =>
@@ -344,8 +349,9 @@ class ControllerCodeGenerator extends CodeGenerator {
             contentValId +: unapplyParams,
             responseVal => generateResponse(operation, responseVal, status, traceCode, body, supportedProduces, BLOCK(
               VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
-              traceMessage(traceCode, Some(LOG_JSON(responseBodyValRef))),
-              composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON)
+              VAL(statusValName) := composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON),
+              traceLogResponse(operation, statusValRef, LOG_JSON(responseBodyValRef), getMimeTypeConst(MIME_TYPE_JSON)),
+              statusValRef
             ))
           )
         case (None, Some(_)) =>
@@ -353,8 +359,9 @@ class ControllerCodeGenerator extends CodeGenerator {
             className,
             codeValId +: unapplyParams,
             responseVal => generateResponse(operation, responseVal, status, traceCode, UnitClass, Nil, BLOCK(
-              traceMessage(traceCode, None),
-              composeResponseStatus(responseVal, status)
+              VAL(statusValName) := composeResponseStatus(responseVal, status),
+              traceLogResponse(operation, statusValRef, LIT(""), LIT("")),
+              statusValRef
             ))
           )
         case (None, None) =>
@@ -362,8 +369,9 @@ class ControllerCodeGenerator extends CodeGenerator {
             className,
             unapplyParams,
             responseVal => generateResponse(operation, responseVal, status, traceCode, UnitClass, Nil, BLOCK(
-              traceMessage(traceCode, None),
-              composeResponseStatus(responseVal, status)
+              VAL(statusValName) := composeResponseStatus(responseVal, status),
+              traceLogResponse(operation, statusValRef, LIT(""), LIT("")),
+              statusValRef
             ))
           )
       }
@@ -374,8 +382,9 @@ class ControllerCodeGenerator extends CodeGenerator {
       UnexpectedResultClassName,
       Seq(contentValId, codeValId, contentTypeValId),
       responseVal => BLOCK(
-        traceMessage(codeValRef, Some(contentValRef)),
-        composeResponseWithMimeType(responseVal, STATUS_WITH_CODE(codeValRef), contentValRef, contentTypeValRef)
+        VAL(statusValName) := composeResponseWithMimeType(responseVal, STATUS_WITH_CODE(codeValRef), contentValRef, contentTypeValRef),
+        traceLogResponse(operation, statusValRef, contentValRef, contentTypeValRef),
+        statusValRef
       )
     )
 
@@ -423,8 +432,9 @@ class ControllerCodeGenerator extends CodeGenerator {
             override def apply(v1: Tree): Tree = {
               IF (acceptsMimeType(support.mimeType)) THEN BLOCK(
                 VAL(responseBodyValName) := support.serialize(tpe)(contentValRef),
-                traceLog(operation, LIT("Response body (Status: "), traceCode, LIT("):\n"), support.logContent(responseBodyValRef)),
-                composeResponseWithMimeType(responseVal, status, support.mimeType)
+                VAL(statusValName) := composeResponseWithMimeType(responseVal, status, support.mimeType),
+                traceLogResponse(operation, statusValRef, support.logContent(responseBodyValRef), getMimeTypeConst(support.mimeType)),
+                statusValRef
               ) ELSE {
                 v1
               }

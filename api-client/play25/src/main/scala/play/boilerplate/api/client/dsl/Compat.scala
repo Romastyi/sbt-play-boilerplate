@@ -18,6 +18,10 @@ object Compat extends AbstractCompat {
     def addHttpHeaders(headers: (String, String)*): WSRequest = request.withHeaders(headers: _ *)
   }
 
+  implicit class WSResponseOps(val response: WSResponse) extends AnyVal {
+    def headers: Map[String, Seq[String]] = response.allHeaders
+  }
+
   // multipart/form-data
 
   def dataPart(key: String, value: Option[String]): Option[MultipartFormData.Part[Source[ByteString, Any]]] = {

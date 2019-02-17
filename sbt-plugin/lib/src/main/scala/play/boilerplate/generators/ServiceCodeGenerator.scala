@@ -20,7 +20,6 @@ class ServiceCodeGenerator extends CodeGenerator {
     ) ++
       tracesImports ++
       securityImports(schema) ++
-      ctx.settings.loggerProvider.imports ++
       ctx.settings.codeProvidedPackages.filterNot(_.isEmpty).map(pkg => IMPORT(REF(pkg), "_"))
   }
 
@@ -37,13 +36,9 @@ class ServiceCodeGenerator extends CodeGenerator {
 
     if (methods.nonEmpty) {
 
-      val serviceTree = TRAITDEF(ctx.settings.serviceClassName)
-        .withTypeParams(F_TYPEVAR)
-        .withParents(ctx.settings.loggerProvider.parents)
-        .withSelf("self", ctx.settings.loggerProvider.selfTypes: _ *) :=
+      val serviceTree = TRAITDEF(ctx.settings.serviceClassName).withTypeParams(F_TYPEVAR) :=
         BLOCK {
           IMPORT(REF(ctx.settings.serviceClassName), "_") +: filterNonEmptyTree(
-            ctx.settings.loggerProvider.loggerDefs ++
             methods.map(_.tree).toIndexedSeq
           )
         }

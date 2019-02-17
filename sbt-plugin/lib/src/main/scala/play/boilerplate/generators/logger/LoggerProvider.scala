@@ -1,11 +1,18 @@
 package play.boilerplate.generators.logger
 
 import treehugger.forest._
+import definitions._
 import treehuggerDSL._
 
 trait LoggerProvider {
 
+  val loggerValRef: Ident = REF("logger")
+
   def loggerDefs: Seq[Tree]
+
+  def clientTraceLoggerDef: Tree = LoggerProvider.defaultClientTraceLogger(this)
+
+  def controllerTraceLoggerDef: Tree = LoggerProvider.defaultControllerTraceLogger(this)
 
   def imports: Seq[Import]
 
@@ -31,6 +38,27 @@ trait LoggerProvider {
 
 object LoggerProvider {
 
+  def defaultTraceLogger(className: String, provider: LoggerProvider): Tree = NEW(ANONDEF(RootClass.newClass(className)) := BLOCK(
+    // override protected def errorInternal(msg: => String, error: => Throwable): Unit = ()
+    DEF("errorInternal", UnitClass)
+      .withFlags(Flags.OVERRIDE)
+      .withParams(PARAM("msg", TYPE_BYNAME(StringClass)).empty, PARAM("error", TYPE_BYNAME(ThrowableClass)).empty) :=
+      BLOCK {
+        provider.error(REF("msg"), REF("error"))
+      },
+    // override protected def traceInternal(msg: => String): Unit = ()
+    DEF("traceInternal", UnitClass)
+      .withFlags(Flags.OVERRIDE)
+      .withParams(PARAM("msg", TYPE_BYNAME(StringClass)).empty) :=
+      BLOCK {
+        provider.trace(REF("msg"))
+      }
+  ))
+
+  def defaultClientTraceLogger(provider: LoggerProvider): Tree = defaultTraceLogger("ClientTraceLogger.Default", provider)
+
+  def defaultControllerTraceLogger(provider: LoggerProvider): Tree = defaultTraceLogger("ControllerTraceLogger.Default", provider)
+
   def defaultPlayLogger: LoggerProvider = new LoggerProvider {
 
     override def loggerDefs: Seq[Tree] = Seq(
@@ -43,17 +71,17 @@ object LoggerProvider {
 
     override def selfTypes: Seq[Type] = Nil
 
-    override def trace(message: Tree): Tree = REF("logger") DOT "trace" APPLY message
+    override def trace(message: Tree): Tree = loggerValRef DOT "trace" APPLY message
 
-    override def debug(message: Tree): Tree = REF("logger") DOT "debug" APPLY message
+    override def debug(message: Tree): Tree = loggerValRef DOT "debug" APPLY message
 
-    override def info(message: Tree): Tree = REF("logger") DOT "info" APPLY message
+    override def info(message: Tree): Tree = loggerValRef DOT "info" APPLY message
 
-    override def warning(message: Tree): Tree = REF("logger") DOT "warn" APPLY message
+    override def warning(message: Tree): Tree = loggerValRef DOT "warn" APPLY message
 
-    override def warning(message: Tree, cause: Ident): Tree = REF("logger") DOT "warn" APPLY (message, cause)
+    override def warning(message: Tree, cause: Ident): Tree = loggerValRef DOT "warn" APPLY (message, cause)
 
-    override def error(message: Tree, cause: Ident): Tree = REF("logger") DOT "error" APPLY (message, cause)
+    override def error(message: Tree, cause: Ident): Tree = loggerValRef DOT "error" APPLY (message, cause)
 
     override def fatal(message: Tree, cause: Ident): Tree = error(message, cause)
 
@@ -62,6 +90,10 @@ object LoggerProvider {
   def withoutLogger: LoggerProvider = new LoggerProvider {
 
     override def loggerDefs: Seq[Tree] = Nil
+
+    override def clientTraceLoggerDef: Tree = REF("ClientTraceLogger") DOT "NoLogger"
+
+    override def controllerTraceLoggerDef: Tree = REF("ControllerTraceLogger") DOT "NoLogger"
 
     override def imports: Seq[Import] = Nil
 

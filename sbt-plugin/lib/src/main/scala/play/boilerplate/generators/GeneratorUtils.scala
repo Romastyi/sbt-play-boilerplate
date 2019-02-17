@@ -40,7 +40,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
 
   final def JSON_TO_TYPE(tpe: Type)(ident: Ident): Tree = ident DOT "as" APPLYTYPE tpe
   final def TYPE_TO_JSON(tpe: Type)(ident: Ident): Tree = REF("Json") DOT "toJson" APPLYTYPE tpe APPLY ident
-  final def LOG_JSON(ident: Ident): Tree = REF("Json") DOT "stringify" APPLY ident
+  final def JSON_TO_STRING(json: Tree): Tree = REF("Json") DOT "stringify" APPLY json
+  final def LOG_JSON(ident: Ident): Tree = JSON_TO_STRING(ident)
 
   case class MimeTypeSupport(mimeType: String,
                              requestBody: Tree,

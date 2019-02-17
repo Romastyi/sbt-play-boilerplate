@@ -64,4 +64,11 @@ trait ClientHelpers {
     })
   }
 
+  protected def printFormUrlEncoded(data: Map[String, Seq[String]]): String = {
+    (for {
+      (name, values) <- data
+      value <- values
+    } yield name + "=" + value).mkString("\n")
+  }
+
 }

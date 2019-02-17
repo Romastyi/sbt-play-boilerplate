@@ -2,6 +2,7 @@ package play.boilerplate.generators
 
 import org.scalatest.{FlatSpec, Matchers}
 import play.boilerplate.generators.GeneratorUtils._
+import play.boilerplate.generators.logger.LoggerProvider
 import play.boilerplate.generators.security.{Play2AuthSecurityProvider, SecurityProvider}
 import play.boilerplate.parser.backend.swagger.SwaggerBackend
 
@@ -10,7 +11,7 @@ class ControllerCodeGeneratorTest extends FlatSpec with Matchers with PrintSynta
   "Controller generator: Polymorphism support." should "Inheritance" in {
 
     val schema = SwaggerBackend.parseSchema("polymorphism/inheritance.yaml").get
-    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", Nil))
+    val ctx = GeneratorContext.initial(DefaultGeneratorSettings("polymorphism/inheritance.yaml", "test", Nil, loggerProvider = LoggerProvider.withoutLogger))
     val gen = new ControllerCodeGenerator().generate(schema)(ctx)
     printCodeFile(gen)
 
