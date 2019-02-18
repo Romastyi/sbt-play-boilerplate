@@ -8,16 +8,16 @@ trait ControllerTraceLogger extends TraceLogger {
   private def operationTracer(operationId: String)(implicit tracer: Tracer): Tracer =
     tracer.transform(msg => "[operationId: " + operationId + "] " + msg)
 
-  protected def printRequest[A](request: Request[A]): String
+  protected def printRequest[A](request: Request[A], body: String): String
 
-  def logRequest[A](operationId: String, request: Request[A])(implicit tracer: Tracer): Unit = {
-    trace(printRequest(request))(operationTracer(operationId))
+  def logRequest[A](operationId: String, request: Request[A])(implicit tracer: Tracer, pr: PrintableContent[A]): Unit = {
+    trace(printRequest(request, pr.contentAsString(request.body)))(operationTracer(operationId))
   }
 
   protected def printResponse(response: Result, body: String, contentType: String): String
 
-  def logResponse(operationId: String, response: Result, body: => String, contentType: => String)(implicit tracer: Tracer): Unit = {
-    trace(printResponse(response, body, contentType))(operationTracer(operationId))
+  def logResponse[C](operationId: String, response: Result, body: C, contentType: String)(implicit tracer: Tracer, pr: PrintableContent[C]): Unit = {
+    trace(printResponse(response, pr.contentAsString(body), contentType))(operationTracer(operationId))
   }
 
   def logError(operationId: String, msg: => String, cause: => Throwable)(implicit tracer: Tracer): Unit = {
@@ -29,7 +29,7 @@ trait ControllerTraceLogger extends TraceLogger {
 object ControllerTraceLogger {
 
   object NoLogger extends ControllerTraceLogger {
-    override protected def printRequest[A](request: Request[A]): String = ""
+    override protected def printRequest[A](request: Request[A], body: String): String = ""
     override protected def printResponse(response: Result, body: String, contentType: String): String = ""
     // TraceLogger
     override protected def errorInternal(msg: => String, error: => Throwable): Unit = ()
@@ -42,33 +42,12 @@ object ControllerTraceLogger {
       name + ": " + value
     }.mkString("\n")
 
-    override protected def printRequest[A](request: Request[A]): String = {
-      val bodyAsString = request.body match {
-        case null | Unit | AnyContentAsEmpty =>
-          ""
-        case AnyContentAsText(txt) =>
-          txt
-        case AnyContentAsFormUrlEncoded(data) =>
-          (for {
-            (name, values) <- data
-            value <- values
-          } yield name + "=" + value).mkString("\n")
-        case AnyContentAsRaw(raw) =>
-          raw.toString()
-        case AnyContentAsXml(xml) =>
-          xml.map(scala.xml.Utility.trimProper).mkString
-        case AnyContentAsJson(json) =>
-          json.toString()
-        case AnyContentAsMultipartFormData(data) =>
-          data.toString
-        case body =>
-          body.toString
-      }
+    override protected def printRequest[A](request: Request[A], body: String): String = {
       s"""REQUEST:
          |${request.method} ${request.uri}
          |${printHeaders(request.headers.headers)}
          |
-         |$bodyAsString
+         |$body
       """.stripMargin
     }
 

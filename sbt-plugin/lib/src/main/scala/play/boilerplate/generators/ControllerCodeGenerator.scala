@@ -339,7 +339,7 @@ class ControllerCodeGenerator extends CodeGenerator {
             responseVal => generateResponse(operation, responseVal, status, traceCode, body, supportedProduces, BLOCK(
               VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
               VAL(statusValName) := composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON),
-              traceLogResponse(operation, statusValRef, LOG_JSON(responseBodyValRef), getMimeTypeConst(MIME_TYPE_JSON)),
+              traceLogResponse(operation, statusValRef, responseBodyValRef, getMimeTypeConst(MIME_TYPE_JSON)),
               statusValRef
             ))
           )
@@ -350,7 +350,7 @@ class ControllerCodeGenerator extends CodeGenerator {
             responseVal => generateResponse(operation, responseVal, status, traceCode, body, supportedProduces, BLOCK(
               VAL(responseBodyValName) := TYPE_TO_JSON(body)(contentValRef),
               VAL(statusValName) := composeResponseWithMimeType(responseVal, status, MIME_TYPE_JSON),
-              traceLogResponse(operation, statusValRef, LOG_JSON(responseBodyValRef), getMimeTypeConst(MIME_TYPE_JSON)),
+              traceLogResponse(operation, statusValRef, responseBodyValRef, getMimeTypeConst(MIME_TYPE_JSON)),
               statusValRef
             ))
           )
@@ -433,7 +433,7 @@ class ControllerCodeGenerator extends CodeGenerator {
               IF (acceptsMimeType(support.mimeType)) THEN BLOCK(
                 VAL(responseBodyValName) := support.serialize(tpe)(contentValRef),
                 VAL(statusValName) := composeResponseWithMimeType(responseVal, status, support.mimeType),
-                traceLogResponse(operation, statusValRef, support.logContent(responseBodyValRef), getMimeTypeConst(support.mimeType)),
+                traceLogResponse(operation, statusValRef, responseBodyValRef, getMimeTypeConst(support.mimeType)),
                 statusValRef
               ) ELSE {
                 v1

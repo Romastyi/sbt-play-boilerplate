@@ -1,5 +1,6 @@
 package play.boilerplate.api.server.dsl
 
+import play.api.http.Writeable
 import play.api.mvc.AnyContent
 
 object Compat extends AbstractCompat {
@@ -19,5 +20,8 @@ object Compat extends AbstractCompat {
     }
 
   }
+
+  implicit def contentOps[C](implicit wr: Writeable[C]): PrintableContent[C] =
+    PrintableContent(content => wr.transform(content).utf8String)
 
 }
