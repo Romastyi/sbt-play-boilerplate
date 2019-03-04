@@ -24,7 +24,7 @@ This code generator is designed specifically for [Swagger 2.0 specification](htt
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.2.2-SNAPSHOT")`
+`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.2.2")`
 
 Enable it in your `build.sbt` like this:
 
