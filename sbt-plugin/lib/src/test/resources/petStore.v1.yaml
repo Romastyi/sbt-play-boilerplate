@@ -78,6 +78,21 @@ paths:
           type: integer
           format: int32
           default: -1
+        - name: pager.tags
+          in: query
+          required: false
+          type: array
+          items:
+            type: string
+            enum:
+              - tag1
+              - tag2
+        - name: pager.tags2
+          in: query
+          required: false
+          type: array
+          items:
+            $ref: '#/definitions/PetTag'
         - name: X-TraceID
           in: header
           description: TraceID header

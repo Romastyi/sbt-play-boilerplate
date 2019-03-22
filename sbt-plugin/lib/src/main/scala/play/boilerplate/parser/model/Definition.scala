@@ -46,7 +46,7 @@ final case class ArrayDefinition(override val name: String,
   override val baseDef: Definition = items.baseDef
   override val containsLazyRef: Boolean = baseDef.containsLazyRef
   override def modifyName(f: String => String): Definition = {
-    copy(name = f(name))
+    copy(name = f(name), items = if (items.name == name) items.modifyName(f) else items)
   }
   override def resolve(resolver: DefinitionResolver): Definition = {
     copy(items = items.resolve(resolver))
