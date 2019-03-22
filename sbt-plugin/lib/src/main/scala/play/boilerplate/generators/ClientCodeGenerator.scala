@@ -253,15 +253,11 @@ class ClientCodeGenerator extends CodeGenerator {
       )
   }
 
-  case class Method(tree: Tree, implicits: Seq[Tree])
-
-  def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
+  def generateMethod(schema: Schema, path: Path, operation: Operation)(implicit ctx: GeneratorContext): MethodDef = {
 
     val bodyContentType = getBodyContentType(schema, path, operation)
-    val BodyContent(bodyParams, bodyValDef, bodySerialization, bodyAsString) = getBodyContent(path, operation, bodyContentType)
-    val methodParams = bodyParams ++ getMethodParameters(path, operation)
+    val BodyContent(_, bodyValDef, bodySerialization, bodyAsString) = getBodyContent(path, operation, bodyContentType)
     val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
-    val securityParams = actionSecurity.securityParamsDef
 
     val headerParams: Seq[Tree] = getFullParametersList(path, operation).collect {
       case param: HeaderParameter if !isTraceIdHeaderParameter(param) =>
@@ -287,7 +283,6 @@ class ClientCodeGenerator extends CodeGenerator {
       INFIX_CHAIN("++", acceptHeader, REF("_render_header_params") APPLY (headerParams: _*))
     })
 
-    val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
     val httpMethod = operation.httpMethod.toString.toUpperCase
     val opType = httpMethod.toLowerCase
 
@@ -315,46 +310,36 @@ class ClientCodeGenerator extends CodeGenerator {
       selfValRef DOT "onError" APPLY(LIT(operation.operationId), causeValRef)
     )
 
-    val methodTree = methodDefinition(operation.operationId, FUTURE(methodType), methodParams.map(_._2), securityParams.toIndexedSeq)
-      .withFlags(Flags.OVERRIDE) :=
-      BLOCK {
-        locatorValRef DOT "doServiceCall" APPLY(serviceNameValRef, LIT(operation.operationId)) APPLY {
-          LAMBDA(PARAM("uri").tree) ==> BLOCK(filterNonEmptyTree(Seq(
-            tracerValDef,
-            urlValDef,
-            bodyValDef,
-            requestHeadersValDef,
-            VAL("f") := FOR(
-              VALFROM(requestValName) := beforeRequest,
-              VAL(WILDCARD) := traceLoggerValRef DOT "logRequest" APPLY (LIT(operation.operationId), LIT(httpMethod), requestValRef, bodyAsString),
-              VALFROM(responseValName) := requestValRef DOT opType APPLY bodySerialization,
-              VAL(WILDCARD) := traceLoggerValRef DOT "logResponse" APPLY(LIT(operation.operationId), responseValRef),
-              VAL(WILDCARD) := handlerValRef DOT "onSuccess" APPLY(LIT(operation.operationId), responseValRef, credentials),
-              VAL("result") := responses.tree
-            ) YIELD REF("result"),
-            REF("f") DOT "recoverWith" APPLY BLOCK {
-              CASE(causeValRef withType RootClass.newClass("Throwable")) ==> ERROR
-            }
-          )))
+    val methodDef = operationMethodDef(path, operation, FUTURE) {
+      _.withFlags(Flags.OVERRIDE) :=
+        BLOCK {
+          locatorValRef DOT "doServiceCall" APPLY(serviceNameValRef, LIT(operation.operationId)) APPLY {
+            LAMBDA(PARAM("uri").tree) ==> BLOCK(filterNonEmptyTree(Seq(
+              tracerValDef,
+              urlValDef,
+              bodyValDef,
+              requestHeadersValDef,
+              VAL("f") := FOR(
+                VALFROM(requestValName) := beforeRequest,
+                VAL(WILDCARD) := traceLoggerValRef DOT "logRequest" APPLY (LIT(operation.operationId), LIT(httpMethod), requestValRef, bodyAsString),
+                VALFROM(responseValName) := requestValRef DOT opType APPLY bodySerialization,
+                VAL(WILDCARD) := traceLoggerValRef DOT "logResponse" APPLY(LIT(operation.operationId), responseValRef),
+                VAL(WILDCARD) := handlerValRef DOT "onSuccess" APPLY(LIT(operation.operationId), responseValRef, credentials),
+                VAL("result") := responses.tree
+              ) YIELD REF("result"),
+              REF("f") DOT "recoverWith" APPLY BLOCK {
+                CASE(causeValRef withType RootClass.newClass("Throwable")) ==> ERROR
+              }
+            )))
+          }
         }
-      }
+    }
 
-    val paramDocs = methodParams.map(_._2.doc) ++
-      actionSecurity.securityDocs.map { case (param, description) =>
-        DocTag.Param(param, description)
-      }
-    val tree = methodTree.withDoc(
-      Seq(operation.description.getOrElse("") + "\n "),
-      paramDocs: _ *
-    )
-
-    val implicits = methodParams.flatMap(_._2.implicits)
-
-    Method(tree, responses.implicits ++ implicits)
+    methodDef.copy(implicits = responses.implicits ++ methodDef.implicits)
 
   }
 
-  def generateResponses(responseVal: Ident, operation: Operation)(implicit ctx: GeneratorContext): Method = {
+  private def generateResponses(responseVal: Ident, operation: Operation)(implicit ctx: GeneratorContext): MethodDef = {
 
     val responses = operation.responses.toSeq.sortBy {
       case (DefaultResponse, _) => 2
@@ -402,7 +387,7 @@ class ClientCodeGenerator extends CodeGenerator {
       cases.map(_._1) ++ UnexpectedResultCase
     }
 
-    Method(tree, cases.flatMap(_._2))
+    MethodDef(tree = tree, additionalDef = Nil, implicits = cases.flatMap(_._2))
 
   }
 

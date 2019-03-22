@@ -224,6 +224,34 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     if (implicitParams.nonEmpty) start.withParams(implicitParams.map(_.paramDef)) else start
   }
 
+  final case class MethodDef(tree: Tree, additionalDef: Seq[Tree], implicits: Seq[Tree])
+
+  def operationMethodDef(path: Path, operation: Operation, methodType: Type => Type, canBeDeprecated: Boolean = true)
+                        (body: DefTreeStart => DefDef)
+                        (implicit ctx: GeneratorContext): MethodDef = {
+    val methodParams = getBodyParameters(path, operation) ++ getMethodParameters(path, operation)
+    val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
+    val securityParams = actionSecurity.securityParamsDef
+    val methodTree = methodDefinition(
+      operation.operationId,
+      methodType(TYPE_REF(getOperationResponseTraitName(operation.operationId))),
+      methodParams.map(_._2),
+      securityParams.toIndexedSeq
+    ).withAnnots(if (operation.deprecated && canBeDeprecated) List(ANNOT(DeprecatedAttr, LIT(""), LIT(""))) else Nil)
+    val paramDocs = methodParams.map(_._2.doc) ++
+      actionSecurity.securityDocs.map { case (param, description) =>
+        DocTag.Param(param, description)
+      }
+    MethodDef(
+      tree = body(methodTree).withDoc(
+        Seq(operation.description.getOrElse("") + "\n "),
+        paramDocs: _ *
+      ),
+      additionalDef = filterNonEmptyTree(methodParams.flatMap(_._2.additionalDef)),
+      implicits = methodParams.flatMap(_._2.implicits)
+    )
+  }
+
   def getParamImplicits(param: Parameter, support: TypeSupport)(implicit ctx: GeneratorContext): Seq[Tree] = {
     param match {
       case _: PathParameter if ctx.inClient =>

@@ -61,31 +61,8 @@ class ServiceCodeGenerator extends CodeGenerator {
 
   }
 
-  case class Method(tree: Tree, additionalDef: Seq[Tree])
-
-  def generateMethod(path: Path, operation: Operation)(implicit ctx: GeneratorContext): Method = {
-
-    val methodParams = getBodyParameters(path, operation) ++ getMethodParameters(path, operation)
-    val actionSecurity = getSecurityProvider(operation).getActionSecurity(operation.security.toIndexedSeq)
-    val securityParams = actionSecurity.securityParamsDef
-
-    val methodType = TYPE_REF(getOperationResponseTraitName(operation.operationId))
-
-    val methodTree = methodDefinition(operation.operationId, F_OF_TYPE(methodType), methodParams.map(_._2), securityParams.toIndexedSeq).empty
-
-    val paramDocs = methodParams.map(_._2.doc) ++
-      actionSecurity.securityDocs.map { case (param, description) =>
-        DocTag.Param(param, description)
-      }
-    val tree = methodTree.withDoc(
-      Seq(operation.description.getOrElse("") + "\n "),
-      paramDocs: _ *
-    )
-
-    val additionalDef = methodParams.flatMap(_._2.additionalDef)
-
-    Method(tree, filterNonEmptyTree(additionalDef))
-
+  def generateMethod(path: Path, operation: Operation)(implicit ctx: GeneratorContext): MethodDef = {
+    operationMethodDef(path, operation, F_OF_TYPE, canBeDeprecated = false)(_.empty)
   }
 
   def generateResponseClasses(schema: Schema)(implicit ctx: GeneratorContext): Seq[Tree] = {

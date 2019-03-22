@@ -258,6 +258,7 @@ paths:
     post:
       operationId: additional
       description:
+      deprecated: true
       parameters:
         - name: paramsBody
           description:
