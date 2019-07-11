@@ -8,6 +8,8 @@ trait Tracer {
 
 object Tracer {
 
+  val mdcTraceId = "X-TraceId"
+
   def apply(_traceId: String): Tracer = new Tracer {
     override def applyMsg(msg: String): String = "[TraceID " + traceId + "] " + msg
     override val traceId: String = _traceId

@@ -206,6 +206,7 @@ class ControllerCodeGenerator extends CodeGenerator {
         filterNonEmptyTree(Seq(
           VAL("r").withFlags(Flags.IMPLICIT) := requestValRef,
           tracerVal,
+          traceLoggerValRef DOT "putMDC",
           traceLoggerValRef DOT "logRequest" APPLY (LIT(operation.operationId), requestValRef)
         )) ++
           methodValues :+
