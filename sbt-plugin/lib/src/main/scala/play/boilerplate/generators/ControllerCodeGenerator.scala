@@ -201,17 +201,13 @@ class ControllerCodeGenerator extends CodeGenerator {
       formDataParams.map(_._2) ++
       bodyValues.map(_.valDef)
 
-    val BODY_WITH_EXCEPTION_HANDLE =
-      BLOCK {
-        filterNonEmptyTree(Seq(
-          VAL("r").withFlags(Flags.IMPLICIT) := requestValRef,
-          tracerVal,
-          traceLoggerValRef DOT "putMDC",
-          traceLoggerValRef DOT "logRequest" APPLY (LIT(operation.operationId), requestValRef)
-        )) ++
-          methodValues :+
-          ANSWER_WITH_ACCEPT_CHECK
-      }
+    val BODY_WITH_EXCEPTION_HANDLE = BLOCK(Seq(
+      VAL("r").withFlags(Flags.IMPLICIT) := requestValRef,
+      tracerVal,
+      traceLoggerValRef DOT "putMDC" APPLY BLOCK(
+        (traceLoggerValRef DOT "logRequest" APPLY (LIT(operation.operationId), requestValRef)) +: methodValues :+ ANSWER_WITH_ACCEPT_CHECK
+      )
+    ))
 
     val methodTree =
       DEF(methodName, actionType) withParams methodParams.map(_._2.paramDef) := BLOCK {

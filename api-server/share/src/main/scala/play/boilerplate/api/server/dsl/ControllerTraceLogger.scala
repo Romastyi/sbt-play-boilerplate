@@ -5,7 +5,14 @@ import play.boilerplate.api.{TraceLogger, Tracer}
 
 trait ControllerTraceLogger extends TraceLogger {
 
-  def putMDC(implicit tracer: Tracer): Unit = org.slf4j.MDC.put(Tracer.mdcTraceId, tracer.traceId)
+  def putMDC[T](body: => T)(implicit tracer: Tracer): T = {
+    org.slf4j.MDC.put(Tracer.mdcTraceId, tracer.traceId)
+    try {
+      body
+    } finally {
+      org.slf4j.MDC.remove(Tracer.mdcTraceId)
+    }
+  }
 
   private def operationTracer(operationId: String)(implicit tracer: Tracer): Tracer =
     tracer.transform(msg => "[operationId: " + operationId + "] " + msg)
