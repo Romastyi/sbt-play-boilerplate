@@ -1,6 +1,7 @@
 package play.boilerplate.api.client.dsl
 
 import play.api.http.Writeable
+import play.api.libs.ws.WSCookie
 import play.api.mvc.MultipartFormData
 
 object Compat extends AbstractCompat {
@@ -10,6 +11,10 @@ object Compat extends AbstractCompat {
   override type WSResponse = play.api.libs.ws.WSResponse
 
   implicit class WSRequestOps(val request: WSRequest) extends AnyVal {
+    def addCookies(cookies: WSCookie*): WSRequest = {
+      val headers = for (cookie <- cookies) yield "Cookie" -> cookie.toString
+      addHttpHeaders(headers: _ *)
+    }
     def addHttpHeaders(headers: (String, String)*): WSRequest = request.withHeaders(headers: _ *)
   }
 

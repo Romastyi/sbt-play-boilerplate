@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
+import play.api.libs.ws.WSCookie
 import play.api.mvc.MultipartFormData
 
 import scala.concurrent.Future
@@ -15,6 +16,10 @@ object Compat extends AbstractCompat {
   override type WSResponse = play.api.libs.ws.WSResponse
 
   implicit class WSRequestOps(val request: WSRequest) extends AnyVal {
+    def addCookies(cookies: WSCookie*): WSRequest = {
+      val headers = for (cookie <- cookies) yield "Cookie" -> cookie.toString
+      addHttpHeaders(headers: _ *)
+    }
     def addHttpHeaders(headers: (String, String)*): WSRequest = request.withHeaders(headers: _ *)
   }
 
