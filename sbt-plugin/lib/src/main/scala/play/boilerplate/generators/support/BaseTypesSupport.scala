@@ -12,6 +12,7 @@ trait BaseTypesSupport {
   private lazy val LocalDateClass      = definitions.getClass("java.time.LocalDate")
   private lazy val UUIDClass           = definitions.getClass("java.util.UUID")
   private lazy val FileClass           = definitions.getClass("java.io.File")
+  private lazy val JsValueClass        = definitions.getClass("play.api.libs.json.JsValue")
 
   def getSimpleTypeSupport(definition: SimpleDefinition): TypeSupport = {
     definition match {
@@ -39,6 +40,8 @@ trait BaseTypesSupport {
         getUUIDSupport(uuid)
       case file: FileDefinition =>
         getFileSupport(file)
+      case untyped: UntypedDefinition =>
+        getUntypedSupport(untyped)
     }
   }
 
@@ -88,6 +91,10 @@ trait BaseTypesSupport {
 
   def getFileSupport(file: FileDefinition): TypeSupport = {
     TypeSupport(FileClass, FileClass, Nil)
+  }
+
+  def getUntypedSupport(untyped: UntypedDefinition): TypeSupport = {
+    TypeSupport(JsValueClass, JsValueClass, Nil)
   }
 
 }

@@ -13,6 +13,7 @@ definitions:
     required:
       - id
       - jsObj
+      - jsValue
     properties:
       id:
         type: integer
@@ -23,5 +24,9 @@ definitions:
         type: object
       jsObjRef:
         $ref: '#/definitions/EmptyObject'
+      jsValue:
+        description: Value without specific type (JsValue)
+      jsValueOpt:
+        description: Value without specific type (JsValue)
   EmptyObject:
     type: object

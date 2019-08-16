@@ -226,6 +226,11 @@ trait PropertyParser { this: ReferenceParser =>
         )
       case prop: RefProperty =>
         findReferenceDef(schema, prop.get$ref())
+      case prop: UntypedProperty =>
+        UntypedDefinition(
+          name = Option(prop.getName).getOrElse(propertyName),
+          description = Option(prop.getDescription),
+        )
       case prop =>
         throw ParserException(s"Unsupported property type (${prop.getClass.getName}).")
     }

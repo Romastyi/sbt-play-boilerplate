@@ -282,6 +282,13 @@ sealed trait SimpleDefinition { this: Definition =>
   override val containsLazyRef: Boolean = false
 }
 
+final case class UntypedDefinition(override val name: String,
+                                   override val description: Option[String]) extends Definition with SimpleDefinition {
+  override def modifyName(f: String => String): Definition = {
+    copy(name = f(name))
+  }
+}
+
 final case class StringDefinition(override val name: String,
                                   override val title: Option[String],
                                   override val description: Option[String],
