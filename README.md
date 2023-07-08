@@ -1,3 +1,5 @@
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.romastyi/sbt-play-boilerplate-plugin/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.romastyi/sbt-play-boilerplate-plugin)
+
 # SBT plugin for Scala code generation for Play! Framework using Swagger 2.0 specs 
 
 ## N.B.
@@ -24,7 +26,7 @@ This code generator is designed specifically for [Swagger 2.0 specification](htt
 
 Enable it inside your `project\plugins.sbt` like this:
 
-`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "0.2.2")`
+`addSbtPlugin("com.github.romastyi" % "sbt-play-boilerplate" % "latest version in badge")`
 
 Enable it in your `build.sbt` like this:
 
