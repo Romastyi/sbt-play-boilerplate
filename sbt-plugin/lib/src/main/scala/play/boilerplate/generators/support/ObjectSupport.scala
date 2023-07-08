@@ -177,12 +177,21 @@ trait ObjectSupport { this: DefinitionsSupport =>
     }
   }
 
+  private def jsonReadsWithItemsConstraints(basicReads: TypeApply, itemsConstraints: Seq[Constraint], tpe: Type): Tree = {
+    val constraints = filterNonEmptyTree(itemsConstraints.map(getReadsConstraint(_, tpe)))
+    if (constraints.nonEmpty) {
+      basicReads APPLY INFIX_CHAIN("keepAnd", constraints)
+    } else {
+      EmptyTree
+    }
+  }
+
   def getReadsConstraint(constraint: Constraint, noOptType: Type): Tree = {
     constraint match {
       case ListConstraint(constraints, tpe) if constraints.nonEmpty =>
-        REF("Reads") DOT "list" APPLYTYPE tpe APPLY INFIX_CHAIN("keepAnd", constraints.map(getReadsConstraint(_, tpe)))
+        jsonReadsWithItemsConstraints(REF("Reads") DOT "list" APPLYTYPE tpe, constraints, tpe)
       case MapConstraint(constraints, tpe) if constraints.nonEmpty =>
-        REF("Reads") DOT "map" APPLYTYPE tpe APPLY INFIX_CHAIN("keepAnd", constraints.map(getReadsConstraint(_, tpe)))
+        jsonReadsWithItemsConstraints(REF("Reads") DOT "map" APPLYTYPE tpe, constraints, tpe)
       case Maximum(value) =>
         REF("Reads") DOT "max" APPLYTYPE noOptType APPLY LIT(value)
       case Minimum(value) =>
