@@ -19,6 +19,8 @@ esac
 
 echo "Artifacts will be published with '$PUBLISH_COMMAND' command."
 
+set -x
+
 sbt "project lib" "+ $PUBLISH_COMMAND"
 
 sbt "project plugin" "^ $PUBLISH_COMMAND"

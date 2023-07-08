@@ -1,3 +1,4 @@
+[![Sonatype Nexus (Snapshots)](https://img.shields.io/nexus/s/com.github.romastyi/sbt-play-boilerplate-lib_2.12?server=https%3A%2F%2Foss.sonatype.org)](https://oss.sonatype.org/content/repositories/snapshots/com/github/romastyi/sbt-play-boilerplate-plugin_2.12_1.0/)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.romastyi/sbt-play-boilerplate-plugin/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.romastyi/sbt-play-boilerplate-plugin)
 
 # SBT plugin for Scala code generation for Play! Framework using Swagger 2.0 specs 
