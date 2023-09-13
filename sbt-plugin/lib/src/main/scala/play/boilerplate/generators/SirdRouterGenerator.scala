@@ -236,12 +236,11 @@ case class SirdRouterGenerator(prefix: String = "/") extends CodeGenerator {
         val valDef = VAL(valName) := REF(extractorName) APPLY LIT(paramName)
         QueryInterp(valDef, REF(valName) UNAPPLY REF(paramName), Some(extractor))
       case None =>
-        param.ref match {
-          case _: OptionDefinition =>
-            QueryInterp(EmptyTree, interpolated("q_?", paramBaseInterp(paramName, param.baseDef)), None)
-          case _ =>
-            QueryInterp(EmptyTree, interpolated("q", paramBaseInterp(paramName, param)), None)
+        val symbol = param.ref match {
+          case _: OptionDefinition => "q_?"
+          case _ => "q"
         }
+        QueryInterp(EmptyTree, interpolated(symbol, paramBaseInterp(paramName, param.baseDef)), None)
     }
 
   }
