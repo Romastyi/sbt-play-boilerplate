@@ -389,11 +389,7 @@ trait ObjectSupport { this: DefinitionsSupport =>
     )
 
     val propertiesDefs = if (withPropertiesDefs) {
-      properties.flatMap(_.support.defs)
-        .groupBy(_.symbol.nameString)
-        .mapValues(_.head)
-        .values
-        .toSeq
+      TypeSupportDefs.uniqueWithSameOrder(properties.flatMap(_.support.defs))
     } else Nil
 
     propertiesDefs :+ objectDefs

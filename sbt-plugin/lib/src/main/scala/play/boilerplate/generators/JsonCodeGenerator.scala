@@ -1,5 +1,6 @@
 package play.boilerplate.generators
 
+import play.boilerplate.generators.support.TypeSupportDefs
 import play.boilerplate.parser.model._
 
 class JsonCodeGenerator extends CodeGenerator {
@@ -10,13 +11,16 @@ class JsonCodeGenerator extends CodeGenerator {
 
   override def generate(schema: Schema)(implicit ctx: GeneratorContext): Iterable[CodeFile] = {
 
-    val methods: Iterable[Tree] = schema.definitions.values
-      .flatMap { model =>
-        GeneratorUtils.getTypeSupport(model.ref)(ctx.setCurrentModel(Some(model))).defs
-      }
-      .groupBy(_.symbol.nameString)
-      .mapValues(defs => filterNonEmptyTree(Seq(defs.head.jsonReads, defs.head.jsonWrites)))
-      .values.flatten
+    val definitions = TypeSupportDefs.uniqueWithSameOrder(
+      schema.definitions.values
+        .flatMap { model =>
+          GeneratorUtils.getTypeSupport(model.ref)(ctx.setCurrentModel(Some(model))).defs
+        }
+        .toSeq
+    )
+    val methods: Iterable[Tree] = definitions.flatMap {
+      definition => filterNonEmptyTree(Seq(definition.jsonReads, definition.jsonWrites))
+    }
 
     val imports = BLOCK(
       IMPORT(REF(ctx.settings.modelPackageName), "_"),
