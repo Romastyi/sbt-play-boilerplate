@@ -215,7 +215,8 @@ object GeneratorUtils extends StringUtils with DefinitionsSupport {
     }
     val fullQualified = PARAM(paramName, support.fullQualified).empty
     val doc = DocTag.Param(paramName, param.description.getOrElse(""))
-    paramName -> MethodParam(valDef, fullQualified, support.definitions, getParamImplicits(param, support), defaultValue.map(support.constructor.apply), isOptional(param), isImplicit = false, doc)
+    val implicits = getParamImplicits(param, support)
+    paramName -> MethodParam(valDef, fullQualified, support.definitions, implicits, defaultValue.map(support.constructor.apply), isOptional(param), isImplicit = false, doc)
   }
 
   def methodDefinition(methodName: String, methodType: Type, methodParams: Seq[MethodParam], securityParams: Seq[ValDef]): DefTreeStart = {
