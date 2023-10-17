@@ -128,8 +128,6 @@ def clientApiProject(suffix: String): Project = {
     .dependsOn(`api-client-core`)
 }
 
-lazy val `api-client-play24` = clientApiProject("play24")
-  .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.4.11" % "provided")
 lazy val `api-client-play25` = clientApiProject("play25")
   .settings(libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.5.18" % "provided")
 lazy val `api-client-play26` = clientApiProject("play26")
@@ -164,8 +162,6 @@ def serverApiProject(suffix: String, playVersion: String): Project = {
     )
 }
 
-lazy val `api-server-play24` = serverApiProject("play24", "2.4.11")
-  .dependsOn(`api-client-play24`)
 lazy val `api-server-play25` = serverApiProject("play25", "2.5.18")
   .dependsOn(`api-client-play25`)
 lazy val `api-server-play26` = serverApiProject("play26", "2.6.21" )
@@ -204,7 +200,6 @@ def scaldiPlayProject(suffix: String, playVersion: String): Project = {
     )
 }
 
-lazy val `api-scaldi-play24` = scaldiPlayProject("play24", "2.4.11")
 lazy val `api-scaldi-play25` = scaldiPlayProject("play25", "2.5.18")
 lazy val `api-scaldi-play26` = scaldiPlayProject("play26", "2.6.21" )
   .settings(crossScalaVersions := List("2.11.12", "2.12.4"))
@@ -220,9 +215,9 @@ lazy val root = Project("sbt-play-boilerplate", file("."))
   .aggregate(
     lib, plugin,
     `api-client-core`, `api-client-consul`,
-    `api-client-play24`, `api-client-play25`, `api-client-play26`, `api-client-play27`,
-    `api-server-play24`, `api-server-play25`, `api-server-play26`, `api-server-play27`,
-    `api-scaldi-play24`, `api-scaldi-play25`, `api-scaldi-play26`, `api-scaldi-play27`
+    `api-client-play25`, `api-client-play26`, `api-client-play27`,
+    `api-server-play25`, `api-server-play26`, `api-server-play27`,
+    `api-scaldi-play25`, `api-scaldi-play26`, `api-scaldi-play27`
   )
 
 publishArtifact := false
