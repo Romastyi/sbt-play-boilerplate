@@ -16,10 +16,10 @@ def PluginVersion(organization: String,
     """|package play.boilerplate.core
        |
        |object PluginVersion {
-       |  val organization = "%s"
-       |  val current = "%s"
-       |  val scalaVersion = "%s"
-       |  val sbtVersion = "%s"
+       |  val organization: String = "%s"
+       |  val current: String = "%s"
+       |  val scalaVersion: String = "%s"
+       |  val sbtVersion: String = "%s"
        |}
        |""".stripMargin
       .format(
@@ -38,7 +38,7 @@ def PluginVersion(organization: String,
 
 lazy val common = Seq(
   organization := "com.github.romastyi",
-  version := "0.2.7",
+  version := "0.3.0-SNAPSHOT",
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
